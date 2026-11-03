@@ -1,0 +1,84 @@
+{
+  "note": "Recorded assistant answer (agent.v1.0, Opus) for the walk-in of 8 at 19:10 on dinner-peak, so the scenario URL opens with no live model call.",
+  "message": "Party of 8 just walked in — where, and how soon?",
+  "response": {
+    "traceId": "6232fe9f-c395-433e-a550-a46066167be9",
+    "promptVersion": "agent.v1.0",
+    "model": "claude-opus-5-5",
+    "answer": "Fastest option is T41, which seats 8 as it is. It should be free in about 11 min (check stage: ~6 min left + 5 min reset), but section 7 is already slammed. If you'd rather give section 7 a break, T7–T10 or T11+T12 in section 2 should be free in about 20 min, but either one needs a build. T81 is held for a 20:15 reservation.",
+    "clarifyingQuestion": null,
+    "recommendations": [
+      {
+        "rank": 1,
+        "tables": ["T41"],
+        "seats": 8,
+        "waitMin": 11,
+        "reasoning": "Seats exactly 8 with no build and has the shortest wait: ~6 min left at check + 5 min reset.",
+        "tradeoffs": ["Section 7 already has 2 tables sat in the last few minutes"]
+      },
+      {
+        "rank": 2,
+        "tables": ["T7", "T8", "T9", "T10"],
+        "seats": 8,
+        "waitMin": 20,
+        "reasoning": "Seats exactly 8 in section 2, which hasn't sat any tables in the last few minutes. Should be free in about 20 min (dessert: ~15 min left + 5 min reset).",
+        "tradeoffs": ["Someone needs to push tables 7–10 together"]
+      },
+      {
+        "rank": 3,
+        "tables": ["T11", "T12"],
+        "seats": 8,
+        "waitMin": 20,
+        "reasoning": "Seats 8 in quiet section 2. Should be free in about 20 min (T12 at dessert: ~15 min left + 5 min reset).",
+        "tradeoffs": [
+          "Someone needs to push T11 and T12 together",
+          "Needs 2 extra chairs from storage, so seating will be tight"
+        ]
+      }
+    ],
+    "toolCalls": [
+      {
+        "name": "find_tables_for_party",
+        "ok": true
+      }
+    ],
+    "validator": {
+      "rejects": 0,
+      "notes": []
+    },
+    "metrics": {
+      "costUsd": 0.0309778,
+      "latencyMs": 7120,
+      "toolTurns": 1,
+      "validatorRejects": 0,
+      "calls": [
+        {
+          "traceId": "6232fe9f-c395-433e-a550-a46066167be9",
+          "role": "agent",
+          "model": "claude-opus-5-5",
+          "promptVersion": "agent.v1.0",
+          "inputTokens": 4,
+          "outputTokens": 77,
+          "cacheReadTokens": 0,
+          "cacheWriteTokens": 2894,
+          "costUsd": 0.016026,
+          "latencyMs": 2360,
+          "stopReason": "tool_use"
+        },
+        {
+          "traceId": "6232fe9f-c395-433e-a550-a46066167be9",
+          "role": "agent",
+          "model": "claude-opus-5-5",
+          "promptVersion": "agent.v1.0",
+          "inputTokens": 2,
+          "outputTokens": 533,
+          "cacheReadTokens": 2894,
+          "cacheWriteTokens": 741,
+          "costUsd": 0.0149518,
+          "latencyMs": 4729,
+          "stopReason": "end_turn"
+        }
+      ]
+    }
+  }
+}

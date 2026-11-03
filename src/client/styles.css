@@ -3189,3 +3189,54 @@ button,
   flex: 1;
   min-height: 44px;
 }
+
+/* Scenario menu (update #10): named demo states behind stable URLs */
+.scenario-menu {
+  position: relative;
+}
+.scenario-menu summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  border: 1px solid var(--btn-border);
+  border-radius: var(--radius);
+  background: var(--btn-bg);
+  list-style: none;
+}
+.scenario-menu summary::-webkit-details-marker {
+  display: none;
+}
+.scenario-menu ul {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 50;
+  width: min(420px, calc(100vw - 32px));
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+.scenario-menu a {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+}
+.scenario-menu a:hover,
+.scenario-menu a[aria-current="page"] {
+  background: var(--surface-2);
+}
+.scenario-n {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+}

@@ -4,6 +4,7 @@ import { EvalsPage } from "./EvalsPage/EvalsPage";
 import { Link } from "./Link";
 import { PlannerPage } from "./PlannerPage";
 import { usePath } from "./lib/router";
+import { ScenarioMenu } from "./ScenarioMenu";
 import { ThemeToggle } from "./ThemeToggle";
 
 export function App() {
@@ -19,6 +20,7 @@ export function App() {
           <Link href="/activity">Activity</Link>
           <Link href="/evals">Evals</Link>
         </nav>
+        <ScenarioMenu />
         <ThemeToggle />
       </header>
       <main>
