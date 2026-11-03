@@ -4,11 +4,13 @@ import bookFriJson from "../../fixtures/rooms/book-fri.json";
 import { planBuilds } from "./buildplan";
 import {
   baseConstraints,
+  changeDelta,
   changeList,
   chatTurnProblems,
   checkAdjusted,
   mergeTurn,
   tablesInRange,
+  timesIn,
   type ChatTurnOutput,
 } from "./requestChat";
 import { parseRequestBook, type GuestRequest } from "./requests";
@@ -117,5 +119,32 @@ describe("checkAdjusted (the planner re-runs)", () => {
     const none = planBuilds(room, "17:00", "22:00", { onlyTables: { [first.reservationId]: [] } });
     expect(none.builds.map((b) => b.reservationId)).not.toContain(first.reservationId);
     expect(none.unplaced.map((u) => u.reservationId)).toEqual([first.reservationId]);
+  });
+});
+
+describe("timesIn (a time must be written as a time)", () => {
+  it("reads clock times and ignores other numbers", () => {
+    const has = (t: string, hhmm: string) => {
+      const [h, m] = hhmm.split(":").map(Number) as [number, number];
+      return timesIn(t).has(h * 60 + m);
+    };
+    expect(has("can we push it to 19:00?", "19:00")).toBe(true);
+    expect(has("push it to 7:30pm", "19:30")).toBe(true);
+    expect(has("7pm works", "19:00")).toBe(true);
+    expect(has("push it to 1900", "19:00")).toBe(true);
+    expect(has("move it to 19", "19:00")).toBe(true);
+    expect(has("push it to 19", "19:45")).toBe(false);
+    expect(has("party of 7 now", "19:00")).toBe(false);
+    expect(chatTurnProblems({ ...none, time: "19:00" }, "party of 7 now")).toContain(
+      "time isn't one the manager typed",
+    );
+  });
+});
+
+describe("changeDelta", () => {
+  it("lists only what one turn changed", () => {
+    const before = { ...baseConstraints(q2), tableRange: { from: 30, to: 50 } };
+    const after = mergeTurn(before, { ...none, partySize: 26 });
+    expect(changeDelta(q2, before, after)).toEqual(["party of 26"]);
   });
 });
