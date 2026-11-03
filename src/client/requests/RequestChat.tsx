@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   baseConstraints,
+  changeDelta,
   changeList,
   type AdjustedFit,
   type ChatConstraints,
@@ -52,7 +53,7 @@ export function RequestChat({
       r.id,
       pending.id,
       clarify && !changeList(r, c).length ? `Question: ${clarify}` : result.line,
-      changeList(r, c),
+      changeDelta(r, pending.before ?? baseConstraints(r), c),
     );
   }, [pending, result, r, c]);
 
@@ -74,6 +75,47 @@ export function RequestChat({
         Changes apply to this request only. The AI turns a message into the same settings as the
         controls below; the planner picks the tables.
       </p>
+
+      <ol className="chat-log" aria-label="Request chat" aria-live="polite">
+        {turns.map((t) => (
+          <li key={t.id}>
+            <p className="chat-me">{t.message}</p>
+            <p className={`chat-out small${t.status === "error" ? " warn-text" : ""}`}>
+              {t.status === "loading" || t.outcome === undefined
+                ? "Checking the plan…"
+                : `${t.changed?.length ? `${listAnd(t.changed)} → ` : ""}${t.outcome}`}
+              {t.result && (
+                <span className="muted">
+                  {" "}
+                  · {t.result.model} · ${t.result.metrics.costUsd.toFixed(4)}
+                </span>
+              )}
+            </p>
+          </li>
+        ))}
+      </ol>
+      <form
+        className="chat-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          send();
+        }}
+      >
+        <label className="sr-only" htmlFor={`chat-${r.id}`}>
+          Message about this request
+        </label>
+        <input
+          id={`chat-${r.id}`}
+          type="text"
+          maxLength={300}
+          value={text}
+          placeholder={`e.g. "${EXAMPLES[turns.length % EXAMPLES.length]}"`}
+          onChange={(e) => setText(e.target.value)}
+        />
+        <button type="submit" disabled={busy || !text.trim()}>
+          {busy ? "Checking…" : "Send"}
+        </button>
+      </form>
 
       <div className="adjust-grid small">
         <label>
@@ -166,7 +208,7 @@ export function RequestChat({
       {changed.length > 0 && (
         <p className="small">
           <span className="muted">Changed: </span>
-          {changed.join(" · ")}{" "}
+          {changed.join(" · ")} ·{" "}
           <button
             type="button"
             className="link-btn"
@@ -176,47 +218,6 @@ export function RequestChat({
           </button>
         </p>
       )}
-
-      <ol className="chat-log" aria-label="Request chat" aria-live="polite">
-        {turns.map((t) => (
-          <li key={t.id}>
-            <p className="chat-me">{t.message}</p>
-            <p className={`chat-out small${t.status === "error" ? " warn-text" : ""}`}>
-              {t.status === "loading" || t.outcome === undefined
-                ? "Checking the plan…"
-                : `${t.changed?.length ? `${listAnd(t.changed)} → ` : ""}${t.outcome}`}
-              {t.result && (
-                <span className="muted">
-                  {" "}
-                  · {t.result.model} · ${t.result.metrics.costUsd.toFixed(4)}
-                </span>
-              )}
-            </p>
-          </li>
-        ))}
-      </ol>
-      <form
-        className="chat-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          send();
-        }}
-      >
-        <label className="sr-only" htmlFor={`chat-${r.id}`}>
-          Message about this request
-        </label>
-        <input
-          id={`chat-${r.id}`}
-          type="text"
-          maxLength={300}
-          value={text}
-          placeholder={`e.g. "${EXAMPLES[turns.length % EXAMPLES.length]}"`}
-          onChange={(e) => setText(e.target.value)}
-        />
-        <button type="submit" disabled={busy || !text.trim()}>
-          {busy ? "Checking…" : "Send"}
-        </button>
-      </form>
     </section>
   );
 }

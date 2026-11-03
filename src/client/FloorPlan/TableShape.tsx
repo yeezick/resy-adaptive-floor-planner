@@ -199,7 +199,7 @@ function Elapsed({ table: t, phase }: { table: Table; phase: string | null }) {
         </tspan>
       )}
       <tspan x={x} dy={phase ? font * 1.1 : 0}>
-        {m}m est.
+        ~{m}m
       </tspan>
     </text>
   );

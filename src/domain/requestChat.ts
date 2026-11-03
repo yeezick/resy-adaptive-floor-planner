@@ -48,7 +48,44 @@ export const ChatTurnOutput = z
 export type ChatTurnOutput = z.infer<typeof ChatTurnOutput>;
 
 const numbersIn = (text: string): Set<number> =>
-  new Set([...text.matchAll(/\d{1,3}/g)].map((m) => Number(m[0])));
+  new Set([...text.matchAll(/\d+/g)].map((m) => Number(m[0])));
+
+/**
+ * Clock times written in the message, as minutes of the day: "19:00", "7:30pm", "7pm", "1900", "at 7", or a bare
+ * evening hour ("19"). A number that isn't written as a time ("party of 7") doesn't count.
+ */
+export function timesIn(text: string): Set<number> {
+  const out = new Set<number>();
+  const add = (h: number, m: number) => {
+    if (h >= 0 && h < 24 && m >= 0 && m < 60) out.add(h * 60 + m);
+  };
+  const t = text.toLowerCase();
+  for (const x of t.matchAll(/\b(\d{1,2}):(\d{2})\s*(am|pm|a\.m\.|p\.m\.)?/g)) {
+    const h = Number(x[1]);
+    const m = Number(x[2]);
+    if (x[3]?.startsWith("p") && h < 12) add(h + 12, m);
+    else if (x[3]) add(h % 12, m);
+    else {
+      add(h, m);
+      if (h < 12) add(h + 12, m);
+    }
+  }
+  for (const x of t.matchAll(/\b(\d{1,2})\s*(am|pm|a\.m\.|p\.m\.|o'clock)/g)) {
+    const h = Number(x[1]);
+    add(x[2]?.startsWith("p") || (x[2] === "o'clock" && h < 12) ? (h % 12) + 12 : h % 12, 0);
+  }
+  for (const x of t.matchAll(/\b([01]?\d|2[0-3])([0-5]\d)\b/g))
+    if ((x[0] ?? "").length >= 3) add(Number(x[1]), Number(x[2]));
+  for (const x of t.matchAll(
+    /\b(?:at|to|for|around|by)\s+(\d{1,2})\b(?!\s*(?:people|guests|of|more|seats|tables?))/g,
+  )) {
+    const h = Number(x[1]);
+    add(h, 0);
+    if (h < 12) add(h + 12, 0);
+  }
+  for (const x of t.matchAll(/\b(1[7-9]|2[0-2])\b/g)) add(Number(x[1]), 0);
+  return out;
+}
 
 /**
  * Problems that make a turn unusable (empty = valid). Solver-first: every number the model sets must be in the
@@ -71,8 +108,7 @@ export function chatTurnProblems(out: ChatTurnOutput, message: string): string[]
       const m = toMinutes(out.time);
       if (m < toMinutes(SERVICE.from) || m > toMinutes(SERVICE.to))
         problems.push(`time is outside service (${SERVICE.from}–${SERVICE.to})`);
-      const h = Math.floor(m / 60);
-      if (!nums.has(h) && !nums.has(h - 12)) problems.push("time isn't one the manager typed");
+      if (!timesIn(message).has(m)) problems.push("time isn't one the manager typed");
     }
   }
   const words = [...out.notes, out.clarify ?? ""].join(" \n ");
@@ -124,6 +160,16 @@ export function tablesInRange(room: Room, range: TableRange): string[] {
 }
 
 export const rangeLabel = (r: TableRange) => `in tables ${r.from}–${r.to}`;
+
+/** What one turn changed: the change-list entries after it that weren't there before it. */
+export function changeDelta(
+  r: GuestRequest,
+  before: ChatConstraints,
+  after: ChatConstraints,
+): string[] {
+  const had = new Set(changeList(r, before));
+  return changeList(r, after).filter((x) => !had.has(x));
+}
 
 /** What changed versus the guest's request, for the card and the activity log ("party 26", "19:00"). */
 export function changeList(r: GuestRequest, c: ChatConstraints): string[] {
@@ -182,8 +228,8 @@ export function checkAdjusted(room: Room, r: GuestRequest, c: ChatConstraints): 
     request: req,
     fit,
     closest,
-    line: `No capacity fit ${range ? rangeLabel(range) : ""}${range ? " " : ""}for ${req.partySize} at ${req.time}.${
+    line: `No capacity fit ${range ? `${rangeLabel(range)} ` : ""}for ${req.partySize} at ${req.time}.${
       closest ? ` Closest: ${closest}.` : ""
-    }`.replace(/\s+/g, " "),
+    }`,
   };
 }

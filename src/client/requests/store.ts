@@ -45,6 +45,8 @@ export interface ChatTurn {
   outcome?: string;
   /** What the turn changed ("tables 30–50", "party of 26"). */
   changed?: string[];
+  /** The constraints just before this turn (to show what this turn alone changed). */
+  before?: ChatConstraints;
 }
 
 export interface RequestsState {
@@ -171,6 +173,7 @@ async function applyScenario(book: RequestBook): Promise<void> {
             at,
             message: RECORDED_CHAT.message,
             status: "ok",
+            before: baseConstraints(r),
             result: RECORDED_CHAT.result,
           },
         ],
@@ -254,7 +257,13 @@ export const requestsActions = {
   async sendChat(r: GuestRequest, message: string) {
     const id = `turn-${++seq}`;
     const current = state.adjust[r.id] ?? baseConstraints(r);
-    const turn: ChatTurn = { id, at: new Date().toISOString(), message, status: "loading" };
+    const turn: ChatTurn = {
+      id,
+      at: new Date().toISOString(),
+      message,
+      status: "loading",
+      before: current,
+    };
     const put = (t: ChatTurn) =>
       set({
         chat: {

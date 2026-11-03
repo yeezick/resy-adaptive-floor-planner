@@ -175,6 +175,11 @@ export const BAD_ANSWERS: { case: string; message: string; output: Output }[] = 
     message: "confirm it",
     output: { ...NONE, clarify: "Booked — anything else?" },
   },
+  {
+    case: "time-from-a-headcount",
+    message: "party of 7 now",
+    output: { ...NONE, time: "19:00" },
+  },
   { case: "empty", message: "hmm", output: NONE },
 ];
 

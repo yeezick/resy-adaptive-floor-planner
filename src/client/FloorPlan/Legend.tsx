@@ -85,6 +85,7 @@ export function PhaseStrip() {
       <span className="phase-strip-arrow" aria-hidden="true">
         just sat → about to leave
       </span>
+      <span className="phase-strip-arrow">~45m = time since seated (est.)</span>
     </div>
   );
 }

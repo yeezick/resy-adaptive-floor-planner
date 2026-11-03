@@ -3146,6 +3146,7 @@ button,
   gap: 8px;
 }
 .adjust-grid label {
+  white-space: nowrap;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -3195,6 +3196,7 @@ button,
   position: relative;
 }
 .scenario-menu summary {
+  gap: 6px;
   cursor: pointer;
   min-height: 44px;
   display: flex;
