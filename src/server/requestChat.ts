@@ -12,7 +12,7 @@ import { hashText, logCall } from "./log";
 import { callMetrics } from "./metrics";
 import { reservationUsd } from "./pricing";
 import { parsePrompt, type LoadedPrompt } from "./agent/prompt";
-import type { CreateMessage } from "./agent/loop";
+import { asData, type CreateMessage } from "./agent/loop";
 import { toStrictJsonSchema } from "./agent/schemas";
 
 let cachedPrompt: LoadedPrompt | undefined;
@@ -69,7 +69,7 @@ function userMessage(b: RequestChatBody): string {
     c.notes.length ? `Crew notes so far: ${c.notes.join(", ")}` : null,
   ].filter(Boolean);
   // Every fact above comes from the client, so it sits inside data tags like the message itself.
-  return `<request>\n${facts.join("\n")}\n</request>\n\n<message>\n${b.message}\n</message>`;
+  return `<request>\n${asData(facts.join("\n"))}\n</request>\n\n<message>\n${asData(b.message)}\n</message>`;
 }
 
 function parseOutput(text: string): ChatTurnOutput | null {
