@@ -767,7 +767,8 @@ h3.section-title {
   border-radius: 0 6px 6px 0;
 }
 .floor-scroll {
-  --floor-h: max(440px, calc(100vh - 230px));
+  /* leaves room for the covers timeline under the floor on a 820–900 px tall screen */
+  --floor-h: max(400px, calc(100vh - 390px));
   max-height: var(--floor-h);
   overflow: hidden;
   border-radius: 6px;
@@ -1495,6 +1496,7 @@ table.data .num {
 }
 .rail-toggle {
   flex: 1;
+  min-height: 44px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2922,4 +2924,18 @@ h2 .proposed-tag {
 .crew li.is-focus {
   box-shadow: inset 3px 0 0 var(--accent);
   background: var(--accent-soft);
+}
+
+/* 44 pt targets for small text controls on touch screens */
+@media (pointer: coarse), (max-width: 1280px) {
+  .panel-head .link-btn,
+  details > summary,
+  .link-btn.small {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+.req-lines span {
+  -webkit-line-clamp: 1;
 }

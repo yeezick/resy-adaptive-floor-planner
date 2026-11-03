@@ -90,7 +90,7 @@ export function ActivityPage() {
         <div className="totals activity-counts" aria-label="This week">
           <Count label="Requests this week" value={counts.requests} />
           <Count label="Accepted" value={counts.accepted} />
-          <Count label="Declined · fit" value={counts.declined.fit} warn />
+          <Count label="Declined · fit" value={counts.declined.fit} />
           <Count label="Declined · policy" value={counts.declined.policy} />
           <Count label="Declined · other" value={counts.declined.other} />
           <Count label="Pending" value={counts.pending} />

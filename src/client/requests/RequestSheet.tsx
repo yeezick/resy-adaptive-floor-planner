@@ -20,7 +20,7 @@ import {
 } from "./store";
 
 export const SOURCE_LABEL: Record<GuestRequest["source"], string> = {
-  "guest-form": "Guest web form",
+  "guest-form": "Web form",
   "ai-agent": "AI agent",
 };
 
