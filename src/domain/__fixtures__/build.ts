@@ -1,4 +1,5 @@
-// Test-only helpers: tiny hand-built rooms plus the two shared fixtures.
+// Test-only helpers: tiny hand-built rooms plus the shared fixtures.
+import demoNightJson from "../../../fixtures/rooms/demo-night.json";
 import dinnerPeakJson from "../../../fixtures/rooms/dinner-peak.json";
 import heavySaturdayJson from "../../../fixtures/rooms/heavy-saturday.json";
 import nextDayJson from "../../../fixtures/rooms/next-day.json";
@@ -85,4 +86,5 @@ export function ids(from: number, to: number): string[] {
 export const dinnerPeak = (): Room => parseRoom(structuredClone(dinnerPeakJson));
 export const nextDay = (): Room => parseRoom(structuredClone(nextDayJson));
 export const heavySaturday = (): Room => parseRoom(structuredClone(heavySaturdayJson));
+export const demoNight = (): Room => parseRoom(structuredClone(demoNightJson));
 export const rawDinnerPeak = (): unknown => structuredClone(dinnerPeakJson);
