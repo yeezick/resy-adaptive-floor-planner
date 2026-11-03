@@ -16,17 +16,17 @@ import { SOURCE_LABEL as REQUEST_SOURCE } from "../../domain/requests";
 const KIND_LABEL: Record<ActivityKind, string> = {
   request: "Request triage",
   escalation: "Escalated to a person",
-  "assistant-question": "Assistant question",
+  "assistant-question": "AI Planner question",
   recommendation: "Recommendation",
-  "assistant-answer": "Assistant answer",
+  "assistant-answer": "AI Planner answer",
   refusal: "Refusal",
-  "request-chat": "Request chat",
+  "request-chat": "AI Planner chat",
 };
-const SOURCE_LABEL = { ...REQUEST_SOURCE, host: "Host (assistant)" } as const;
+const SOURCE_LABEL = { ...REQUEST_SOURCE, host: "Host (AI Planner)" } as const;
 
 const TYPES: { id: NonNullable<ActivityFilter["type"]>; label: string }[] = [
   { id: "request", label: "Request triage" },
-  { id: "request-chat", label: "Request chat" },
+  { id: "request-chat", label: "AI Planner chat" },
   { id: "junk", label: "Junk" },
   { id: "escalation", label: "Escalations" },
   { id: "recommendation", label: "Recommendations" },
@@ -92,7 +92,7 @@ export function ActivityPage() {
           </h1>
           <p className="muted small">
             Everything the AI touched this week, newest first, with what a person decided.
-            Read-only, built from the triage, assistant and decision logs. Guest and host text is
+            Read-only, built from the triage, AI Planner and decision logs. Guest and host text is
             kept only as a hash — you see the AI's own summary.
           </p>
         </div>
@@ -174,7 +174,7 @@ export function ActivityPage() {
               <th scope="col">Time</th>
               <th scope="col">Source</th>
               <th scope="col">Party · date</th>
-              <th scope="col">What the AI did</th>
+              <th scope="col">What the AI Planner did</th>
               <th scope="col">Manager decision</th>
               <th scope="col" className="num">
                 Cost · latency

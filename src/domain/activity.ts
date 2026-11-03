@@ -247,7 +247,7 @@ function assistantRow(e: AssistantEvent, actions: readonly ManagerAction[]): Act
   const top = e.recommendations[0];
   const what =
     kind === "escalation"
-      ? `Assistant failed (${e.failed}) — host decides`
+      ? `AI Planner failed (${e.failed}) — host decides`
       : kind === "refusal"
         ? "Refused a request outside its job (recommend-only)"
         : kind === "assistant-question"
@@ -290,10 +290,10 @@ function assistantRow(e: AssistantEvent, actions: readonly ManagerAction[]): Act
 function chatRow(e: RequestChatEvent, actions: readonly ManagerAction[]): ActivityRow {
   const decision = decisionFor(e, "request-chat", actions);
   const what = e.failed
-    ? `Request chat failed (${e.failed}) — manager uses the controls`
+    ? `AI Planner chat failed (${e.failed}) — manager uses the controls`
     : e.clarify
-      ? `Request chat asked back: ${e.clarify}`
-      : `Request chat: ${e.changed.length ? `${e.changed.join(", ")} → ` : ""}${e.outcome}`;
+      ? `AI Planner asked back: ${e.clarify}`
+      : `AI Planner (request chat): ${e.changed.length ? `${e.changed.join(", ")} → ` : ""}${e.outcome}`;
   return {
     id: `row-${e.traceId}`,
     refId: e.refId,
