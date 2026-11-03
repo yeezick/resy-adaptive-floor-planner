@@ -42,7 +42,7 @@ env:
   MAX_FIX_ROUNDS: "2"
   # The fixer may change only these paths (an allowlist, so configs, CI, hooks and the eval runner are
   # protected by default)…
-  FIX_ALLOWED: "^(src/|e2e/|fixtures/|prompts/)"
+  FIX_ALLOWED: "^(src/|e2e/|prompts/)"
   # …and never these, even inside them: human-tier files and env files.
   # Checked twice: in the fix job and again in the push job.
   FIX_DENIED: '^(src/domain/types\.ts|src/server/agent/schemas\.ts)$|(^|/)\.env'
