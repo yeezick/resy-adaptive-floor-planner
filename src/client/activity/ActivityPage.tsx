@@ -20,11 +20,13 @@ const KIND_LABEL: Record<ActivityKind, string> = {
   recommendation: "Recommendation",
   "assistant-answer": "Assistant answer",
   refusal: "Refusal",
+  "request-chat": "Request chat",
 };
 const SOURCE_LABEL = { ...REQUEST_SOURCE, host: "Host (assistant)" } as const;
 
 const TYPES: { id: NonNullable<ActivityFilter["type"]>; label: string }[] = [
   { id: "request", label: "Request triage" },
+  { id: "request-chat", label: "Request chat" },
   { id: "junk", label: "Junk" },
   { id: "escalation", label: "Escalations" },
   { id: "recommendation", label: "Recommendations" },

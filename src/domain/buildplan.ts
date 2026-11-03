@@ -302,6 +302,11 @@ export interface PlanOptions {
   privateOnly?: readonly string[];
   /** Aisle data; default: the room's venue data (clearanceFor). null = no aisle check. */
   clearance?: Clearance | null;
+  /**
+   * Per reservation: the only floor tables it may use (a manager's "between tables 30–50"). Other bookings are
+   * not limited. Spare tables from storage still count.
+   */
+  onlyTables?: Readonly<Record<string, readonly string[]>>;
 }
 
 /** True when every join in the unit leaves the minimum aisle. */
@@ -364,9 +369,16 @@ export function planBuilds(
   const units = buildUnits(room).filter((u) => aisleOk(room, clearance, u));
   const privateOnly = new Set(opts.privateOnly ?? []);
   const isPrivate = (u: Unit) => u.areas.every((a) => areaByName(room, a)?.kind === "private");
-  const pools = large.map((r) =>
-    poolFor(room, privateOnly.has(r.id) ? units.filter(isPrivate) : units, r),
-  );
+  const unitsFor = (r: Reservation): Unit[] => {
+    const allowed = opts.onlyTables?.[r.id];
+    const set = allowed ? new Set(allowed) : null;
+    return units.filter(
+      (u) =>
+        (!privateOnly.has(r.id) || isPrivate(u)) &&
+        (!set || u.rows.every((row) => row.every((id) => set.has(id)))),
+    );
+  };
+  const pools = large.map((r) => poolFor(room, unitsFor(r), r));
   const spare4 = room.inventory.spareTables
     .filter((t) => t.seats >= 4)
     .reduce((n, t) => n + t.count, 0);
@@ -434,7 +446,7 @@ export function planBuilds(
       reason: diagnose(
         room,
         r,
-        privateOnly.has(r.id) ? units.filter(isPrivate) : units,
+        unitsFor(r),
         pools[i] as Unit[],
         builds,
         // the earliest-free search is cheap for a few can't-fits; skip it for a night that is mostly unplaceable
@@ -442,12 +454,7 @@ export function planBuilds(
       ),
       partial:
         unplacedCount <= MAX_NEXT_FIT
-          ? (bestPartial(
-              room,
-              privateOnly.has(r.id) ? units.filter(isPrivate) : units,
-              r,
-              builds,
-            ) ?? undefined)
+          ? (bestPartial(room, unitsFor(r), r, builds) ?? undefined)
           : undefined,
     });
   });
@@ -724,6 +731,10 @@ export interface FitOptions {
   privateOnly?: boolean;
   /** Latest arrival time to try when the requested time does not fit (default 22:00). */
   latest?: string;
+  /** Only these floor tables (a manager's table range); the reason names it as `tablesLabel`. */
+  tables?: readonly string[];
+  /** How the reason names the range, e.g. "in tables 30–50". */
+  tablesLabel?: string;
 }
 
 /** Later arrivals a request's fit check tries (15-minute steps). */
@@ -761,6 +772,7 @@ export function fitRequest(
     const at = { ...r, time };
     const plan = planBuilds({ ...room, reservations: [...book, at] }, from, time > to ? time : to, {
       privateOnly: opts.privateOnly ? [r.id] : [],
+      onlyTables: opts.tables ? { [r.id]: opts.tables } : undefined,
     });
     const placed = new Set(plan.builds.map((b) => b.reservationId));
     return placed.has(r.id) && [...placedBefore].every((id) => placed.has(id)) ? plan : undefined;
@@ -778,12 +790,16 @@ export function fitRequest(
       break;
     }
   }
-  const what = opts.privateOnly ? "private-room set" : "table set";
+  const what = `${opts.privateOnly ? "private-room set" : "table set"}${
+    opts.tables ? ` ${opts.tablesLabel ?? "in that range"}` : ""
+  }`;
   const needs = r.needs.length ? ` (${r.needs.join(", ")})` : "";
+  const allowed = opts.tables ? new Set(opts.tables) : null;
   const units = buildUnits(room).filter(
     (u) =>
       meetsNeeds(u.tables, r.needs) &&
-      (!opts.privateOnly || u.areas.every((a) => areaByName(room, a)?.kind === "private")),
+      (!opts.privateOnly || u.areas.every((a) => areaByName(room, a)?.kind === "private")) &&
+      (!allowed || u.tables.every((t) => allowed.has(t.id))),
   );
   const largest = Math.max(0, ...units.map(maxSeats));
   const reason =

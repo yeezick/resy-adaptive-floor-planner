@@ -9,6 +9,7 @@ import {
   type ActivityRow,
   type AssistantEvent,
   type ManagerAction,
+  type RequestChatEvent,
   type TriageEvent,
 } from "../../domain/activity";
 import type { AgentResponse } from "../../shared/api";
@@ -115,8 +116,39 @@ export function weekdayToIso(label: string, now = new Date()): string {
   return d.toISOString();
 }
 
-export function liveEvents(s: RequestsState): { events: TriageEvent[]; actions: ManagerAction[] } {
-  const events: TriageEvent[] = [];
+export function liveEvents(s: RequestsState): {
+  events: (TriageEvent | RequestChatEvent)[];
+  actions: ManagerAction[];
+} {
+  const events: (TriageEvent | RequestChatEvent)[] = [];
+  // in-request chat turns: one row each, once the planner has answered (or the turn failed)
+  for (const r of s.book?.requests ?? []) {
+    for (const t of s.chat[r.id] ?? []) {
+      if (t.status === "loading" || t.outcome === undefined) continue;
+      const res = t.result;
+      events.push({
+        type: "request-chat",
+        refId: r.id,
+        traceId: res?.traceId ?? `chat-failed-${t.id}`,
+        at: t.at,
+        partySize: r.partySize,
+        when: `${r.day} ${r.time}`,
+        input: res?.input ?? { sha256: "not-sent", length: t.message.length },
+        changed: t.changed ?? [],
+        outcome: t.outcome,
+        clarify: res?.output?.clarify ?? null,
+        validatorRejects: res?.validatorRejects ?? 0,
+        ...(t.status === "error"
+          ? { failed: t.error?.code ?? "error" }
+          : res?.escalated
+            ? { failed: "no usable answer" }
+            : {}),
+        model: res?.model ?? "—",
+        costUsd: res?.metrics.costUsd ?? 0,
+        latencyMs: res?.metrics.latencyMs ?? 0,
+      });
+    }
+  }
   const actions: ManagerAction[] = [];
   for (const r of s.book?.requests ?? []) {
     const t = s.triage[r.id];

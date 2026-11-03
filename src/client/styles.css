@@ -993,7 +993,7 @@ h3.section-title {
 .wall.is-open {
   width: 0;
   background: none;
-  border-left: 2px dashed var(--accent);
+  border-left: 2px solid var(--border-strong);
 }
 .rec-tags {
   display: flex;
@@ -3136,5 +3136,56 @@ button,
 }
 .host-stand-row select,
 .host-stand-row input {
+  min-height: 44px;
+}
+
+/* In-request chat (update #10): controls + a short log scoped to one request */
+.adjust-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+.adjust-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.adjust-grid input,
+.adjust-grid select {
+  min-height: 44px;
+  width: 100%;
+}
+.chip-note {
+  border-style: dashed;
+}
+.chat-log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.chat-log:empty {
+  display: none;
+}
+.chat-me {
+  margin: 0;
+  align-self: flex-end;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--surface-3);
+}
+.chat-out {
+  margin: 4px 0 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--border-strong);
+}
+.chat-form {
+  display: flex;
+  gap: 8px;
+}
+.chat-form input {
+  flex: 1;
   min-height: 44px;
 }

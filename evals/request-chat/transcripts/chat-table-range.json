@@ -1,0 +1,20 @@
+{
+  "id": "chat-table-range",
+  "promptVersion": "request-chat.v1.0",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "tableRange": {
+      "from": 30,
+      "to": 50
+    },
+    "partySize": null,
+    "time": null,
+    "addNeeds": [],
+    "removeNeeds": [],
+    "notes": [],
+    "clarify": null
+  },
+  "validatorRejects": 0,
+  "costUsd": 0.00017,
+  "latencyMs": 1981
+}

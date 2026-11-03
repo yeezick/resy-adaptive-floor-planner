@@ -103,3 +103,41 @@ describe("filterActivity", () => {
     expect(filterActivity(rows, {})).toHaveLength(rows.length);
   });
 });
+
+describe("request-chat rows", () => {
+  it("logs one row per chat turn with the manager's text as a hash and the planner's answer", () => {
+    const rows = buildActivity(
+      [
+        {
+          type: "request-chat",
+          refId: "Q2",
+          traceId: "c-1",
+          at: "2026-11-03T15:12:00.000Z",
+          partySize: 22,
+          when: "Fri 18:30",
+          input: { sha256: "abcdef0123456789", length: 38 },
+          changed: ["tables 30–50"],
+          outcome: "No capacity fit in tables 30–50 for 22 at 18:30.",
+          clarify: null,
+          validatorRejects: 0,
+          model: "claude-haiku-5-5",
+          costUsd: 0.0002,
+          latencyMs: 1500,
+        },
+      ],
+      [],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      kind: "request-chat",
+      source: "host",
+      what: "Request chat: tables 30–50 → No capacity fit in tables 30–50 for 22 at 18:30.",
+      decision: { kind: "pending" },
+    });
+    expect(rows[0]?.record.inputs).toContainEqual([
+      "Manager's message",
+      "sha256 abcdef012345… · 38 chars",
+    ]);
+    expect(activityCounts(rows).requests).toBe(0);
+  });
+});

@@ -40,6 +40,7 @@ import {
   TRANSCRIPTS_DIR,
   writeJson,
 } from "./transcript";
+import { runChatChecks } from "./request-chat-checks";
 
 export function runBudgetUsd(): number {
   // EVAL_BUDGET_USD is what .github/workflows/evals-live.yml sets today; EVAL_RUN_BUDGET_USD is the documented name.
@@ -225,7 +226,8 @@ function replay(write: boolean): void {
   const requests = loadRequestBook();
   const plan = runPlanChecks(loadRooms(), requests);
   const activity = runActivityChecks(requests);
-  const planFails = [...plan, ...activity].filter((c) => !c.ok);
+  const chat = runChatChecks(requests);
+  const planFails = [...plan, ...activity, ...chat].filter((c) => !c.ok);
   const byCheck = (k: string) => plan.filter((c) => c.check === k);
   console.log(
     JSON.stringify({
@@ -236,6 +238,7 @@ function replay(write: boolean): void {
         ]),
       ),
       activityChecks: `${activity.filter((c) => c.ok).length}/${activity.length}`,
+      requestChatChecks: `${chat.filter((c) => c.ok).length}/${chat.length}`,
     }),
   );
   for (const f of planFails)

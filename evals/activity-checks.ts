@@ -1,14 +1,15 @@
-// Deterministic activity-log checks (no model): every AI action produces exactly one log row; no row shows a
-// booking (accepted) without a manager action at or after it; no row carries the guest's own words.
+// Deterministic activity-log checks (no model): every AI action (triage, assistant answer, in-request chat turn)
+// produces exactly one log row; no row shows a booking (accepted) without a manager action at or after it; no
+// row carries the guest's or the manager's own words.
 import { readFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import {
   ActivitySeed,
   buildActivity,
+  type ActivityEvent,
   type AssistantEvent,
   type ManagerAction,
   type RequestBook,
-  type TriageEvent,
 } from "../src/domain";
 
 export interface ActivityCheck {
@@ -25,11 +26,11 @@ const hash = (t: string) => ({
 
 /** A scripted session over the fixture requests: triage each, one duplicate event, one stray early action. */
 export function scriptedSession(book: RequestBook): {
-  events: (TriageEvent | AssistantEvent)[];
+  events: ActivityEvent[];
   actions: ManagerAction[];
   texts: string[];
 } {
-  const events: (TriageEvent | AssistantEvent)[] = book.requests.map((r, i) => ({
+  const events: ActivityEvent[] = book.requests.map((r, i) => ({
     type: "triage",
     refId: r.id,
     traceId: `t-${r.id}`,
@@ -68,6 +69,26 @@ export function scriptedSession(book: RequestBook): {
   });
   // the same response delivered twice must still be one row
   events.push({ ...(events[events.length - 1] as AssistantEvent) });
+  // two in-request chat turns on Q2 (the manager's words must never reach the log)
+  const chat = ["find another space between tables 30–50", "headcount is now 26"];
+  chat.forEach((m, i) =>
+    events.push({
+      type: "request-chat",
+      refId: "Q2",
+      traceId: `c-${i + 1}`,
+      at: `2026-11-03T15:1${i + 2}:00.000Z`,
+      partySize: 22,
+      when: "Fri 18:30",
+      input: hash(m),
+      changed: i === 0 ? ["tables 30–50"] : ["party of 26"],
+      outcome: i === 0 ? "No capacity fit in tables 30–50 for 22 at 18:30." : "Capacity fit.",
+      clarify: null,
+      validatorRejects: 0,
+      model: "scripted",
+      costUsd: 0.0002,
+      latencyMs: 1500,
+    }),
+  );
   const actions: ManagerAction[] = [
     {
       refId: "Q2",
@@ -79,12 +100,12 @@ export function scriptedSession(book: RequestBook): {
     // an "accept" stamped before the request arrived is not a manager decision on it
     { refId: "Q1", at: "2026-11-03T14:00:00.000Z", kind: "accepted", applied: "stale" },
   ];
-  return { events, actions, texts: [...book.requests.map((r) => r.message), host] };
+  return { events, actions, texts: [...book.requests.map((r) => r.message), host, ...chat] };
 }
 
 function checkRun(
   label: string,
-  events: (TriageEvent | AssistantEvent)[],
+  events: ActivityEvent[],
   actions: ManagerAction[],
   texts: string[],
 ): ActivityCheck[] {
@@ -139,7 +160,7 @@ export function runActivityChecks(book: RequestBook, seedPath = "fixtures/activi
   ];
   // the stale early "accept" on Q1 must not show as a booking
   const rows = buildActivity(s.events, s.actions);
-  const q1 = rows.find((r) => r.refId === "Q1");
+  const q1 = rows.find((r) => r.refId === "Q1" && r.kind !== "request-chat");
   out.push({
     check: "no-booking-without-manager",
     case: "stale-action-ignored",

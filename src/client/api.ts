@@ -7,6 +7,8 @@ import {
   ApiError,
   RoomSummary,
   TriageResult,
+  RequestChatResult,
+  type RequestChatBody,
   type AgentRequest,
   type RequestDecision,
 } from "../shared/api";
@@ -103,4 +105,15 @@ export function postDecision(id: string, d: RequestDecision): Promise<Result<{ o
     schemaParser(z.object({ ok: z.boolean() })),
     { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(d) },
   );
+}
+
+export function postRequestChat(
+  id: string,
+  body: RequestChatBody,
+): Promise<Result<RequestChatResult>> {
+  return call(`/api/requests/${encodeURIComponent(id)}/chat`, schemaParser(RequestChatResult), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
 }

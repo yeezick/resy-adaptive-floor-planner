@@ -15,6 +15,8 @@ import { fetchRoom } from "../api";
 import { duration, usd } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
 import { useElapsedMinutes } from "../lib/useDemoClock";
+import { checkAdjusted } from "../../domain/requestChat";
+import { RequestChat } from "./RequestChat";
 import {
   decisionOf,
   requestsActions,
@@ -48,7 +50,7 @@ const DECLINE: { id: DeclineReason; label: string; hint: string }[] = [
 
 /** One request: the AI triage, the solver's capacity fit and the manager's actions. Nothing accepts by itself. */
 export function RequestSheet({
-  request: r,
+  request: guest,
   roomId,
 }: {
   request: GuestRequest;
@@ -56,19 +58,27 @@ export function RequestSheet({
   roomId: string;
 }) {
   const s = useRequests();
-  const t = s.triage[r.id];
-  const decision = decisionOf(s, r.id);
-  const roomRes = useAsync(r.bookRoomId, loadRoom);
+  const r0 = guest;
+  const t = s.triage[r0.id];
+  const decision = decisionOf(s, r0.id);
+  const roomRes = useAsync(r0.bookRoomId, loadRoom);
   const [mode, setMode] = useState<"none" | "decline" | "reply">("none");
   const [reason, setReason] = useState<DeclineReason>("fit");
 
   // The night's book, plus parties the manager already accepted for it (other than this one).
   const room: Room | null = useMemo(() => {
     if (!roomRes?.ok) return null;
-    const extra = (s.accepted[r.bookRoomId] ?? []).filter((x) => x.id !== r.id);
+    const extra = (s.accepted[r0.bookRoomId] ?? []).filter((x) => x.id !== r0.id);
     return { ...roomRes.data, reservations: [...roomRes.data.reservations, ...extra] };
-  }, [roomRes, s.accepted, r.bookRoomId, r.id]);
-  const fit = useMemo(() => (room ? checkRequest(room, r) : null), [room, r]);
+  }, [roomRes, s.accepted, r0.bookRoomId, r0.id]);
+  // The manager's changes (in-request chat or the controls): the planner re-runs for the adjusted party.
+  const constraints = s.adjust[r0.id];
+  const adj = useMemo(
+    () => (room && constraints ? checkAdjusted(room, r0, constraints) : null),
+    [room, r0, constraints],
+  );
+  const r = adj?.request ?? r0;
+  const fit = useMemo(() => adj?.fit ?? (room ? checkRequest(room, r0) : null), [adj, room, r0]);
   const elapsed = useElapsedMinutes();
   const minutesAway = roomRes?.ok
     ? toMinutes(r.time) - toMinutes(roomRes.data.clock) - elapsed
@@ -197,7 +207,10 @@ export function RequestSheet({
         )}
         {fit?.ok && (
           <div className="small">
-            <p className="crew-note">{crewNote(fit.build)}</p>
+            <p className="crew-note">
+              {crewNote(fit.build)}
+              {constraints?.notes.length ? ` Also: ${constraints.notes.join(", ")}.` : ""}
+            </p>
             <p className="muted">
               {fit.build.area} · seats {fit.build.seats} for {fit.build.partySize}, build by{" "}
               {fit.build.buildBy}. Every booking already on {r.day} keeps its seats.
@@ -209,9 +222,11 @@ export function RequestSheet({
             )}
           </div>
         )}
-        {fit && !fit.ok && <p className="small cant-fit-line">{fit.reason}</p>}
+        {fit && !fit.ok && <p className="small cant-fit-line">{adj ? adj.line : fit.reason}</p>}
         <p className="muted small">From the planner, not the AI: the AI never picks tables.</p>
       </section>
+
+      {decision.kind === "pending" && room && <RequestChat request={r0} result={adj} />}
 
       {decision.kind === "pending" ? (
         <div className="req-actions">

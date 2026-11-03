@@ -259,6 +259,65 @@ describe("server", () => {
     expect(await res.json()).toMatchObject({ code: "no_key" });
   });
 
+  it("turns a chat message about one request into validated constraints", async () => {
+    const f = scripted([
+      finalAnswer({
+        tableRange: { from: 30, to: 50 },
+        partySize: null,
+        time: null,
+        addNeeds: [],
+        removeNeeds: [],
+        notes: [],
+        clarify: null,
+      }),
+    ]);
+    const base = await start({ create: f.create });
+    const body = {
+      message: "find another space between tables 30–50",
+      request: { partySize: 22, day: "Fri", time: "18:30", needs: ["accessible"] },
+      constraints: {
+        tableRange: null,
+        partySize: null,
+        time: null,
+        needs: ["accessible"],
+        notes: [],
+      },
+    };
+    const post = (id: string, b: unknown) =>
+      fetch(`${base}/api/requests/${id}/chat`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(b),
+      });
+    const res = await post("Q2", body);
+    expect(res.status).toBe(200);
+    const out = (await res.json()) as {
+      output: { tableRange: unknown };
+      input: { length: number };
+    };
+    expect(out.output.tableRange).toEqual({ from: 30, to: 50 });
+    expect(out.input.length).toBe(body.message.length);
+    // the manager's words go to the model fenced as data, never into the response
+    expect(JSON.stringify(f.requests[0]?.messages)).toContain("<message>");
+    expect((await post("Q2", { ...body, message: "" })).status).toBe(400);
+    expect((await post("bad-id", body)).status).toBe(404);
+  });
+
+  it("returns 503 no_key for the request chat without an API key", async () => {
+    const base = await start();
+    const res = await fetch(`${base}/api/requests/Q2/chat`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        message: "headcount is now 26",
+        request: { partySize: 22, day: "Fri", time: "18:30", needs: [] },
+        constraints: { tableRange: null, partySize: null, time: null, needs: [], notes: [] },
+      }),
+    });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ code: "no_key" });
+  });
+
   it("logs a manager decision with ids and enums only", async () => {
     const base = await start();
     const post = (id: string, body: unknown) =>
