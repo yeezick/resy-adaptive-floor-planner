@@ -215,7 +215,7 @@ export function Rail(p: Props) {
         covers={covers(reservations)}
         action={
           <button type="button" className="rail-action" onClick={p.onAddReservation}>
-            + Reservation
+            + Book
           </button>
         }
       >

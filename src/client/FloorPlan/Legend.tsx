@@ -33,8 +33,11 @@ export function Legend() {
           <span className="swatch swatch-selected" aria-hidden="true" /> Your selection
         </span>
         <span className="legend-item">
-          <span className="swatch swatch-lit" aria-hidden="true" /> Suggested (assistant, walk-in,
-          build)
+          <span className="swatch swatch-plan" aria-hidden="true" /> Planner (walk-in fit, holds,
+          builds)
+        </span>
+        <span className="legend-item">
+          <span className="swatch swatch-lit" aria-hidden="true" /> AI option (assistant build)
         </span>
         <span className="legend-item">
           <span className="swatch swatch-combo" aria-hidden="true" /> Combined

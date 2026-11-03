@@ -5,6 +5,8 @@ export interface Highlight {
   label: string;
   /** Divider walls this option opens (keys from FloorPlan/geometry dividerKey). */
   dividers?: string[];
+  /** "ai" = the assistant's output (dashed accent); default = the planner's (solid neutral). */
+  source?: "ai" | "plan";
 }
 
 export interface HighlightControls {

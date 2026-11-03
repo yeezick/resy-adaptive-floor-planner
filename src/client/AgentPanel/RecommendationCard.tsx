@@ -44,8 +44,9 @@ export function RecommendationCard({ rec, hlKey, room, highlight, actions, party
   const h: Highlight = {
     key: hlKey,
     ids: rec.tables,
-    label: `option ${rec.rank}: ${rows.map((r) => r.join("+")).join(" | ")}`,
+    label: `AI option ${rec.rank}: ${rows.map((r) => r.join("+")).join(" | ")}`,
     dividers,
+    source: "ai",
   };
   const pinned = highlight.pinnedKey === hlKey;
 

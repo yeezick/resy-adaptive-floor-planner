@@ -919,9 +919,15 @@ h3.section-title {
   stroke: var(--select-ring);
   stroke-width: 0.4;
 }
+/* Planner output (holds, builds, fits): solid neutral. AI output (assistant options): dashed accent. */
 .floor .is-lit .ring {
-  stroke: var(--accent);
+  stroke: var(--text);
   stroke-width: 0.4;
+  stroke-dasharray: none;
+  fill: color-mix(in srgb, var(--text) 10%, transparent);
+}
+.floor.lit-ai .is-lit .ring {
+  stroke: var(--accent);
   stroke-dasharray: 0.7 0.35;
   fill: color-mix(in srgb, var(--accent) 14%, transparent);
 }
@@ -938,8 +944,9 @@ h3.section-title {
 }
 .floor-highlight-tag {
   margin-left: auto;
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--surface-3);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
   font-weight: 600;
   padding: 2px 10px;
   border-radius: 999px;
@@ -2518,21 +2525,22 @@ button.primary:disabled {
     transparent
   );
 }
+/* One docked pager row along the bottom edge (over the edge fade, not over tables) */
 .offscreen-chips {
   position: absolute;
   z-index: 3;
   right: 8px;
-  top: 8px;
+  bottom: 8px;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  align-items: center;
   gap: 6px;
 }
 .offscreen-chip {
   border-radius: 999px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--border-strong);
   background: var(--surface);
-  color: var(--accent);
+  color: var(--text);
   font-weight: 600;
   font-size: 12.5px;
   padding: 4px 12px;
@@ -2938,4 +2946,33 @@ h2 .proposed-tag {
 }
 .req-lines span {
   -webkit-line-clamp: 1;
+}
+.floor-highlight-tag.is-ai {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+.swatch-plan {
+  border: 2px solid var(--text);
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+/* Activity outcomes: one look each */
+.verdict-fit {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.verdict-policy {
+  background: var(--fail-soft);
+  color: var(--fail);
+}
+.verdict-pending {
+  background: transparent;
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.kind-refusal,
+.kind-reject {
+  background: transparent;
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
 }
