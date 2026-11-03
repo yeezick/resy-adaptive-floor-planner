@@ -9,26 +9,37 @@ We want the loop closed without letting a model merge its own work or loop on it
 
 ## Decision
 
-`ai-review.yml` runs four jobs per push to a PR:
+`ai-review.yml` runs these jobs per push to a PR:
 
-1. **hold** turns auto-merge off, so a "clean" verdict for an older commit can never merge newer code.
-2. **review** writes one sticky comment and ends it with a hidden line
-   `AI-REVIEW-VERDICT: sha=<head> blocking=<number of ❌>`. Only a verdict for the exact head commit counts.
+1. **hold** turns auto-merge off, so a clean review of an older commit can never merge newer code.
+2. **review** writes one sticky comment. The verdict is the number of lines starting with ❌ in the comment
+   that _this run_ wrote (matched by run id), so a stale comment never counts.
 3. **decide**:
    - 0 blocking → auto-merge on (if `AUTO_MERGE_ENABLED=true`). It merges only when the required checks pass.
    - blocking, fewer than 2 rounds used → run **fix**.
-   - otherwise, or if the verdict can't be read → label `ai-fix/needs-human`, comment, auto-merge stays off.
-4. **fix** (Opus 5.5) edits files only; it has no git write access. The workflow then rejects the change if it
-   touches a human-only file (`types.ts`, `schemas.ts`, `rubric.md`, `labels.jsonl`, `ai-review.yml`, `.env*`)
-   or if `pnpm verify` fails. Otherwise it commits with an `AI-Fix-Round: N` trailer and pushes, which starts
-   CI and a fresh review. Rounds are counted by the `ai-fix/round-N` labels.
+   - otherwise, if the verdict can't be read, or if no review ran → label `ai-fix/needs-human`, comment,
+     auto-merge stays off.
+4. **fix** (Opus 5.5) edits a checkout of the reviewed commit. It has no git write access and no push token.
+   The workflow rejects any change to protected files (all of `.github/`, `package.json`, the lockfile,
+   `CLAUDE.md`, the human-tier files, `.env*`), runs `pnpm verify`, and uploads the change as a patch.
+5. **push** runs on a clean runner that never installs dependencies or runs repo code. It applies the patch,
+   re-checks protected files, commits with an `AI-Fix-Round: N` trailer and pushes with `AUTOMATION_PAT`
+   (not forced: a branch that moved since the review rejects it). That push starts CI and a fresh review.
 
-Pushes and merges use `AUTOMATION_PAT` (fine-grained, this repo only), because GitHub doesn't start workflows
-for pushes or merges made with the default `GITHUB_TOKEN`.
+Rounds are counted by the `ai-fix/round-N` labels. Pushes and merges use `AUTOMATION_PAT` (fine-grained, this
+repo only), because GitHub doesn't start workflows for pushes or merges made with the default `GITHUB_TOKEN`.
+
+Why the split: code the fixer edits (tests, configs) runs during `pnpm verify`. If that code ran next to the
+push token, a prompt injection could make it steal the token. Keeping the token in a job that runs only git
+means edited code never shares a machine with it.
 
 ## Consequences
 
 - The model never decides a merge: required checks do. The review only decides whether auto-merge is on.
-- The fixer can't raise its own round limit (`ai-review.yml` is off-limits) or edit the human-tier files.
+- The fixer can't change CI, its own round limit, dependencies or the human-tier files: `.github/` and the
+  other protected files are rejected twice, before and after the patch crosses jobs. Findings in those files
+  always go to a person.
+- The verdict is still model-written text. A forged "clean" only switches auto-merge on; the required checks
+  still decide the merge.
 - Worst-case spend per PR, before a person pushes: 3 reviews + 2 fixes, about $3–4 at current Opus prices.
 - Kill switches: `AI_REVIEW_ENABLED=false` (whole loop) or `AUTO_MERGE_ENABLED` unset (no auto-merge).
