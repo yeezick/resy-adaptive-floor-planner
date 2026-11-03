@@ -14,13 +14,23 @@ export function tableNo(id: string): string {
  * that starts with one gets a capital ("Table 72 frees…").
  */
 export function plainTables(text: string): string {
-  return text.replace(
-    /\b([Tt]ables?\s+)?T(\d{1,4})\b/g,
-    (_m, pre: string | undefined, n: string, at: number, all: string) => {
-      if (pre) return `${pre}${n}`;
-      const start = at === 0 || /[.!?]\s+$/.test(all.slice(0, at));
-      return `${start ? "Table" : "table"} ${n}`;
-    },
+  const cap = (at: number, all: string, word: string) =>
+    at === 0 || /[.!?]\s+$/.test(all.slice(0, at))
+      ? word.charAt(0).toUpperCase() + word.slice(1)
+      : word;
+  return (
+    text
+      // runs and joins first: "T7–T10" → "tables 7–10", "T11+T12" / "T1, T2" → "tables 11 + 12"
+      .replace(
+        /\b([Tt]ables?\s+)?T(\d{1,4})((?:\s*(?:[–+,]|and)\s*T\d{1,4})+)\b/g,
+        (_m, pre: string | undefined, first: string, rest: string, at: number, all: string) =>
+          `${pre ?? cap(at, all, "tables ")}${first}${rest.replace(/T(\d)/g, "$1")}`,
+      )
+      .replace(
+        /\b([Tt]ables?\s+)?T(\d{1,4})\b/g,
+        (_m, pre: string | undefined, n: string, at: number, all: string) =>
+          `${pre ?? cap(at, all, "table ")}${n}`,
+      )
   );
 }
 

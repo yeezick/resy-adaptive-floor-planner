@@ -15,6 +15,7 @@ import { Metrics } from "./Metrics";
 import { activityActions } from "../activity/store";
 import { RecommendationCard } from "./RecommendationCard";
 import { plainTables, tablesPhrase } from "../../domain/wording";
+import { activeScenario, RECORDED_WALKIN } from "../scenarios";
 
 export type Turn =
   | { id: number; role: "user"; text: string }
@@ -83,8 +84,18 @@ export function toHistory(turns: Turn[]): AgentRequest["history"] {
   return out;
 }
 
+/** A scenario URL opens the assistant mid-conversation with a recorded answer (no model call). */
+function scenarioTurns(room: Room): Turn[] {
+  const sc = activeScenario();
+  if (sc?.panel !== "assistant" || sc.roomId !== room.id) return [];
+  return [
+    { id: -2, role: "user", text: RECORDED_WALKIN.message },
+    { id: -1, role: "assistant", res: RECORDED_WALKIN.response },
+  ];
+}
+
 export function AgentPanel({ room, highlight, ...actions }: Props) {
-  const [turns, setTurns] = useState<Turn[]>([]);
+  const [turns, setTurns] = useState<Turn[]>(() => scenarioTurns(room));
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
   const nextId = useRef(0);

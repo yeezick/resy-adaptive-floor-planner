@@ -3,11 +3,19 @@
 // book in this browser session (fictional data; no guest is contacted).
 import { useSyncExternalStore } from "react";
 import type { GuestRequest, RequestBook } from "../../domain/requests";
-import { toReservation, walkInRequest } from "../../domain/requests";
+import { checkRequest, toReservation, walkInRequest } from "../../domain/requests";
+import { activeScenario, RECORDED_CHAT, RECORDED_TRIAGE } from "../scenarios";
 import type { Reservation } from "../../domain";
 import type { RequestChatResult, TriageResult } from "../../shared/api";
 import { baseConstraints, mergeTurn, type ChatConstraints } from "../../domain/requestChat";
-import { fetchRequests, postDecision, postRequestChat, postTriage, type ClientError } from "../api";
+import {
+  fetchRequests,
+  fetchRoom,
+  postDecision,
+  postRequestChat,
+  postTriage,
+  type ClientError,
+} from "../api";
 
 export type DeclineReason = "fit" | "policy" | "other";
 
@@ -37,6 +45,8 @@ export interface ChatTurn {
   outcome?: string;
   /** What the turn changed ("tables 30–50", "party of 26"). */
   changed?: string[];
+  /** The constraints just before this turn (to show what this turn alone changed). */
+  before?: ChatConstraints;
 }
 
 export interface RequestsState {
@@ -113,8 +123,64 @@ export function startRequests(): void {
   void fetchRequests().then((res) => {
     if (!res.ok) return set({ error: res.error });
     set({ book: res.data });
+    if (activeScenario()) return void applyScenario(res.data);
     for (const r of res.data.requests) void triage(r);
   });
+}
+
+/**
+ * A named demo state (?scenario=…): recorded triage for every request, then the scenario's own state. No model
+ * call and no decision is sent to the server.
+ */
+async function applyScenario(book: RequestBook): Promise<void> {
+  const sc = activeScenario();
+  if (!sc) return;
+  const at = new Date().toISOString();
+  const triageMap: Record<string, TriageState> = {};
+  for (const r of book.requests) {
+    const rec = RECORDED_TRIAGE[r.id];
+    triageMap[r.id] = rec
+      ? { status: "ok", result: { ...rec, cached: true }, at }
+      : { status: "loading" };
+  }
+  set({ triage: triageMap });
+  const r = sc.request ? book.requests.find((x) => x.id === sc.request?.id) : undefined;
+  if (!sc.request || !r) return;
+  if (sc.request.accept) {
+    const room = await fetchRoom(r.bookRoomId);
+    if (!room.ok) return;
+    const fit = checkRequest(room.data, r);
+    if (!fit.ok) return;
+    set({
+      decisions: {
+        ...state.decisions,
+        [r.id]: { kind: "accepted", at: stamp(), iso: at, tables: fit.build.tables },
+      },
+      accepted: { ...state.accepted, [r.bookRoomId]: [toReservation(r)] },
+      openPlan: { roomId: r.bookRoomId, requestId: r.id, seq: ++seq, view: "plan" },
+    });
+    return;
+  }
+  const output = RECORDED_CHAT.result.output;
+  if (sc.request.chat && RECORDED_CHAT.requestId === r.id && output) {
+    set({
+      adjust: { ...state.adjust, [r.id]: mergeTurn(baseConstraints(r), output) },
+      chat: {
+        ...state.chat,
+        [r.id]: [
+          {
+            id: "turn-scenario-1",
+            at,
+            message: RECORDED_CHAT.message,
+            status: "ok",
+            before: baseConstraints(r),
+            result: RECORDED_CHAT.result,
+          },
+        ],
+      },
+    });
+  }
+  set({ openPlan: { roomId: r.bookRoomId, requestId: r.id, seq: ++seq, view: sc.request.view } });
 }
 
 export const requestsActions = {
@@ -191,7 +257,13 @@ export const requestsActions = {
   async sendChat(r: GuestRequest, message: string) {
     const id = `turn-${++seq}`;
     const current = state.adjust[r.id] ?? baseConstraints(r);
-    const turn: ChatTurn = { id, at: new Date().toISOString(), message, status: "loading" };
+    const turn: ChatTurn = {
+      id,
+      at: new Date().toISOString(),
+      message,
+      status: "loading",
+      before: current,
+    };
     const put = (t: ChatTurn) =>
       set({
         chat: {

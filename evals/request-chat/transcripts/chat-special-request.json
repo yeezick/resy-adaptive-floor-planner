@@ -1,6 +1,6 @@
 {
   "id": "chat-special-request",
-  "promptVersion": "request-chat.v1.0",
+  "promptVersion": "request-chat.v1.1",
   "model": "claude-haiku-5-5",
   "output": {
     "tableRange": null,
@@ -12,6 +12,6 @@
     "clarify": null
   },
   "validatorRejects": 0,
-  "costUsd": 0.000169,
-  "latencyMs": 1196
+  "costUsd": 0.000173,
+  "latencyMs": 1475
 }

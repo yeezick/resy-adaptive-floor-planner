@@ -4,6 +4,7 @@ import { requestsActions, startRequests, useRequests } from "./requests/store";
 import { useAsync } from "./lib/useAsync";
 import { LayoutHost } from "./LayoutHost";
 import { nightLabel } from "./nights";
+import { activeScenario } from "./scenarios";
 
 const DEFAULT_ROOM = "dinner-peak";
 
@@ -12,7 +13,7 @@ const loadRooms = () => fetchRooms();
 const loadRoom = (key: string) => fetchRoom(key.split("#")[0] ?? DEFAULT_ROOM);
 
 export function PlannerPage() {
-  const [chosenRoom, setRoomId] = useState(DEFAULT_ROOM);
+  const [chosenRoom, setRoomId] = useState(() => activeScenario()?.roomId ?? DEFAULT_ROOM);
   const [retry, setRetry] = useState(0);
   const rooms = useAsync(`rooms#${retry}`, loadRooms);
   const requests = useRequests();

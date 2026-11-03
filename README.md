@@ -42,6 +42,27 @@ Table numbers never carry the fixtures' `T` prefix in anything a person reads ("
 11-top; bring 2 tables and 6 chairs from storage."). Elapsed time on seated tables is estimated from meal phase and
 is labelled "est.".
 
+## Scenarios (deep links)
+
+The header's **Scenarios** menu opens a named demo state in one click. Each one has a stable URL and opens from
+fixtures, with AI answers replayed from recordings in `fixtures/scenarios/`, so no model is called:
+
+| URL                            | Opens                                                         |
+| ------------------------------ | ------------------------------------------------------------- |
+| `/?scenario=party-22-agent`    | AI-agent request for 22, capacity fit + cost sheet open       |
+| `/?scenario=party-22-accepted` | the 22-top accepted: tonight's layout and crew build list     |
+| `/?scenario=walkin-8-peak`     | walk-in of 8 at 19:10, assistant open with ranked options     |
+| `/?scenario=request-chat`      | the in-request chat mid-conversation ("between tables 30–50") |
+
+## In-request chat
+
+Inside a request, the manager can type a change that applies to that request only ("headcount is now 26", "can
+we push it to 19:00?"). Haiku turns the message into constraints (table range, headcount, time, needs, crew
+notes); the planner re-runs the capacity fit; the card shows the new option and its cost. The model never names a
+table, and every number it sets must appear in the manager's message. Each constraint is also a control on the
+sheet, and every turn is logged in the activity log (the message as a hash). Evals:
+`evals/request-chat/golden.jsonl` (recorded answers replayed in CI); `pnpm evals:request-chat:live` re-records.
+
 ## What's inside
 
 - `src/domain/` — the room model in plain TypeScript: meal-phase timing, legal joins, party fit, build plans, and

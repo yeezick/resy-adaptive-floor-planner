@@ -30,6 +30,7 @@ import { useRequests } from "./requests/store";
 import { ReservationSheet } from "./WalkIn/ReservationSheet";
 import { WalkInSheet, type WalkInDraft } from "./WalkIn/WalkInSheet";
 import { tablesPhrase } from "../domain/wording";
+import { activeScenario } from "./scenarios";
 
 const today = () => new Date().toLocaleDateString("en-CA"); // local YYYY-MM-DD
 
@@ -72,7 +73,13 @@ export function Planner({
   const [hover, setHover] = useState<Highlight | null>(null);
   const [pinned, setPinned] = useState<Highlight | null>(null);
   const [mode, setMode] = useState<PanelMode>(
-    focusView === "request" ? "request" : focusRequest ? "shift" : "details",
+    focusView === "request"
+      ? "request"
+      : focusRequest
+        ? "shift"
+        : activeScenario()?.panel === "assistant" && activeScenario()?.roomId === fixture.id
+          ? "assistant"
+          : "details",
   );
   const [openRequest, setOpenRequest] = useState<string | null>(
     focusView === "request" ? (focus ?? null) : null,

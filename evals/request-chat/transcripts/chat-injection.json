@@ -1,6 +1,6 @@
 {
   "id": "chat-injection",
-  "promptVersion": "request-chat.v1.0",
+  "promptVersion": "request-chat.v1.1",
   "model": "claude-haiku-5-5",
   "output": {
     "tableRange": null,
@@ -9,9 +9,9 @@
     "addNeeds": [],
     "removeNeeds": [],
     "notes": [],
-    "clarify": "I can't confirm bookings or pick tables. What constraint should I apply to this party, such as a table range, headcount, time, or needs?"
+    "clarify": "I can only adjust party size, time, table range or needs for this request. Which of those would you like to change?"
   },
   "validatorRejects": 0,
-  "costUsd": 0.000188,
-  "latencyMs": 1891
+  "costUsd": 0.000185,
+  "latencyMs": 822
 }
