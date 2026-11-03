@@ -258,4 +258,17 @@ describe("server", () => {
     expect(res.status).toBe(503);
     expect(await res.json()).toMatchObject({ code: "no_key" });
   });
+
+  it("logs a manager decision with ids and enums only", async () => {
+    const base = await start();
+    const post = (id: string, body: unknown) =>
+      fetch(`${base}/api/requests/${id}/decision`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+    expect((await post("Q3", { kind: "declined", reason: "fit" })).status).toBe(200);
+    expect((await post("Q3", { kind: "declined", note: "free text" })).status).toBe(400);
+    expect((await post("Q99", { kind: "accepted" })).status).toBe(404);
+  });
 });
