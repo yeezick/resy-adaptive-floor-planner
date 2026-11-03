@@ -2668,9 +2668,15 @@ button.primary:disabled {
 }
 .req-block-head {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 4px 8px;
+}
+/* The readiness pill can be long ("… ready to set up in ~20 min"): wrap inside the panel, never clip. */
+.req-block-head .fit-pill {
+  white-space: normal;
+  max-width: 100%;
 }
 .req-summary {
   margin: 0;
