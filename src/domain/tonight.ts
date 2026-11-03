@@ -3,6 +3,7 @@
 // it returns a proposal; a person edits it and applies it.
 import { planBuilds, type Build } from "./buildplan";
 import { TURN_MIN } from "./capacity";
+import { partyFits, type PartyFit } from "./fit";
 import { tableById } from "./room";
 import { toHHMM, toMinutes } from "./time";
 import type { Room, Table } from "./types";
@@ -41,7 +42,11 @@ export interface TonightProposal {
   crew: CrewStep[];
   reasons: { reservationId: string; text: string }[];
   infeasible: { reservationId: string; partySize: number; reason: string }[];
+  /** Per placed large party: hold + covers lost, section(s), aisle check. In arrival order. */
+  parties: PartyFit[];
   summary: {
+    /** Covers the holds cost tonight (sum over parties). */
+    coversLostToHolds: number;
     largeParties: number;
     placed: number;
     coversBooked: number;
@@ -276,6 +281,7 @@ export function generateTonight(base: Room, from: string, to: string): TonightPr
   const inWindow = base.reservations.filter(
     (r) => toMinutes(r.time) >= toMinutes(from) && toMinutes(r.time) <= toMinutes(to),
   );
+  const parties = partyFits(base, plan.builds, from);
   return {
     window,
     variant,
@@ -283,7 +289,9 @@ export function generateTonight(base: Room, from: string, to: string): TonightPr
     crew,
     reasons,
     infeasible: plan.unplaced,
+    parties,
     summary: {
+      coversLostToHolds: parties.reduce((n, f) => n + f.hold.coversLost, 0),
       largeParties: plan.builds.length + plan.unplaced.length,
       placed: plan.builds.length,
       coversBooked: inWindow.reduce((n, r) => n + r.partySize, 0),

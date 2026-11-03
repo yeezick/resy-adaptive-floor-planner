@@ -1,6 +1,13 @@
 import { useMemo, useState } from "react";
-import type { Room } from "../../domain";
-import { checkRequest, draftReply, type GuestRequest } from "../../domain/requests";
+import { partyFits, type Room } from "../../domain";
+import { PartyFitCard } from "../Fit/PartyFitCard";
+import {
+  checkRequest,
+  draftReply,
+  SERVICE,
+  toReservation,
+  type GuestRequest,
+} from "../../domain/requests";
 import { fetchRoom } from "../api";
 import { duration, usd } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
@@ -54,6 +61,15 @@ export function RequestSheet({ request: r }: { request: GuestRequest }) {
   }, [roomRes, s.accepted, r.bookRoomId, r.id]);
   const fit = useMemo(() => (room ? checkRequest(room, r) : null), [room, r]);
   const draft = useMemo(() => (fit ? draftReply(r, fit) : ""), [fit, r]);
+  const cost = useMemo(() => {
+    if (!room || !fit?.ok) return null;
+    const withR = { ...room, reservations: [...room.reservations, toReservation(r)] };
+    return (
+      partyFits(withR, fit.plan.builds, SERVICE.from, {
+        privateOnly: r.privateRoom ? [r.id] : [],
+      }).find((f) => f.reservationId === r.id) ?? null
+    );
+  }, [room, fit, r]);
   const [reply, setReply] = useState<string | null>(null);
   const junk = t?.status === "ok" && t.result.verdict === "junk" && !t.result.escalated;
 
@@ -144,6 +160,11 @@ export function RequestSheet({ request: r }: { request: GuestRequest }) {
                 .join(", ") || "No storage needed"}
               . Every booking already on {r.day} keeps its seats.
             </p>
+            {cost && (
+              <ul className="fit-list">
+                <PartyFitCard f={cost} title="Cost of saying yes" />
+              </ul>
+            )}
           </div>
         )}
         {fit && !fit.ok && <p className="small cant-fit-line">{fit.reason}</p>}

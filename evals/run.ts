@@ -23,7 +23,9 @@ import {
 import { loadPrompt } from "../src/server/agent/prompt";
 import { validateEnv } from "../src/server/config";
 import { SpendBudget } from "../src/server/guards/budget";
+import { loadRequestBook } from "../src/server/requests";
 import { loadRooms } from "../src/server/rooms";
+import { runPlanChecks } from "./plan-checks";
 import type { CallMetrics } from "../src/shared/api";
 import { loadGolden, type GoldenScenario } from "./golden.schema";
 import { refreshResults, type Evaluated } from "./results";
@@ -219,11 +221,26 @@ function replay(write: boolean): void {
       wroteResults: write,
     }),
   );
+  const plan = runPlanChecks(loadRooms(), loadRequestBook());
+  const planFails = plan.filter((c) => !c.ok);
+  const byCheck = (k: string) => plan.filter((c) => c.check === k);
+  console.log(
+    JSON.stringify({
+      planChecks: Object.fromEntries(
+        ["holds", "section", "aisle", "cant-fit"].map((k) => [
+          k,
+          `${byCheck(k).filter((c) => c.ok).length}/${byCheck(k).length}`,
+        ]),
+      ),
+    }),
+  );
+  for (const f of planFails)
+    console.error(`FAIL plan check ${f.check} ${f.case}: ${f.detail ?? ""}`);
   if (!coverage.ok) {
     console.error(`FAIL: golden scenario(s) without a transcript: ${coverage.missing.join(", ")}`);
     process.exit(1);
   }
-  if (failures) process.exit(1);
+  if (failures || planFails.length) process.exit(1);
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
