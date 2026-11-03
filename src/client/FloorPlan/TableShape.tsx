@@ -136,7 +136,6 @@ export function TableShape({ table: t, selected, lit, dim, dragging, ...handlers
         />
       )}
       <TableLabels table={t} color={c.text} />
-      {t.status === "occupied" && <Elapsed table={t} />}
     </g>
   );
 }
@@ -180,8 +179,11 @@ function Chairs({ table: t }: { table: Table }) {
   );
 }
 
-/** Estimated time since the party sat (from meal phase), centred under the table. */
-function Elapsed({ table: t }: { table: Table }) {
+/**
+ * Estimated time since the party sat (from meal phase), centred under the table. On tables too small for
+ * the phase word inside, the word goes here too (stacked), so phase is never colour alone.
+ */
+function Elapsed({ table: t, phase }: { table: Table; phase: string | null }) {
   const px = usePx();
   const m = ELAPSED_EST_MIN[t.phase ?? "seated"];
   const font = Math.max(px(10), 0.62);
@@ -189,7 +191,15 @@ function Elapsed({ table: t }: { table: Table }) {
   const y = t.y + t.h + (t.shape === "booth" ? 0.25 : 0.7) + font * 0.8;
   return (
     <text className="t-elapsed" x={x} y={y} fontSize={font}>
-      <title>{`about ${m} min since seated (estimated from meal phase)`}</title>~{m}m
+      <title>{`about ${m} min since seated (estimated from meal phase)`}</title>
+      {phase && (
+        <tspan x={x} className="t-elapsed-phase">
+          {phase}
+        </tspan>
+      )}
+      <tspan x={x} dy={phase ? font * 1.1 : 0}>
+        {m}m
+      </tspan>
     </text>
   );
 }
@@ -245,6 +255,7 @@ function TableLabels({ table: t, color }: { table: Table; color: string }) {
         </text>
       )}
       {occupied && !showWord && <CornerTick table={t} color={color} />}
+      {occupied && <Elapsed table={t} phase={showWord ? null : PHASE_ABBR[t.phase ?? "seated"]} />}
     </>
   );
 }

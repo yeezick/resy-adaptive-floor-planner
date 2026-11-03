@@ -1669,9 +1669,9 @@ table.data .num {
   font-variant-numeric: tabular-nums;
 }
 .size-grid button[aria-pressed="true"] {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
   font-weight: 650;
 }
 .size-more {
@@ -3078,4 +3078,13 @@ button,
 }
 .console > .preview-bar {
   margin: 0 0 10px;
+}
+
+/* Dimmed tables keep AA labels in both themes: the shape fades, the text takes the page's text colour */
+.floor .table.is-dim text {
+  fill: var(--text) !important;
+}
+.floor .t-elapsed-phase {
+  fill: var(--text);
+  font-weight: 700;
 }
