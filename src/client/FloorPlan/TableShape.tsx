@@ -180,13 +180,13 @@ function Chairs({ table: t }: { table: Table }) {
   );
 }
 
-/** Estimated time since the party sat (from meal phase), as a small tag at the table's top-right. */
+/** Estimated time since the party sat (from meal phase), centred under the table. */
 function Elapsed({ table: t }: { table: Table }) {
   const px = usePx();
   const m = ELAPSED_EST_MIN[t.phase ?? "seated"];
   const font = Math.max(px(10), 0.62);
-  const x = t.x + t.w + 0.1;
-  const y = t.y - 0.75;
+  const x = t.x + t.w / 2;
+  const y = t.y + t.h + (t.shape === "booth" ? 0.25 : 0.7) + font * 0.8;
   return (
     <text className="t-elapsed" x={x} y={y} fontSize={font}>
       <title>{`about ${m} min since seated (estimated from meal phase)`}</title>~{m}m
@@ -198,7 +198,7 @@ const CHAR_W = 0.62; // average glyph width / font size for the system UI font
 
 /** ID (≥12px on screen) and, for seated tables, the meal phase as a word (SEAT…CHK). */
 /** Below this on-screen size a table shows colour + a corner tick instead of a phase word. */
-const WORD_MIN_PX = 32;
+const WORD_MIN_PX = 24;
 /** Below this the ID itself is hidden until hover / focus (e.g. the whole-room overview). */
 const ID_MIN_PX = 22;
 

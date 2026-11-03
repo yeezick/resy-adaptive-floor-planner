@@ -417,9 +417,7 @@ function RequestsSection({
                   </span>
                   {t?.status === "ok" && (
                     <span className="req-lines">
-                      {t.result.summary.map((line) => (
-                        <span key={line}>{line}</span>
-                      ))}
+                      <span>{t.result.summary[0]}</span>
                     </span>
                   )}
                   {d.kind !== "pending" && (

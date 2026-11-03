@@ -240,6 +240,16 @@ export function Planner({
         onMode={(m) => (m === "walkin" ? openWalkIn() : setMode(m))}
         onReset={reset}
       />
+      {proposal && (
+        <div className="preview-bar" role="status">
+          <ProposedTag /> <strong>Previewing tonight's layout</strong> · {proposal.window.from}–
+          {proposal.window.to} · ghosts and arrows show what moves; nothing changes until you apply
+          it.
+          <button type="button" className="link-btn" onClick={() => setProposal(null)}>
+            Exit preview
+          </button>
+        </div>
+      )}
       <div className="console-body">
         <aside className="rail" aria-label="Guest lists">
           <Rail
@@ -265,16 +275,6 @@ export function Planner({
         </aside>
 
         <section className="floor-col" aria-label="Floor plan">
-          {proposal && (
-            <div className="preview-bar" role="status">
-              <ProposedTag /> <strong>Previewing tonight's layout</strong> · {proposal.window.from}–
-              {proposal.window.to} · ghosts and arrows show what moves; nothing changes until you
-              apply it.
-              <button type="button" className="link-btn" onClick={() => setProposal(null)}>
-                Exit preview
-              </button>
-            </div>
-          )}
           <FloorPlan
             key={proposal ? "preview" : reqTables.length ? `req-${request?.id}` : "live"}
             initialTab={
