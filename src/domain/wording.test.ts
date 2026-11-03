@@ -44,10 +44,14 @@ describe("table wording (no T prefix)", () => {
     expect(plainTables("T41 frees in about 11 minutes.")).toBe(
       "Table 41 frees in about 11 minutes.",
     );
-    expect(plainTables("Join T7 + T8, then tables T9.")).toBe(
-      "Join table 7 + table 8, then tables 9.",
-    );
+    expect(plainTables("Join T7 + T8, then tables T9.")).toBe("Join tables 7 + 8, then tables 9.");
     expect(plainTables("Tables in the Terrace")).toBe("Tables in the Terrace");
+    expect(plainTables("T7–T10 or T11+T12 in section 2")).toBe(
+      "Tables 7–10 or tables 11+12 in section 2",
+    );
+    expect(plainTables("Fastest option is T41, which seats 8.")).toBe(
+      "Fastest option is table 41, which seats 8.",
+    );
   });
 });
 

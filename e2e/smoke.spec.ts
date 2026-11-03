@@ -290,3 +290,56 @@ test("theme defaults to dark, toggles to light and remembers it", async ({ page 
   await page.reload();
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
 });
+
+test.describe("scenario URLs open the exact state with no model call", () => {
+  test.beforeEach(async ({ page }) => {
+    // a scenario must never call a model: fail loudly if it tries
+    await page.route("**/api/requests/*/triage", (route) => route.abort());
+    await page.route("**/api/requests/*/chat", (route) => route.abort());
+    await page.route("**/api/agent", (route) => route.abort());
+  });
+
+  test("party-22-agent: the 22-top's capacity fit + cost sheet", async ({ page }) => {
+    await page.goto("/?scenario=party-22-agent");
+    const sheet = page.locator(".request-sheet");
+    await expect(sheet.locator(".req-title")).toHaveText(
+      "Sam Whitaker, party of 22 · Fri 18:30 (in 3h 30m)",
+    );
+    await expect(sheet).toContainText("AI agent (chat app or MCP)");
+    await expect(sheet.locator(".req-overview")).toContainText("Family reunion");
+    await expect(sheet.locator(".fit-card")).toContainText("Accept: +22 covers");
+    await expect(page.locator(".room-select select")).toHaveValue("book-fri");
+  });
+
+  test("party-22-accepted: tonight's layout with the crew build list", async ({ page }) => {
+    await page.goto("/?scenario=party-22-accepted");
+    await expect(page.locator(".proposal")).toBeVisible();
+    await expect(page.locator('[aria-label="Crew build list"]')).toBeVisible();
+    await expect(page.locator(".fit-card.is-focus")).toContainText("Q2");
+  });
+
+  test("walkin-8-peak: the assistant with ranked options at 19:10", async ({ page }) => {
+    await page.goto("/?scenario=walkin-8-peak");
+    await expect(page.locator(".room-select select")).toHaveValue("dinner-peak");
+    await expect(page.locator(".rec-card")).toHaveCount(3);
+    await expect(page.locator(".rec-card").first()).toContainText("table 41");
+    await expect(page.locator(".answer")).not.toContainText(/\bT\d/);
+  });
+
+  test("request-chat: the tables 30–50 chat mid-conversation", async ({ page }) => {
+    await page.goto("/?scenario=request-chat");
+    const chat = page.getByRole("region", { name: "Adjust this request" });
+    const log = chat.getByRole("list", { name: "Request chat" });
+    await expect(log).toContainText("find another space between tables 30–50");
+    await expect(log).toContainText("tables 30–50 →");
+    await expect(chat.getByLabel("Tables from")).toHaveValue("30");
+    await expect(page.locator(".request-sheet")).toContainText("Closest:");
+  });
+
+  test("the header menu links every scenario", async ({ page }) => {
+    await page.goto("/");
+    await page.locator(".scenario-menu summary").click();
+    for (const id of ["party-22-agent", "party-22-accepted", "walkin-8-peak", "request-chat"])
+      await expect(page.locator(`.scenario-menu a[href="/?scenario=${id}"]`)).toBeVisible();
+  });
+});
