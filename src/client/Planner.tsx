@@ -1,9 +1,10 @@
-import { useRef, useState, type ReactNode } from "react";
+import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
   applyCombine,
   applyMove,
   applySplit,
   comboOf,
+  findTablesForParty,
   tableById,
   type Room,
   type TonightProposal,
@@ -23,6 +24,7 @@ import { TableDetails } from "./FloorPlan/TableDetails";
 import type { Highlight, HighlightControls } from "./highlight";
 import { finishParty, seatParty, type DoneEntry, type WaitEntry } from "./lib/service";
 import { Rail } from "./Rail/Rail";
+import { ReservationSheet } from "./WalkIn/ReservationSheet";
 import { WalkInSheet, type WalkInDraft } from "./WalkIn/WalkInSheet";
 
 const today = () => new Date().toLocaleDateString("en-CA"); // local YYYY-MM-DD
@@ -34,6 +36,7 @@ const PANEL_TITLE: Record<PanelMode, string> = {
   walkin: "Walk-in",
   assistant: "Assistant",
   shift: "Shift setup",
+  reservation: "Add reservation",
 };
 
 /** Owns the edited room and the session's waitlist / done lists. Remounted per fixture. */
@@ -58,7 +61,23 @@ export function Planner({ fixture, roomSelect, layouts, onEditLayout }: PlannerP
   const [done, setDone] = useState<DoneEntry[]>([]);
   const nextId = useRef(1);
 
-  const highlight = hover ?? pinned;
+  // Walk-in suggestions are computed once here: listed in the sheet and outlined on the floor.
+  const fit = useMemo(
+    () =>
+      mode === "walkin"
+        ? findTablesForParty(room, { partySize: draft.size, needs: draft.needs, maxOptions: 12 })
+        : null,
+    [mode, room, draft.size, draft.needs],
+  );
+  const suggested: Highlight | null =
+    fit && fit.options.length
+      ? {
+          key: "walkin-suggested",
+          ids: [...new Set(fit.options.slice(0, 3).flatMap((o) => o.tables))],
+          label: `Suggested for party of ${draft.size}`,
+        }
+      : null;
+  const highlight = hover ?? pinned ?? suggested;
   const controls: HighlightControls = {
     pinnedKey: pinned?.key ?? null,
     onHover: setHover,
@@ -173,6 +192,7 @@ export function Planner({ fixture, roomSelect, layouts, onEditLayout }: PlannerP
             done={done}
             highlight={controls}
             onWalkIn={() => openWalkIn()}
+            onAddReservation={() => setMode("reservation")}
             onSeatWaiting={(w) => openWalkIn({ size: w.partySize, needs: w.needs, waitId: w.id })}
             onRemoveWaiting={(id) => setWaitlist((w) => w.filter((x) => x.id !== id))}
             onSelectTables={(ids) => {
@@ -195,6 +215,8 @@ export function Planner({ fixture, roomSelect, layouts, onEditLayout }: PlannerP
             </div>
           )}
           <FloorPlan
+            key={proposal ? "preview" : "live"}
+            initialTab={proposal ? "first" : undefined}
             room={proposal?.variant ?? room}
             selected={proposal ? [] : selected}
             highlight={highlight}
@@ -229,6 +251,8 @@ export function Planner({ fixture, roomSelect, layouts, onEditLayout }: PlannerP
             <div className="tabpanel">
               <WalkInSheet
                 room={room}
+                fit={fit}
+                highlight={controls}
                 draft={draft}
                 selected={selected}
                 onDraft={setDraft}
@@ -248,6 +272,23 @@ export function Planner({ fixture, roomSelect, layouts, onEditLayout }: PlannerP
               onOpenShift={() => setMode("shift")}
             />
           </div>
+          {mode === "reservation" && (
+            <div className="tabpanel">
+              <ReservationSheet
+                clock={room.clock}
+                onAdd={(r) => {
+                  const res = run(
+                    () => ({
+                      ...room,
+                      reservations: [...room.reservations, { ...r, id: `N${nextId.current++}` }],
+                    }),
+                    `Booked party of ${r.partySize} at ${r.time}`,
+                  );
+                  if (res.ok) setMode("details");
+                }}
+              />
+            </div>
+          )}
           {mode === "shift" && (
             <div className="tabpanel">
               <p className="positioning">{POSITIONING}</p>

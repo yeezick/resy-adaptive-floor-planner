@@ -1,5 +1,6 @@
 import { useState, type KeyboardEvent } from "react";
 import { parseRoom, type Room, type Table } from "../../domain";
+import type { Layout } from "../layouts/useLayouts";
 import { viewBox } from "../FloorPlan/geometry";
 import { addTable, duplicate, moveTables, removeTables, setJoin, updateTable } from "./edit";
 import { EditorCanvas } from "./EditorCanvas";
@@ -13,6 +14,10 @@ interface Props {
   canOverwrite: boolean;
   onCancel: () => void;
   onSave: (room: Room, name: string, asNew: boolean) => void;
+  /** Named floor plans (base + one-day variants) and the one being edited. */
+  plans: Layout[];
+  currentId: string | null;
+  onOpenPlan: (plan: Layout) => void;
 }
 
 interface History {
@@ -30,6 +35,9 @@ export function LayoutEditor({
   canOverwrite,
   onCancel,
   onSave,
+  plans,
+  currentId,
+  onOpenPlan,
 }: Props) {
   const [h, setH] = useState<History>({ past: [], present: initial, future: [] });
   const [selected, setSelected] = useState<string[]>([]);
@@ -170,6 +178,13 @@ export function LayoutEditor({
         </div>
         <aside className="side-col editor-side" aria-label="Selection and storage">
           <div className="tabpanel">
+            <PlanList
+              plans={plans}
+              currentId={currentId}
+              draftName={currentId === null ? name : null}
+              dirty={h.past.length > 0}
+              onOpen={onOpenPlan}
+            />
             {one ? (
               <TableInspector
                 room={room}
@@ -192,5 +207,57 @@ export function LayoutEditor({
         </aside>
       </div>
     </div>
+  );
+}
+
+/** Floor plans tied to shifts: the base and the one-day variants (date · shift). */
+function PlanList({
+  plans,
+  currentId,
+  draftName,
+  dirty,
+  onOpen,
+}: {
+  plans: Layout[];
+  currentId: string | null;
+  draftName: string | null;
+  dirty: boolean;
+  onOpen: (p: Layout) => void;
+}) {
+  return (
+    <section className="plan-list" aria-label="Floor plans">
+      <h3 className="section-title">Floor plans</h3>
+      <ul>
+        {draftName && (
+          <li className="is-current">
+            <strong>{draftName}</strong>
+            <span className="muted small">new one-day plan · not saved yet</span>
+          </li>
+        )}
+        {plans.map((p) => {
+          const current = p.id === currentId;
+          return (
+            <li key={p.id} className={current ? "is-current" : undefined}>
+              <button
+                type="button"
+                className="link-btn"
+                disabled={current || dirty}
+                title={dirty && !current ? "Save or cancel your changes first" : undefined}
+                onClick={() => onOpen(p)}
+              >
+                <strong>{p.name}</strong>
+                <span className="muted small">
+                  {p.kind === "base"
+                    ? "Base · every day"
+                    : [p.date, p.shift].filter(Boolean).join(" · ") || "one-day plan"}
+                </span>
+                {p.note && <span className="muted small">{p.note}</span>}
+                {current && <span className="pill pill-accent editing-pill">editing</span>}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
   );
 }

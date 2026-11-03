@@ -10,10 +10,33 @@ interface Props {
   done: DoneEntry[];
   highlight: HighlightControls;
   onWalkIn: () => void;
+  onAddReservation: () => void;
   onSeatWaiting: (w: WaitEntry) => void;
   onRemoveWaiting: (id: string) => void;
   onSelectTables: (ids: string[]) => void;
   onFinish: (ids: string[]) => void;
+}
+
+/** Long lists show this many rows until "Show all", so every list header stays on screen. */
+const PREVIEW_ROWS = 6;
+
+function ShowAll({
+  shown,
+  total,
+  hidden,
+  onToggle,
+}: {
+  shown: boolean;
+  total: number;
+  hidden: number;
+  onToggle: () => void;
+}) {
+  if (!shown && hidden === 0) return null;
+  return (
+    <button type="button" className="show-all" aria-expanded={shown} onClick={onToggle}>
+      {shown ? "Show fewer" : `Show all ${total} (${hidden} more)`}
+    </button>
+  );
 }
 
 const short = (area: string) => area;
@@ -34,6 +57,8 @@ export function Rail(p: Props) {
   const { room, waitlist, done, highlight } = p;
   const now = toMinutes(room.clock);
   const seated = useMemo(() => seatedParties(room), [room]);
+  const [allUp, setAllUp] = useState(false);
+  const [allSeated, setAllSeated] = useState(false);
   const reservations = useMemo(
     () => [...room.reservations].sort((a, b) => toMinutes(a.time) - toMinutes(b.time)),
     [room.reservations],
@@ -94,12 +119,21 @@ export function Rail(p: Props) {
         )}
       </RailSection>
 
-      <RailSection title="Upcoming" parties={reservations.length} covers={covers(reservations)}>
+      <RailSection
+        title="Upcoming"
+        parties={reservations.length}
+        covers={covers(reservations)}
+        action={
+          <button type="button" className="rail-action" onClick={p.onAddReservation}>
+            + Reservation
+          </button>
+        }
+      >
         {reservations.length === 0 ? (
           <p className="rail-empty">No reservations in the book.</p>
         ) : (
           <ul className="rows">
-            {reservations.map((r) => {
+            {(allUp ? reservations : reservations.slice(0, PREVIEW_ROWS)).map((r) => {
               const build = builds.get(r.id);
               const h = build ? { ...buildHighlight(build), key: `up-${r.id}` } : null;
               return (
@@ -137,7 +171,13 @@ export function Rail(p: Props) {
             })}
           </ul>
         )}
-        {held.length > 0 && (
+        <ShowAll
+          shown={allUp}
+          total={reservations.length + held.length}
+          hidden={Math.max(0, reservations.length - PREVIEW_ROWS) + held.length}
+          onToggle={() => setAllUp((v) => !v)}
+        />
+        {allUp && held.length > 0 && (
           <>
             <div className="rail-sub">Held tables · {held.length}</div>
             <ul className="rows">
@@ -173,7 +213,7 @@ export function Rail(p: Props) {
           <p className="rail-empty">No one seated.</p>
         ) : (
           <ul className="rows">
-            {seated.map((s) => (
+            {(allSeated ? seated : seated.slice(0, PREVIEW_ROWS)).map((s) => (
               <li
                 key={s.key}
                 className="row row-seated"
@@ -191,7 +231,8 @@ export function Rail(p: Props) {
                     className="link-btn row-sub"
                     onClick={() => p.onSelectTables(s.ids)}
                   >
-                    <strong>{s.ids.join("+")}</strong>&nbsp;· {short(s.area)}
+                    <strong>{s.ids.join("+")}</strong>{" "}
+                    <span className="muted">{s.area.split(" ")[0]}</span>
                   </button>
                 </span>
                 <button type="button" className="row-finish" onClick={() => p.onFinish(s.ids)}>
@@ -201,9 +242,15 @@ export function Rail(p: Props) {
             ))}
           </ul>
         )}
+        <ShowAll
+          shown={allSeated}
+          total={seated.length}
+          hidden={Math.max(0, seated.length - PREVIEW_ROWS)}
+          onToggle={() => setAllSeated((v) => !v)}
+        />
       </RailSection>
 
-      <RailSection title="Done" parties={done.length} covers={covers(done)} defaultOpen={false}>
+      <RailSection title="Done" parties={done.length} covers={covers(done)}>
         {done.length === 0 ? (
           <p className="rail-empty">No parties finished this session.</p>
         ) : (

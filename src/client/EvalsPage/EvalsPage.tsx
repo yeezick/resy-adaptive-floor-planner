@@ -46,21 +46,81 @@ export function EvalsPage() {
   );
 }
 
-export function Results({ r }: { r: EvalResults }) {
-  const n = r.scenarios.length;
-  const sha = r.gitSha.slice(0, 7);
+function RunMeta({ r }: { r: EvalResults }) {
+  return (
+    <section className="card meta-card" aria-label="Run metadata">
+      <dl className="meta">
+        <Meta k="Run" v={new Date(r.runAt).toLocaleString()} />
+        <Meta k="Commit" v={r.gitSha.slice(0, 7)} mono />
+        <Meta k="Prompt" v={r.promptVersion} mono />
+        <Meta k="Model" v={r.model} mono />
+        <Meta k="Judge" v={r.judgeModel ?? "none"} mono />
+        <Meta k="Mode" v={r.mode === "replay" ? "replay (recorded responses)" : "live"} />
+      </dl>
+    </section>
+  );
+}
+
+function KnownLimits({ limits }: { limits: string[] }) {
+  return (
+    <section className="card" aria-label="Known limits">
+      <h2 className="section-title">Known limits</h2>
+      {limits.length ? (
+        <ul>
+          {limits.map((l) => (
+            <li key={l}>{l}</li>
+          ))}
+        </ul>
+      ) : (
+        <p className="muted small">None listed.</p>
+      )}
+    </section>
+  );
+}
+
+/** A results file with no scenarios: say so plainly instead of showing zeros. */
+function NoRun({ r }: { r: EvalResults }) {
   return (
     <>
-      <section className="card meta-card" aria-label="Run metadata">
-        <dl className="meta">
-          <Meta k="Run" v={new Date(r.runAt).toLocaleString()} />
-          <Meta k="Commit" v={sha} mono />
-          <Meta k="Prompt" v={r.promptVersion} mono />
-          <Meta k="Model" v={r.model} mono />
-          <Meta k="Judge" v={r.judgeModel ?? "none"} mono />
-          <Meta k="Mode" v={r.mode === "replay" ? "replay (recorded responses)" : "live"} />
-        </dl>
+      <section className="state-card no-run" aria-label="No evaluation run yet">
+        <h2>No evaluation run is published yet</h2>
+        <p className="muted">
+          When one is, this page shows how often the seating assistant's recommendations pass a
+          fixed set of checks, what each recommendation costs and how long it takes. Until then
+          there is nothing to score, so no numbers are shown.
+        </p>
+        <h3 className="section-title">What a run will report</h3>
+        <ul className="small">
+          <li>
+            Pass rate on a fixed set of seating scenarios, with a 95% confidence range and the
+            number of scenarios stated, so a small sample is read as a direction, not a verdict.
+          </li>
+          <li>
+            A second opinion from an automated reviewer, counted only once it agrees closely enough
+            with people who scored the same answers by hand.
+          </li>
+          <li>Cost and response time per recommendation.</li>
+        </ul>
+        <h3 className="section-title">Limits to keep in mind</h3>
+        <ul className="small">
+          <li>All restaurants and bookings are fictional.</li>
+          <li>Meal-length timings are stated assumptions, not measurements.</li>
+          <li>Checks test consistency with the floor plan, not real guest outcomes.</li>
+        </ul>
+        <p className="muted small">
+          Configured for prompt {r.promptVersion} on {r.model}.
+        </p>
       </section>
+    </>
+  );
+}
+
+export function Results({ r }: { r: EvalResults }) {
+  const n = r.scenarios.length;
+  if (n === 0) return <NoRun r={r} />;
+  return (
+    <>
+      <RunMeta r={r} />
 
       <div className="evals-grid">
         <section className="card" aria-label="Pass rates">
@@ -134,18 +194,7 @@ export function Results({ r }: { r: EvalResults }) {
 
       <ScenarioTable scenarios={r.scenarios} />
 
-      <section className="card" aria-label="Known limits">
-        <h2 className="section-title">Known limits</h2>
-        {r.knownLimits.length ? (
-          <ul>
-            {r.knownLimits.map((l) => (
-              <li key={l}>{l}</li>
-            ))}
-          </ul>
-        ) : (
-          <p className="muted small">None listed.</p>
-        )}
-      </section>
+      <KnownLimits limits={r.knownLimits} />
     </>
   );
 }

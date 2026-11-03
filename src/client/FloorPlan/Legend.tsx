@@ -1,6 +1,6 @@
 import { PHASES } from "../../domain";
-import { PHASE_LABEL } from "../lib/service";
-import { PHASE_FILL, STATUS_STYLE } from "./colors";
+import { PHASE_ABBR, PHASE_LABEL } from "../lib/service";
+import { STATUS_STYLE } from "./colors";
 
 function Swatch({ fill, stroke, hatch }: { fill: string; stroke: string; hatch?: boolean }) {
   return (
@@ -29,24 +29,12 @@ export function Legend() {
         </span>
       </div>
       <div className="legend-group">
-        <span className="legend-title">Seated · meal phase</span>
-        {PHASES.map((p, i) => (
-          <span key={p} className="legend-item">
-            <Swatch fill={PHASE_FILL[p]} stroke="#1b3640" /> {PHASE_LABEL[p]}
-            <span className="pips" aria-hidden="true">
-              {PHASES.map((q, j) => (
-                <span key={q} className={j <= i ? "pip on" : "pip"} />
-              ))}
-            </span>
-          </span>
-        ))}
-      </div>
-      <div className="legend-group">
         <span className="legend-item">
-          <span className="swatch swatch-selected" aria-hidden="true" /> Selected
+          <span className="swatch swatch-selected" aria-hidden="true" /> Your selection
         </span>
         <span className="legend-item">
-          <span className="swatch swatch-lit" aria-hidden="true" /> Recommended / build
+          <span className="swatch swatch-lit" aria-hidden="true" /> Suggested (assistant, walk-in,
+          build)
         </span>
         <span className="legend-item">
           <span className="swatch swatch-combo" aria-hidden="true" /> Combined
@@ -76,6 +64,24 @@ export function Legend() {
           <span className="swatch swatch-station" aria-hidden="true" /> Station / bar (no tables)
         </span>
       </div>
+    </div>
+  );
+}
+
+/** Always-visible key for the phase words and colours on seated tables. */
+export function PhaseStrip() {
+  return (
+    <div className="phase-strip" aria-label="Meal phase key">
+      <span className="phase-strip-title">Meal phase</span>
+      {PHASES.map((p) => (
+        <span key={p} className={`phase-chip phase-${p}`} title={PHASE_LABEL[p]}>
+          {PHASE_ABBR[p]}
+          <span className="phase-strip-word"> {PHASE_LABEL[p]}</span>
+        </span>
+      ))}
+      <span className="phase-strip-arrow" aria-hidden="true">
+        just sat → about to leave
+      </span>
     </div>
   );
 }

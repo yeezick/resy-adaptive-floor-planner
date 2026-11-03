@@ -124,25 +124,40 @@ export function sectionBoxes(room: Room): SectionBox[] {
     .map(([section, ts]) => ({ section, box: union(ts, 0.8) }));
 }
 
-/** "main", "all", or "suite:<id>". */
+/** "all", "main" (everything but the private wing), "area:<id>" or "suite:<id>". */
 export type ViewPreset = string;
 
+/** Grid units reserved right of private rooms for their captions. */
+export const CAPTION_BAND = 14;
+
+/** One tab per dining room, one per private suite, then the whole room. */
 export function roomTabs(room: Room): { id: ViewPreset; label: string }[] {
   const tabs: { id: ViewPreset; label: string }[] = [];
-  if (room.areas.some((a) => a.kind !== "private")) tabs.push({ id: "main", label: "Main floor" });
-  for (const s of suites(room)) tabs.push({ id: `suite:${s.id}`, label: `Private suite ${s.id}` });
+  for (const a of room.areas)
+    if (a.kind === "dining" && room.tables.some((t) => t.area === a.name))
+      tabs.push({ id: `area:${a.id}`, label: a.name });
+  for (const s of suites(room)) tabs.push({ id: `suite:${s.id}`, label: `${s.id} suite` });
   tabs.push({ id: "all", label: "Whole room" });
   return tabs;
+}
+
+/** Tablet-width screens open on a single room so tables stay legible; wide screens see it all. */
+export function defaultTab(room: Room, width: number): ViewPreset {
+  return width <= 1280 ? (roomTabs(room)[0]?.id ?? "all") : "all";
 }
 
 export function viewBox(room: Room, preset: ViewPreset): Box {
   const areas = preset.startsWith("suite:")
     ? room.areas.filter((a) => a.kind === "private" && a.suite === preset.slice(6))
-    : preset === "main"
-      ? room.areas.filter((a) => a.kind !== "private")
-      : room.areas;
+    : preset.startsWith("area:")
+      ? room.areas.filter((a) => a.id === preset.slice(5))
+      : preset === "main"
+        ? room.areas.filter((a) => a.kind !== "private")
+        : room.areas;
   const boxes: Box[] = areas.length ? areas : room.tables;
   // Extra headroom above for area / suite labels.
-  const b = union(boxes, preset === "main" ? 1 : 1.5);
-  return { x: b.x, y: b.y - 3.5, w: b.w, h: b.h + 3.5 };
+  const b = union(boxes, 1);
+  // private-room captions sit in a band to the right of the rooms, never over tables
+  const band = areas.some((a) => a.kind === "private") ? CAPTION_BAND : 0;
+  return { x: b.x, y: b.y - 3.5, w: b.w + band, h: b.h + 3.5 };
 }

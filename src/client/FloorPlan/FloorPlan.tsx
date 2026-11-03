@@ -11,7 +11,10 @@ import type { LayoutChange, Room, Table } from "../../domain";
 import { ChangeOverlay, ChangeUnderlay, openedDividers } from "./ChangeOverlay";
 import type { Highlight } from "../highlight";
 import { FloorAreas } from "./FloorAreas";
-import { intersects, roomTabs, viewBox, type ViewPreset } from "./geometry";
+import { defaultTab, intersects, roomTabs, viewBox, type Box, type ViewPreset } from "./geometry";
+import { OffscreenCue, useScrollView } from "./OffscreenCue";
+import { PhaseStrip } from "./Legend";
+import { PxPerUnit, useMeasuredPpu } from "./scale";
 import { TableShape } from "./TableShape";
 
 interface Props {
@@ -22,6 +25,8 @@ interface Props {
   onMove: (id: string, x: number, y: number) => void;
   /** Proposal change view: ghosts, arrows, joins and storage pulls drawn over the room. */
   changes?: readonly LayoutChange[];
+  /** Open on this tab instead of the screen-size default (the preview opens on a single room). */
+  initialTab?: "first";
 }
 
 interface Drag {
@@ -40,13 +45,23 @@ const SNAP = 0.5;
 const ZOOMS = [1, 1.5, 2, 3, 4];
 const snap = (v: number) => Math.round(v / SNAP) * SNAP;
 
-export function FloorPlan({ room, selected, highlight, onToggle, onMove, changes }: Props) {
+export function FloorPlan({
+  room,
+  selected,
+  highlight,
+  onToggle,
+  onMove,
+  changes,
+  initialTab,
+}: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const panRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [zoom, setZoom] = useState(1);
-  const [preset, setPreset] = useState<ViewPreset>(() => roomTabs(room)[0]?.id ?? "all");
+  const [preset, setPreset] = useState<ViewPreset>(() =>
+    initialTab === "first" ? (roomTabs(room)[0]?.id ?? "all") : defaultTab(room, window.innerWidth),
+  );
 
   // Tables at their on-screen position (a table being dragged follows the pointer).
   const tables = useMemo(
@@ -58,6 +73,7 @@ export function FloorPlan({ room, selected, highlight, onToggle, onMove, changes
   );
   const byId = useMemo(() => new Map(tables.map((t) => [t.id, t])), [tables]);
   const box = useMemo(() => viewBox(room, preset), [room, preset]);
+  const ppu = useMeasuredPpu(svgRef, box);
 
   const lit = new Set(highlight?.ids ?? []);
   const dimOthers = lit.size > 0;
@@ -70,12 +86,16 @@ export function FloorPlan({ room, selected, highlight, onToggle, onMove, changes
     });
 
   // When zoomed in, bring highlighted tables into the scroll viewport.
-  const litKey = highlight?.ids.join(",") ?? "";
+  // Bring highlighted (suggested / recommended) or changed tables into view when the panel scrolls.
+  const firstChanged = changes?.find(
+    (c) => c.kind === "move" || c.kind === "pull-table" || c.kind === "join",
+  )?.tables[0];
+  const focusId = highlight?.ids[0] ?? firstChanged ?? "";
   useEffect(() => {
     const sc = scrollRef.current;
-    const first = litKey.split(",")[0];
-    if (!sc || !first || zoom === 1) return;
-    const el = sc.querySelector(`[data-id="${first}"]`);
+    if (!sc || !focusId) return;
+    if (sc.scrollWidth <= sc.clientWidth && sc.scrollHeight <= sc.clientHeight) return;
+    const el = sc.querySelector(`[data-id="${focusId}"]`);
     if (!el) return;
     const r = el.getBoundingClientRect();
     const c = sc.getBoundingClientRect();
@@ -83,7 +103,19 @@ export function FloorPlan({ room, selected, highlight, onToggle, onMove, changes
       sc.scrollLeft += r.left - c.left - c.width / 2 + r.width / 2;
     if (r.top < c.top || r.bottom > c.bottom)
       sc.scrollTop += r.top - c.top - c.height / 2 + r.height / 2;
-  }, [litKey, zoom]);
+  }, [focusId, zoom, preset]);
+
+  const view = useScrollView(scrollRef, svgRef, box, `${zoom}|${preset}`);
+  const reveal = (target: Box) => {
+    const sc = scrollRef.current;
+    if (!sc || !view) return;
+    const v = view.visible;
+    sc.scrollBy({
+      left: (target.x + target.w / 2 - (v.x + v.w / 2)) * ppu,
+      top: (target.y + target.h / 2 - (v.y + v.h / 2)) * ppu,
+      behavior: "smooth",
+    });
+  };
 
   const toGrid = (e: PointerEvent): { x: number; y: number } | null => {
     const ctm = svgRef.current?.getScreenCTM();
@@ -147,7 +179,9 @@ export function FloorPlan({ room, selected, highlight, onToggle, onMove, changes
   // Drag the empty floor to pan when zoomed in.
   const onPanDown = (e: PointerEvent<SVGSVGElement>) => {
     const sc = scrollRef.current;
-    if (!sc || zoom === 1 || e.button !== 0) return;
+    if (!sc || e.button !== 0) return;
+    // pan only when the view is bigger than the panel (zoomed, or a room shown at touch scale)
+    if (sc.scrollWidth <= sc.clientWidth && sc.scrollHeight <= sc.clientHeight) return;
     panRef.current = { x: e.clientX, y: e.clientY, left: sc.scrollLeft, top: sc.scrollTop };
     e.currentTarget.setPointerCapture(e.pointerId);
   };
@@ -204,74 +238,87 @@ export function FloorPlan({ room, selected, highlight, onToggle, onMove, changes
             +
           </button>
         </div>
-        {highlight && (
-          <span className="floor-highlight-tag small" aria-live="polite">
-            {highlight.label}
-            {outside && " · outside this view"}
-          </span>
-        )}
       </div>
-      <div
-        ref={scrollRef}
-        className={zoom > 1 ? "floor-scroll is-zoomed" : "floor-scroll"}
-        style={{ "--zoom": zoom, "--ar": box.w / box.h } as CSSProperties}
-      >
-        <svg
-          ref={svgRef}
-          className="floor"
-          viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}
-          preserveAspectRatio="xMidYMid meet"
-          role="group"
-          aria-label={`Floor plan of ${room.name}. Tab to a table; Enter selects, arrow keys move it.`}
-          onPointerDown={onPanDown}
-          onPointerMove={onPanMove}
-          onPointerUp={onPanUp}
-          onPointerCancel={onPanUp}
+      <div className="floor-sub">
+        <PhaseStrip />
+        <span className="floor-highlight-tag small" aria-live="polite" hidden={!highlight}>
+          {highlight?.label}
+          {outside && " · outside this view"}
+        </span>
+      </div>
+      <div className="floor-viewport">
+        <OffscreenCue room={room} box={box} view={view} onReveal={reveal} />
+        <div
+          ref={scrollRef}
+          className={zoom > 1 ? "floor-scroll is-zoomed" : "floor-scroll"}
+          style={
+            {
+              "--zoom": zoom,
+              "--ar": box.w / box.h,
+              // single rooms keep ≥11px per grid unit on tablets (2-tops ≥32px); the panel scrolls
+              "--min-w": preset === "all" ? "0px" : `${box.w * 11}px`,
+            } as CSSProperties
+          }
         >
-          <defs>
-            <pattern
-              id="hatch"
-              width="0.8"
-              height="0.8"
-              patternUnits="userSpaceOnUse"
-              patternTransform="rotate(45)"
+          <PxPerUnit.Provider value={ppu}>
+            <svg
+              ref={svgRef}
+              className="floor"
+              viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}
+              preserveAspectRatio="xMidYMid meet"
+              role="group"
+              aria-label={`Floor plan of ${room.name}. Tab to a table; Enter selects, arrow keys move it.`}
+              onPointerDown={onPanDown}
+              onPointerMove={onPanMove}
+              onPointerUp={onPanUp}
+              onPointerCancel={onPanUp}
             >
-              <rect width="0.8" height="0.8" fill="#eceae6" />
-              <line x1="0" y1="0" x2="0" y2="0.8" stroke="#c9c6c0" strokeWidth="0.3" />
-            </pattern>
-            <clipPath id="view-clip">
-              <rect x={box.x} y={box.y} width={box.w} height={box.h} />
-            </clipPath>
-          </defs>
+              <defs>
+                <pattern
+                  id="hatch"
+                  width="0.8"
+                  height="0.8"
+                  patternUnits="userSpaceOnUse"
+                  patternTransform="rotate(45)"
+                >
+                  <rect width="0.8" height="0.8" fill="#eceae6" />
+                  <line x1="0" y1="0" x2="0" y2="0.8" stroke="#c9c6c0" strokeWidth="0.3" />
+                </pattern>
+                <clipPath id="view-clip">
+                  <rect x={box.x} y={box.y} width={box.w} height={box.h} />
+                </clipPath>
+              </defs>
 
-          <g clipPath="url(#view-clip)">
-            <FloorAreas room={room} openDividers={openDividers} />
+              <g clipPath="url(#view-clip)">
+                <FloorAreas room={room} openDividers={openDividers} />
 
-            {changes && <ChangeUnderlay room={room} changes={changes} />}
+                {changes && <ChangeUnderlay room={room} changes={changes} />}
 
-            {room.combos.map((ids) => (
-              <Combo key={ids.join("+")} room={room} ids={ids} byId={byId} />
-            ))}
+                {room.combos.map((ids) => (
+                  <Combo key={ids.join("+")} room={room} ids={ids} byId={byId} />
+                ))}
 
-            {tables.map((t) => (
-              <TableShape
-                key={t.id}
-                table={t}
-                selected={selected.includes(t.id)}
-                lit={lit.has(t.id)}
-                dim={dimOthers && !lit.has(t.id)}
-                dragging={drag?.id === t.id && drag.moved}
-                onPointerDown={(e) => onTableDown(e, t)}
-                onPointerMove={(e) => onTableMove(e, t)}
-                onPointerUp={(e) => onTableUp(e, t)}
-                onPointerCancel={() => setDrag(null)}
-                onKeyDown={(e) => onTableKey(e, t)}
-              />
-            ))}
+                {tables.map((t) => (
+                  <TableShape
+                    key={t.id}
+                    table={t}
+                    selected={selected.includes(t.id)}
+                    lit={lit.has(t.id)}
+                    dim={dimOthers && !lit.has(t.id)}
+                    dragging={drag?.id === t.id && drag.moved}
+                    onPointerDown={(e) => onTableDown(e, t)}
+                    onPointerMove={(e) => onTableMove(e, t)}
+                    onPointerUp={(e) => onTableUp(e, t)}
+                    onPointerCancel={() => setDrag(null)}
+                    onKeyDown={(e) => onTableKey(e, t)}
+                  />
+                ))}
 
-            {changes && <ChangeOverlay room={room} changes={changes} />}
-          </g>
-        </svg>
+                {changes && <ChangeOverlay room={room} changes={changes} />}
+              </g>
+            </svg>
+          </PxPerUnit.Provider>
+        </div>
       </div>
     </div>
   );

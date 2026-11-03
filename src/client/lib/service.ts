@@ -23,6 +23,16 @@ export const PHASE_LABEL: Record<Phase, string> = {
   check: "Check",
 };
 
+/** Short phase words drawn on seated tables. */
+export const PHASE_ABBR: Record<Phase, string> = {
+  seated: "SEAT",
+  drinks: "DRK",
+  appetizers: "APP",
+  entrees: "ENT",
+  dessert: "DES",
+  check: "CHK",
+};
+
 export const NEEDS: Need[] = ["accessible", "stroller", "quiet", "view", "booth"];
 
 export interface SeatedParty {

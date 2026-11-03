@@ -1,12 +1,12 @@
-import { useMemo } from "react";
 import {
   checkTableSet,
-  findTablesForParty,
   tableById,
+  type FitResult,
   type Need,
   type Room,
   type Table,
 } from "../../domain";
+import type { HighlightControls } from "../highlight";
 import { etaText, NEEDS, typicalWait } from "../lib/service";
 
 export interface WalkInDraft {
@@ -18,6 +18,8 @@ export interface WalkInDraft {
 
 interface Props {
   room: Room;
+  fit: FitResult | null;
+  highlight: HighlightControls;
   draft: WalkInDraft;
   selected: string[];
   onDraft: (d: WalkInDraft) => void;
@@ -29,6 +31,8 @@ interface Props {
 const SIZES = Array.from({ length: 12 }, (_, i) => i + 1);
 
 export function WalkInSheet({
+  fit,
+  highlight,
   room,
   draft,
   selected,
@@ -38,10 +42,7 @@ export function WalkInSheet({
   onWaitlist,
 }: Props) {
   const { size, needs } = draft;
-  const fit = useMemo(
-    () => findTablesForParty(room, { partySize: size, needs, maxOptions: 12 }),
-    [room, size, needs],
-  );
+  if (!fit) return null;
   const suggestions = fit.options.slice(0, 3);
   const live = fit.options.length ? Math.min(...fit.options.map((o) => o.waitMin)) : null;
   const typical = typicalWait(size);
@@ -115,7 +116,7 @@ export function WalkInSheet({
 
       <section aria-label="Suggested tables" className="suggested">
         <h3 className="section-title">
-          Suggested <span className="muted">· instant, from table phases</span>
+          Suggested <span className="muted">· outlined on the floor · tap one to pick it</span>
         </h3>
         {suggestions.length === 0 ? (
           <p className="muted small">{fit.note ?? "Nothing fits right now."}</p>
@@ -132,10 +133,19 @@ export function WalkInSheet({
                     className="sugg"
                     aria-pressed={on}
                     onClick={() => onSelect(o.tables)}
+                    onMouseEnter={() =>
+                      highlight.onHover({
+                        key: `sugg-${o.tables.join("+")}`,
+                        ids: o.tables,
+                        label: `Suggested: ${o.tables.join(" + ")}`,
+                      })
+                    }
+                    onMouseLeave={() => highlight.onHover(null)}
                   >
                     <span className="sugg-head">
+                      <span className="ai-chip">Suggested</span>
                       <strong>{o.tables.join(" + ")}</strong>
-                      <span className={o.waitMin === 0 ? "ok-text" : "muted"}>
+                      <span className={o.waitMin === 0 ? "ok-text eta" : "muted eta"}>
                         {etaText(room, o)}
                       </span>
                     </span>

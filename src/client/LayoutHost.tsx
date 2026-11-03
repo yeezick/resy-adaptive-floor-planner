@@ -22,6 +22,12 @@ export function LayoutHost({ fixture, roomSelect }: { fixture: Room; roomSelect:
     const canOverwrite = editing.layoutId !== null && editing.layoutId !== "base";
     return (
       <LayoutEditor
+        key={`${editing.layoutId ?? "new"}#${editing.name}`}
+        plans={layouts.layouts}
+        currentId={editing.layoutId}
+        onOpenPlan={(l) =>
+          setEditing({ room: l.room, name: l.name, layoutId: l.id, date: l.date, shift: l.shift })
+        }
         initial={editing.room}
         name={editing.name}
         canOverwrite={canOverwrite}

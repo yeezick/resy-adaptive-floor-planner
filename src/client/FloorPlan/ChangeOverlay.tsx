@@ -1,5 +1,6 @@
 import { tableById, type LayoutChange, type Room, type Table } from "../../domain";
-import { normaliseDivider, union } from "./geometry";
+import { normaliseDivider, union, type Box } from "./geometry";
+import { usePx } from "./scale";
 
 /** Divider keys a proposal opens (from "Open the divider A | B"). */
 export function openedDividers(changes: readonly LayoutChange[]): string[] {
@@ -83,24 +84,83 @@ export function ChangeUnderlay({
   );
 }
 
-/** Labels drawn over the tables: tables brought out of storage. */
+/** Badge above a group of tables: "3 moved" or "2 from storage" (≥11px on screen). */
+function Badge({
+  box,
+  text,
+  cls,
+  below,
+}: {
+  box: Box;
+  text: string;
+  cls: string;
+  below?: boolean;
+}) {
+  const px = usePx();
+  const font = Math.max(0.85, px(11));
+  const h = font * 1.4;
+  const w = text.length * 0.58 * font + font;
+  const x = box.x + box.w / 2 - w / 2;
+  const y = below ? box.y + box.h + 0.3 : box.y - h - 0.3;
+  return (
+    <g className={`change-badge ${cls}`}>
+      <rect x={x} y={y} width={w} height={h} rx={h / 2} />
+      <text x={x + w / 2} y={y + h / 2} fontSize={font}>
+        {text}
+      </text>
+    </g>
+  );
+}
+
+/** Tables touched by one kind of change, grouped per party (one badge per row group). */
+function groups(room: Room, changes: readonly LayoutChange[], kind: LayoutChange["kind"]) {
+  const byParty = new Map<string, Table[]>();
+  for (const c of changes) {
+    if (c.kind !== kind) continue;
+    const ts = c.tables.map((id) => tableById(room, id)).filter((t): t is Table => !!t);
+    byParty.set(c.reservationId, [...(byParty.get(c.reservationId) ?? []), ...ts]);
+  }
+  return [...byParty.entries()].map(([party, tables]) => ({ party, tables, box: union(tables) }));
+}
+
+/** Drawn over the tables: storage pulls outlined, one badge per party for moves and pulls. */
 export function ChangeOverlay({ room, changes }: { room: Room; changes: readonly LayoutChange[] }) {
+  const pulled = groups(room, changes, "pull-table");
+  const moved = groups(room, changes, "move");
   return (
     <g className="changes-over" aria-hidden="true">
-      {changes
-        .filter((c) => c.kind === "pull-table")
-        .map((c) => {
-          const t = tableById(room, c.tables[0] ?? "");
-          if (!t) return null;
-          return (
-            <g key={`pull-${t.id}`} className="change-pull">
-              <rect x={t.x - 0.3} y={t.y - 0.3} width={t.w + 0.6} height={t.h + 0.6} rx={0.5} />
-              <text x={t.x + t.w / 2} y={t.y + t.h + 1.1}>
-                from storage
-              </text>
-            </g>
-          );
-        })}
+      {pulled.map((g) => (
+        <g key={`pull-${g.party}`} className="change-pull">
+          {g.tables.map((t) => (
+            // inset, so the outline never runs over a neighbour's label
+            <rect
+              key={t.id}
+              x={t.x + 0.25}
+              y={t.y + 0.25}
+              width={t.w - 0.5}
+              height={t.h - 0.5}
+              rx={0.3}
+            />
+          ))}
+        </g>
+      ))}
+      {moved.map((g) => (
+        <Badge
+          key={`moved-${g.party}`}
+          box={g.box}
+          text={g.tables.length > 1 ? `${g.tables.length} moved` : "moved"}
+          cls="is-move"
+        />
+      ))}
+      {pulled.map((g) => (
+        <Badge
+          key={`pullb-${g.party}`}
+          box={g.box}
+          below
+          text={`${g.tables.length} from storage`}
+          cls="is-pull"
+        />
+      ))}
     </g>
   );
 }

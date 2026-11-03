@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { Room } from "../domain";
 import type { ActionResult } from "./Planner";
 
-export type PanelMode = "details" | "walkin" | "assistant" | "shift";
+export type PanelMode = "details" | "walkin" | "assistant" | "shift" | "reservation";
 
 interface Props {
   room: Room;
@@ -13,6 +13,14 @@ interface Props {
   mode: PanelMode;
   onMode: (m: PanelMode) => void;
   onReset: () => void;
+}
+
+function todayLabel(): string {
+  return new Date().toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
 }
 
 export function roomCounts(room: Room) {
@@ -48,11 +56,14 @@ export function ConsoleBar({
   return (
     <div className="console-bar">
       <div className="cb-room">
-        <h1 className="room-name">{room.name}</h1>
+        <div className="cb-title">
+          <h1 className="room-name">{room.name}</h1>
+          <div className="cb-sub" title={`Layout in use: ${layoutName} — change it in Shift setup`}>
+            <time dateTime={new Date().toLocaleDateString("en-CA")}>{todayLabel()}</time> ·{" "}
+            {layoutName}
+          </div>
+        </div>
         {roomSelect}
-        <span className="pill layout-pill" title="Layout in use — change it in Shift setup">
-          {layoutName}
-        </span>
       </div>
       <div className="cb-clock" aria-label={`Service clock ${room.clock}`}>
         {room.clock}

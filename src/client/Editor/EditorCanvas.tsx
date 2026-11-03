@@ -2,6 +2,7 @@ import { useMemo, useRef, useState, type CSSProperties, type PointerEvent } from
 import type { Room, Table } from "../../domain";
 import { FloorAreas } from "../FloorPlan/FloorAreas";
 import { intersects, viewBox } from "../FloorPlan/geometry";
+import { AlwaysShowIds, PxPerUnit, useMeasuredPpu } from "../FloorPlan/scale";
 import { TableShape } from "../FloorPlan/TableShape";
 import { snap } from "./edit";
 
@@ -32,6 +33,7 @@ export function EditorCanvas({ room, selected, zoom, onSelect, onMoveCommit }: P
   const svgRef = useRef<SVGSVGElement>(null);
   const [g, setG] = useState<Gesture | null>(null);
   const box = useMemo(() => viewBox(room, "all"), [room]);
+  const ppu = useMeasuredPpu(svgRef, box);
 
   const toGrid = (e: PointerEvent) => {
     const ctm = svgRef.current?.getScreenCTM();
@@ -106,77 +108,88 @@ export function EditorCanvas({ room, selected, zoom, onSelect, onMoveCommit }: P
   return (
     <div
       className={zoom > 1 ? "floor-scroll is-zoomed" : "floor-scroll"}
-      style={{ "--zoom": zoom, "--ar": box.w / box.h } as CSSProperties}
+      style={
+        {
+          "--zoom": zoom,
+          "--ar": box.w / box.h,
+          // tablets: edit at touch scale and scroll, rather than shrinking labels away
+          "--min-w": `${box.w * 10}px`,
+        } as CSSProperties
+      }
     >
-      <svg
-        ref={svgRef}
-        className="floor editor-canvas"
-        viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}
-        role="group"
-        aria-label="Layout editor canvas. Click to select, shift-click to add, drag a box to select many, drag tables to move."
-        onPointerDown={onBgDown}
-        onPointerMove={onMove}
-        onPointerUp={onUp}
-        onPointerCancel={() => setG(null)}
-      >
-        <defs>
-          <pattern id="grid-1" width="1" height="1" patternUnits="userSpaceOnUse">
-            <path d="M1 0 L0 0 0 1" className="grid-minor" />
-          </pattern>
-          <pattern id="grid-5" width="5" height="5" patternUnits="userSpaceOnUse">
-            <rect width="5" height="5" fill="url(#grid-1)" />
-            <path d="M5 0 L0 0 0 5" className="grid-major" />
-          </pattern>
-          <pattern
-            id="hatch"
-            width="0.8"
-            height="0.8"
-            patternUnits="userSpaceOnUse"
-            patternTransform="rotate(45)"
-          >
-            <rect width="0.8" height="0.8" fill="#eceae6" />
-            <line x1="0" y1="0" x2="0" y2="0.8" stroke="#c9c6c0" strokeWidth="0.3" />
-          </pattern>
-        </defs>
-        <rect x={box.x} y={box.y} width={box.w} height={box.h} fill="url(#grid-5)" />
-        <FloorAreas room={room} openDividers={new Set()} />
-        {room.joins.map(([a, b]) => {
-          const ta = shown.find((t) => t.id === a);
-          const tb = shown.find((t) => t.id === b);
-          if (!ta || !tb) return null;
-          return (
-            <line
-              key={`${a}-${b}`}
-              className="join-link"
-              x1={ta.x + ta.w / 2}
-              y1={ta.y + ta.h / 2}
-              x2={tb.x + tb.w / 2}
-              y2={tb.y + tb.h / 2}
-            />
-          );
-        })}
-        {shown.map((t) => (
-          <TableShape
-            key={t.id}
-            table={t}
-            selected={selected.includes(t.id)}
-            lit={false}
-            dim={false}
-            dragging={g?.kind === "drag" && g.moved && g.ids.includes(t.id)}
-            onPointerDown={(e) => onTableDown(e, t)}
+      <PxPerUnit.Provider value={ppu}>
+        <AlwaysShowIds.Provider value={true}>
+          <svg
+            ref={svgRef}
+            className="floor editor-canvas"
+            viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}
+            role="group"
+            aria-label="Layout editor canvas. Click to select, shift-click to add, drag a box to select many, drag tables to move."
+            onPointerDown={onBgDown}
             onPointerMove={onMove}
             onPointerUp={onUp}
             onPointerCancel={() => setG(null)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" || e.key === " ") {
-                e.preventDefault();
-                onSelect(e.shiftKey ? [...selected, t.id] : [t.id]);
-              }
-            }}
-          />
-        ))}
-        {g?.kind === "box" && <rect className="select-box" {...toAttrs(boxRect(g))} />}
-      </svg>
+          >
+            <defs>
+              <pattern id="grid-1" width="1" height="1" patternUnits="userSpaceOnUse">
+                <path d="M1 0 L0 0 0 1" className="grid-minor" />
+              </pattern>
+              <pattern id="grid-5" width="5" height="5" patternUnits="userSpaceOnUse">
+                <rect width="5" height="5" fill="url(#grid-1)" />
+                <path d="M5 0 L0 0 0 5" className="grid-major" />
+              </pattern>
+              <pattern
+                id="hatch"
+                width="0.8"
+                height="0.8"
+                patternUnits="userSpaceOnUse"
+                patternTransform="rotate(45)"
+              >
+                <rect width="0.8" height="0.8" fill="#eceae6" />
+                <line x1="0" y1="0" x2="0" y2="0.8" stroke="#c9c6c0" strokeWidth="0.3" />
+              </pattern>
+            </defs>
+            <rect x={box.x} y={box.y} width={box.w} height={box.h} fill="url(#grid-5)" />
+            <FloorAreas room={room} openDividers={new Set()} />
+            {room.joins.map(([a, b]) => {
+              const ta = shown.find((t) => t.id === a);
+              const tb = shown.find((t) => t.id === b);
+              if (!ta || !tb) return null;
+              return (
+                <line
+                  key={`${a}-${b}`}
+                  className="join-link"
+                  x1={ta.x + ta.w / 2}
+                  y1={ta.y + ta.h / 2}
+                  x2={tb.x + tb.w / 2}
+                  y2={tb.y + tb.h / 2}
+                />
+              );
+            })}
+            {shown.map((t) => (
+              <TableShape
+                key={t.id}
+                table={t}
+                selected={selected.includes(t.id)}
+                lit={false}
+                dim={false}
+                dragging={g?.kind === "drag" && g.moved && g.ids.includes(t.id)}
+                onPointerDown={(e) => onTableDown(e, t)}
+                onPointerMove={onMove}
+                onPointerUp={onUp}
+                onPointerCancel={() => setG(null)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    onSelect(e.shiftKey ? [...selected, t.id] : [t.id]);
+                  }
+                }}
+              />
+            ))}
+            {g?.kind === "box" && <rect className="select-box" {...toAttrs(boxRect(g))} />}
+          </svg>
+        </AlwaysShowIds.Provider>
+      </PxPerUnit.Provider>
     </div>
   );
 }

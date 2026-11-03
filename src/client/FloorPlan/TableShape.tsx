@@ -1,5 +1,7 @@
-import type { KeyboardEvent, PointerEvent } from "react";
-import { PHASES, type Table } from "../../domain";
+import { useContext, type KeyboardEvent, type PointerEvent } from "react";
+import type { Table } from "../../domain";
+import { PHASE_ABBR } from "../lib/service";
+import { AlwaysShowIds, usePpu, usePx } from "./scale";
 import { tableColors } from "./colors";
 
 interface Props {
@@ -30,13 +32,27 @@ function diamond(cx: number, cy: number, rx: number, ry: number): string {
   return `${cx},${cy - ry} ${cx + rx},${cy} ${cx},${cy + ry} ${cx - rx},${cy}`;
 }
 
+/** Invisible target so every table is at least 44px square on screen. */
+function HitArea({ table: t }: { table: Table }) {
+  const px = usePx();
+  const w = Math.max(t.w, px(44));
+  const h = Math.max(t.h, px(44));
+  return (
+    <rect
+      className="hit"
+      x={t.x + t.w / 2 - w / 2}
+      y={t.y + t.h / 2 - h / 2}
+      width={w}
+      height={h}
+      fill="transparent"
+    />
+  );
+}
+
 export function TableShape({ table: t, selected, lit, dim, dragging, ...handlers }: Props) {
   const c = tableColors(t);
   const cx = t.x + t.w / 2;
   const cy = t.y + t.h / 2;
-  const size = Math.min(t.w, t.h);
-  const idSize = Math.min(1.5, Math.max(0.95, size * 0.3));
-  const seatSize = idSize * 0.7;
   const cls = [
     "table",
     selected && "is-selected",
@@ -92,6 +108,7 @@ export function TableShape({ table: t, selected, lit, dim, dragging, ...handlers
       aria-label={describe(t)}
       {...handlers}
     >
+      <HitArea table={t} />
       {(selected || lit) && ring}
       {body}
       {t.shape === "booth" && (
@@ -105,53 +122,80 @@ export function TableShape({ table: t, selected, lit, dim, dragging, ...handlers
           fill={c.stroke}
         />
       )}
-      <text x={cx} y={cy - seatSize * 0.45} fontSize={idSize} fill={c.text} className="t-id">
-        {t.id.slice(1)}
-      </text>
-      {t.status === "occupied" ? (
-        <PhasePips table={t} cx={cx} y={cy + idSize * 0.6} color={c.text} />
-      ) : (
-        <text x={cx} y={cy + idSize * 0.62} fontSize={seatSize} fill={c.text} className="t-seats">
-          {t.seats}
-        </text>
-      )}
+      <TableLabels table={t} color={c.text} />
     </g>
   );
 }
 
-/** Six-step meal progress under the number: filled up to the current phase. */
-function PhasePips({
-  table: t,
-  cx,
-  y,
-  color,
-}: {
-  table: Table;
-  cx: number;
-  y: number;
-  color: string;
-}) {
-  const step = PHASES.indexOf(t.phase ?? "seated");
-  // Diamonds narrow towards the bottom, so keep their pip row inside the shape.
-  const span =
-    t.shape === "diamond" ? Math.max(1.4, t.w - 2 * (y - (t.y + t.h / 2)) - 0.6) : t.w - 0.9;
-  const pw = Math.min(0.5, span / 6.6);
-  const gap = pw * 0.12;
-  const total = 6 * pw + 5 * gap;
+const CHAR_W = 0.62; // average glyph width / font size for the system UI font
+
+/** ID (≥12px on screen) and, for seated tables, the meal phase as a word (SEAT…CHK). */
+/** Below this on-screen size a table shows colour + a corner tick instead of a phase word. */
+const WORD_MIN_PX = 32;
+/** Below this the ID itself is hidden until hover / focus (e.g. the whole-room overview). */
+const ID_MIN_PX = 22;
+
+/** ID (≥12px on screen) and, on tables big enough, the meal phase as a word (SEAT…CHK). */
+function TableLabels({ table: t, color }: { table: Table; color: string }) {
+  const px = usePx();
+  const ppu = usePpu();
+  const alwaysIds = useContext(AlwaysShowIds);
+  const cx = t.x + t.w / 2;
+  const cy = t.y + t.h / 2;
+  const shownPx = Math.min(t.w, t.h) * ppu;
+  const compact = !alwaysIds && shownPx < ID_MIN_PX;
+  const inner = t.shape === "diamond" ? t.w * 0.5 : t.shape === "round" ? t.w * 0.72 : t.w * 0.86;
+  const idFont = Math.max(px(12), Math.min(1.5, Math.min(t.w, t.h) * 0.3));
+  const occupied = t.status === "occupied";
+  const word = occupied ? PHASE_ABBR[t.phase ?? "seated"] : String(t.seats);
+  const fitFont = inner / (word.length * CHAR_W);
+  const wordFont = Math.min(fitFont, Math.max(px(10), idFont * 0.72));
+  // A phase word must fit inside the shape at a readable size, on a table big enough to hold it.
+  const showWord = !compact && (!occupied || shownPx >= WORD_MIN_PX) && wordFont >= px(8);
+  const gap = idFont * 0.08;
+  const total = showWord ? idFont + gap + wordFont : idFont;
+  const top = cy - total / 2;
   return (
-    <g aria-hidden="true">
-      {PHASES.map((p, i) => (
-        <rect
-          key={p}
-          x={cx - total / 2 + i * (pw + gap)}
-          y={y - pw * 0.35}
-          width={pw}
-          height={pw * 0.7}
-          rx={pw * 0.2}
+    <>
+      <text
+        x={cx}
+        y={top + idFont / 2}
+        fontSize={idFont}
+        fill={color}
+        className={compact ? "t-id is-compact" : "t-id"}
+      >
+        {t.id.slice(1)}
+      </text>
+      {showWord && (
+        <text
+          x={cx}
+          y={top + idFont + gap + wordFont / 2}
+          fontSize={wordFont}
           fill={color}
-          opacity={i <= step ? 0.95 : 0.28}
-        />
-      ))}
-    </g>
+          className={occupied ? "t-phase" : "t-seats"}
+        >
+          {word}
+        </text>
+      )}
+      {occupied && !showWord && <CornerTick table={t} color={color} />}
+    </>
+  );
+}
+
+/** Small mark in the top-right corner: "seated", for tables too small to carry a phase word. */
+function CornerTick({ table: t, color }: { table: Table; color: string }) {
+  const s = Math.min(t.w, t.h) * 0.34;
+  if (t.shape === "rect" || t.shape === "booth") {
+    const x = t.x + t.w;
+    return (
+      <polygon
+        className="t-tick"
+        points={`${x - s},${t.y} ${x},${t.y} ${x},${t.y + s}`}
+        fill={color}
+      />
+    );
+  }
+  return (
+    <circle className="t-tick" cx={t.x + t.w / 2} cy={t.y + s * 0.6} r={s * 0.28} fill={color} />
   );
 }

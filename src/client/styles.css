@@ -547,7 +547,6 @@ h3.section-title {
   touch-action: none;
 }
 .floor .area-label {
-  font-size: 1.15px;
   fill: var(--muted);
   font-weight: 650;
 }
@@ -569,13 +568,11 @@ h3.section-title {
 .floor .area-station text,
 .floor .area-bar text {
   text-anchor: middle;
-  font-size: 1.3px;
   font-weight: 650;
   fill: #6f675c;
 }
 .floor .area-station .area-note,
 .floor .area-bar .area-note {
-  font-size: 0.95px;
   font-weight: 400;
   font-style: italic;
 }
@@ -585,7 +582,6 @@ h3.section-title {
   stroke-width: 0.15;
 }
 .floor .suite-label {
-  font-size: 1.05px;
   fill: var(--muted);
   font-weight: 600;
 }
@@ -617,7 +613,6 @@ h3.section-title {
 }
 .floor .section text {
   fill: #fff;
-  font-size: 1.05px;
   font-weight: 700;
   text-anchor: middle;
   dominant-baseline: middle;
@@ -656,7 +651,8 @@ h3.section-title {
   opacity: 0.35;
 }
 .floor .t-id,
-.floor .t-seats {
+.floor .t-seats,
+.floor .t-phase {
   text-anchor: middle;
   dominant-baseline: middle;
   pointer-events: none;
@@ -664,13 +660,21 @@ h3.section-title {
 .floor .t-id {
   font-weight: 650;
 }
+.floor .t-phase {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.floor .hit {
+  stroke: none;
+}
 .floor .ring {
   fill: none;
   stroke-width: 0.25;
 }
+/* Host selection: charcoal, solid. AI suggestions / recommendations: indigo + dimmed floor. */
 .floor .is-selected .ring {
-  stroke: var(--accent);
-  stroke-dasharray: 0.6 0.35;
+  stroke: #1d2327;
+  stroke-width: 0.4;
 }
 .floor .is-lit .ring {
   stroke: var(--accent);
@@ -808,7 +812,7 @@ table.data.compact td {
   background: repeating-linear-gradient(45deg, #eceae6 0 3px, #c9c6c0 3px 4px);
 }
 .swatch-selected {
-  border: 2px dashed var(--accent);
+  border: 2px solid #1d2327;
 }
 .swatch-lit {
   border: 2px solid var(--accent);
@@ -1337,24 +1341,25 @@ table.data .num {
   color: #fff;
 }
 .phase-seated {
-  background: #1f4e5f;
+  background: #1b3a57;
 }
 .phase-drinks {
-  background: #2d6577;
+  background: #1f6a80;
 }
 .phase-appetizers {
-  background: #41808f;
+  background: #28856d;
 }
 .phase-entrees {
-  background: #679ca8;
+  background: #8cc36a;
   color: #13262d;
 }
 .phase-dessert {
-  background: #9cc0c7;
+  background: #d8d47a;
   color: #13262d;
 }
 .phase-check {
-  background: #cfe2e5;
+  background: #ecf3d6;
+  box-shadow: inset 0 0 0 1px #c9d4b0;
   color: #13262d;
 }
 .finish-btn {
@@ -1558,7 +1563,6 @@ table.data .num {
   stroke-width: 0.08;
 }
 .floor .load-badge text {
-  font-size: 0.8px;
   font-weight: 650;
   fill: #3e42ad;
   text-anchor: middle;
@@ -1772,34 +1776,40 @@ table.data .num {
 
 /* Change view */
 .floor .change-ghost {
-  fill: none;
-  stroke: #8a8fb8;
-  stroke-width: 0.15;
-  stroke-dasharray: 0.4 0.3;
+  fill: rgb(138 143 184 / 0.08);
+  stroke: #6e74a8;
+  stroke-width: 0.3;
+  stroke-dasharray: 0.6 0.4;
 }
 .floor .change-arrow {
   stroke: var(--accent);
-  stroke-width: 0.25;
+  stroke-width: 0.45;
 }
 .floor .arrow-head {
   fill: var(--accent);
 }
 .floor .change-join {
-  fill: rgb(75 79 196 / 0.06);
+  fill: rgb(75 79 196 / 0.07);
   stroke: var(--accent);
-  stroke-width: 0.2;
+  stroke-width: 0.35;
 }
-.floor .change-pull rect {
+.floor .change-pull > rect {
   fill: none;
   stroke: var(--accent);
-  stroke-width: 0.25;
-  stroke-dasharray: 0.5 0.3;
+  stroke-width: 0.35;
+  stroke-dasharray: 0.6 0.35;
 }
-.floor .change-pull text {
-  font-size: 0.85px;
-  font-weight: 650;
+.floor .change-badge rect {
   fill: var(--accent);
+}
+.floor .change-badge.is-pull rect {
+  fill: #2e3190;
+}
+.floor .change-badge text {
+  fill: #fff;
+  font-weight: 650;
   text-anchor: middle;
+  dominant-baseline: middle;
 }
 
 /* Editor */
@@ -1937,4 +1947,335 @@ table.data .num {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.floor .room-label {
+  text-anchor: start;
+  dominant-baseline: middle;
+}
+
+/* ---- Design-review fixes ---- */
+
+/* Top bar: wrap the room name, date + layout underneath */
+.cb-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.console-bar .room-name {
+  white-space: normal;
+  overflow: visible;
+  max-width: 180px;
+  font-size: 14px;
+  line-height: 1.15;
+}
+.cb-sub {
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 230px;
+}
+
+/* Disabled controls: readable (≥3:1) instead of faded */
+button:disabled,
+button.primary:disabled {
+  opacity: 1;
+  color: #5f666d;
+  background: #f1efeb;
+  border-color: #d6d1c8;
+}
+
+/* Phase key strip above the canvas */
+.floor-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  margin: 2px 0 6px;
+}
+.phase-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+}
+.phase-strip-title {
+  font-weight: 650;
+  margin-right: 2px;
+}
+.phase-strip .phase-chip {
+  padding: 2px 7px;
+  font-size: 11px;
+  letter-spacing: 0.02em;
+}
+.phase-strip-word {
+  font-weight: 500;
+}
+.phase-strip-arrow {
+  color: var(--muted);
+  margin-left: 2px;
+}
+.floor-sub .floor-highlight-tag {
+  margin-left: auto;
+  max-width: 100%;
+}
+
+/* AI suggestions vs host picks */
+.ai-chip {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 650;
+  padding: 1px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
+}
+.sugg {
+  border-left: 3px solid var(--accent);
+}
+.sugg[aria-pressed="true"] {
+  border-color: #1d2327;
+  box-shadow: inset 0 0 0 1px #1d2327;
+  background: var(--surface);
+}
+.sugg-head {
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+.sugg-head .eta {
+  margin-left: auto;
+}
+
+/* Rail: every list header stays on screen; long lists scroll inside */
+.rail {
+  /* fits below the banner + top bar on first load, so every list header is visible */
+  height: calc(100vh - 145px);
+  min-height: 420px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.rail-lists {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+.rail-section {
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+}
+.rail-section > [id^="rail-"]:not([hidden]) {
+  overflow: auto;
+  min-height: 0;
+}
+.rail-title {
+  position: static;
+  flex: none;
+}
+
+/* Editor plan list and reasons */
+.plan-list {
+  margin-bottom: 14px;
+}
+.plan-list ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.plan-list li {
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 6px 9px;
+  display: flex;
+  flex-direction: column;
+}
+.plan-list li.is-current {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+.plan-list .link-btn {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+.plan-list .link-btn:disabled {
+  background: none;
+  border: none;
+  color: inherit;
+}
+.reason {
+  margin: 4px 0 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--warn-soft);
+  color: #6b4a10;
+}
+
+/* Evals: no recorded run */
+.no-run h2 {
+  font-size: 18px;
+}
+.no-run ul {
+  padding-left: 18px;
+}
+
+/* Tablet widths: touch targets ≥44px, phase words collapse to abbreviations */
+@media (max-width: 1280px) {
+  button,
+  select,
+  input[type="time"],
+  input[type="number"],
+  input[type="text"],
+  .chip,
+  .rail-action,
+  .room-tabs button,
+  .seg button {
+    min-height: 44px;
+  }
+  .row,
+  .row-btn {
+    min-height: 44px;
+    align-items: center;
+  }
+  .size-grid button {
+    min-width: 44px;
+  }
+  .seg button {
+    min-width: 44px;
+  }
+  .phase-strip-word {
+    display: none;
+  }
+  .phase-strip .phase-chip {
+    padding: 4px 8px;
+  }
+}
+
+/* Tiny tables (overview zoom): IDs appear on hover / focus only */
+.floor .t-id.is-compact {
+  opacity: 0;
+}
+.floor .table:hover .t-id.is-compact,
+.floor .table:focus-visible .t-id.is-compact,
+.floor .table.is-selected .t-id.is-compact,
+.floor .table.is-lit .t-id.is-compact {
+  opacity: 1;
+}
+.floor .t-tick {
+  pointer-events: none;
+  opacity: 0.9;
+}
+
+/* Tablets: single-room tabs render at touch scale and scroll / pan inside the panel */
+@media (max-width: 1280px) {
+  .floor-scroll {
+    overflow: auto;
+  }
+  .floor {
+    width: calc(max(min(100%, var(--floor-h) * var(--ar, 1)), var(--min-w, 0px)) * var(--zoom, 1));
+  }
+}
+
+/* Rail headers: count never runs under the action button */
+.rail-name {
+  min-width: 0;
+  overflow: hidden;
+}
+.rail-title > .rail-action {
+  flex: none;
+}
+.show-all {
+  width: 100%;
+  border: none;
+  border-top: 1px solid #ece9e4;
+  border-radius: 0;
+  background: none;
+  color: var(--accent);
+  font-size: 12.5px;
+  font-weight: 600;
+  text-align: left;
+  padding: 8px 12px;
+}
+
+/* Each list scrolls inside its own share of the rail so all four headers stay visible */
+#rail-waitlist,
+#rail-upcoming,
+#rail-seated,
+#rail-done {
+  overflow: auto;
+}
+#rail-waitlist {
+  max-height: 16vh;
+}
+#rail-upcoming {
+  max-height: 32vh;
+}
+#rail-seated {
+  max-height: 18vh;
+}
+#rail-done {
+  max-height: 12vh;
+}
+
+/* Off-screen cue on the scrolling canvas */
+.floor-viewport {
+  position: relative;
+}
+.edge-fade {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
+}
+.edge-fade.is-right,
+.edge-fade.is-left {
+  top: 0;
+  bottom: 0;
+  width: 36px;
+}
+.edge-fade.is-right {
+  right: 0;
+  background: linear-gradient(to left, rgb(255 255 255 / 0.95), rgb(255 255 255 / 0));
+}
+.edge-fade.is-left {
+  left: 0;
+  background: linear-gradient(to right, rgb(255 255 255 / 0.95), rgb(255 255 255 / 0));
+}
+.edge-fade.is-down {
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 32px;
+  background: linear-gradient(to top, rgb(255 255 255 / 0.95), rgb(255 255 255 / 0));
+}
+.offscreen-chips {
+  position: absolute;
+  z-index: 3;
+  right: 8px;
+  top: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+}
+.offscreen-chip {
+  border-radius: 999px;
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 12.5px;
+  padding: 4px 12px;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.12);
+}
+.row-seated .row-sub {
+  white-space: normal;
 }

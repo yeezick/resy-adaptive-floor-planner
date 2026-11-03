@@ -8,6 +8,13 @@ interface Props {
   onJoin: (other: string, on: boolean) => void;
 }
 
+const SHAPE_NAME: Record<Table["shape"], string> = {
+  rect: "Rectangular",
+  round: "Round",
+  diamond: "Diamond",
+  booth: "Booth",
+};
+
 const ATTRS: [keyof Table["attrs"], string][] = [
   ["accessible", "Accessible"],
   ["strollerSpace", "Aisle clearance"],
@@ -150,8 +157,14 @@ export function TableInspector({ room, id, onPatch, onJoin }: Props) {
             disabled={t.shape !== "rect"}
             onChange={(e) => onPatch({ joinable: e.target.checked })}
           />{" "}
-          Joinable {t.shape !== "rect" && <span className="muted small">(rectangles only)</span>}
+          Joinable
         </label>
+        {t.shape !== "rect" && (
+          <p className="reason small">
+            {SHAPE_NAME[t.shape]} tables can't join — only rectangular tables push together. Change
+            the shape to Rectangle to allow joins.
+          </p>
+        )}
         <div className="small muted">
           Joinable neighbours · {joined.length}/{MAX_NEIGHBOURS}
         </div>

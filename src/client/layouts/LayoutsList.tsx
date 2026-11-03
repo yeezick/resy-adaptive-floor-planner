@@ -23,6 +23,7 @@ export function LayoutsList({ layouts, onEdit }: Props) {
                   {l.date ? ` · ${l.date}` : ""}
                   {l.shift ? ` · ${l.shift}` : ""}
                 </span>
+                {l.note && <span className="muted small">{l.note}</span>}
               </div>
               <div className="btn-row">
                 {active ? (
