@@ -3242,3 +3242,114 @@ button,
   font-variant-numeric: tabular-nums;
   color: var(--muted);
 }
+
+/* A request's proposed join: green (good capacity fit), with a readiness bubble per table. */
+.floor.lit-fit .is-lit .ring {
+  stroke: var(--ok);
+  stroke-width: 0.45;
+  stroke-dasharray: none;
+  fill: color-mix(in srgb, var(--ok) 22%, transparent);
+}
+.floor-highlight-tag.is-fit {
+  background: var(--ok-soft);
+  color: var(--ok);
+  border-color: var(--ok);
+}
+.floor .ready-bubble rect {
+  stroke: var(--surface);
+  stroke-width: 0.12;
+}
+.floor .ready-bubble.is-now rect {
+  fill: var(--ok);
+}
+.floor .ready-bubble.is-wait rect {
+  fill: var(--fail);
+}
+.floor .ready-bubble text {
+  fill: var(--bg);
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+
+/* Capacity fit on the request sheet: each table's stage + readiness, then pros and cons of saying yes. */
+.ready-list {
+  list-style: none;
+  margin: 8px 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ready-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 6px 3px 8px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-2);
+}
+.ready-list .ready-key {
+  border: none;
+  background: none;
+  padding-left: 0;
+}
+.ready-no {
+  font-weight: 600;
+}
+.ready-chip {
+  border-radius: 999px;
+  padding: 0 7px;
+  font-weight: 700;
+  color: var(--bg);
+}
+.ready-chip.is-now {
+  background: var(--ok);
+}
+.ready-chip.is-wait {
+  background: var(--fail);
+}
+.impacts {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-top: 8px;
+  background: var(--surface-2);
+}
+.impacts-title {
+  margin: 0 0 6px;
+}
+.impacts-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.impacts-col h5 {
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.impacts-col.is-pro h5 {
+  color: var(--ok);
+}
+.impacts-col.is-con h5 {
+  color: var(--fail);
+}
+.impacts-col ul {
+  margin: 0;
+  padding-left: 16px;
+}
+.impacts-col li {
+  margin: 2px 0;
+}
+.impacts-net {
+  margin: 8px 0 2px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+@media (max-width: 520px) {
+  .impacts-cols {
+    grid-template-columns: 1fr;
+  }
+}

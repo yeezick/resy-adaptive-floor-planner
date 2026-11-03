@@ -1,6 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { crewNote, partyFits, tablesPhrase, toMinutes, type Room } from "../../domain";
-import { PartyFitCard } from "../Fit/PartyFitCard";
+import {
+  crewNote,
+  joinReadiness,
+  partyFits,
+  readinessBadge,
+  readinessPill,
+  tableNo,
+  tablesPhrase,
+  toMinutes,
+  type Room,
+} from "../../domain";
+import { ImpactsCard } from "../Fit/ImpactsCard";
 import {
   checkRequest,
   draftReply,
@@ -93,6 +103,10 @@ export function RequestSheet({
       }).find((f) => f.reservationId === r.id) ?? null
     );
   }, [room, fit, r]);
+  const ready = useMemo(
+    () => (room && fit?.ok ? joinReadiness(room, fit.build.tables) : null),
+    [room, fit],
+  );
   const [reply, setReply] = useState<string | null>(null);
   useEffect(() => {
     if (!fit) return;
@@ -189,8 +203,15 @@ export function RequestSheet({
         <div className="req-block-head">
           <h3 className="section-title">Capacity fit · {r.day}</h3>
           {fit && (
-            <span className={`verdict ${fit.ok ? "verdict-real" : "verdict-unsure"}`}>
-              {fit.ok ? "Capacity fit" : "No capacity fit"}
+            <span
+              className={`verdict ${fit.ok ? "verdict-real" : "verdict-unsure"} fit-pill`}
+              title={fit.ok ? "Ready time is estimated from each table's meal phase" : undefined}
+            >
+              {fit.ok && ready
+                ? readinessPill(ready)
+                : fit.ok
+                  ? "capacity fit ✓"
+                  : "No capacity fit"}
             </span>
           )}
         </div>
@@ -213,20 +234,41 @@ export function RequestSheet({
             </p>
             <p className="muted">
               {fit.build.area} · seats {fit.build.seats} for {fit.build.partySize}, build by{" "}
-              {fit.build.buildBy}. Every booking already on {r.day} keeps its seats.
+              {fit.build.buildBy}. Every booking already on {r.day} still has a table.
             </p>
-            {cost && (
-              <ul className="fit-list">
-                <PartyFitCard f={cost} build={fit.build} title="Cost of saying yes vs no" />
+            {ready && ready.tables.length > 0 && (
+              <ul className="ready-list" aria-label="Tables in the join, and when each is free">
+                {ready.tables.map((t) => {
+                  const b = readinessBadge(t);
+                  return (
+                    <li key={t.id}>
+                      <span className="ready-no">{tableNo(t.id)}</span>
+                      <span className="muted">
+                        {t.phase ?? (t.status === "reserved" ? "open, held later" : t.status)}
+                      </span>
+                      <span className={`ready-chip ${b === "now" ? "is-now" : "is-wait"}`}>
+                        {b}
+                      </span>
+                    </li>
+                  );
+                })}
+                {!ready.ready && <li className="muted ready-key">~Xm = until free (est.)</li>}
               </ul>
+            )}
+            {cost && room && (
+              <ImpactsCard
+                room={room}
+                f={cost}
+                build={fit.build}
+                needs={r.needs}
+                moved={fit.moved}
+              />
             )}
           </div>
         )}
         {fit && !fit.ok && <p className="small cant-fit-line">{adj ? adj.line : fit.reason}</p>}
         <p className="muted small">From the planner, not the AI: the AI never picks tables.</p>
       </section>
-
-      {decision.kind === "pending" && room && <RequestChat request={r0} result={adj} />}
 
       {decision.kind === "pending" ? (
         <div className="req-actions">
@@ -238,7 +280,7 @@ export function RequestSheet({
               title={junk ? "Triaged as junk" : !fit?.ok ? "It doesn't fit that night" : undefined}
               onClick={() => fit?.ok && requestsActions.accept(r, fit.build.tables)}
             >
-              Accept → open {r.day}'s plan
+              Accept
             </button>
             <button
               type="button"
@@ -256,9 +298,22 @@ export function RequestSheet({
               disabled={junk}
               onClick={() => setMode(mode === "reply" ? "none" : "reply")}
             >
-              Reply
+              Message guest
+            </button>
+            <button
+              type="button"
+              className="ask-ai"
+              disabled={!room}
+              onClick={() => {
+                const box = document.getElementById(`chat-${r0.id}`);
+                box?.scrollIntoView({ block: "center", behavior: "smooth" });
+                box?.focus({ preventScroll: true });
+              }}
+            >
+              Ask AI Planner
             </button>
           </div>
+          <p className="muted small">Accept opens {r.day}'s plan with the party in it.</p>
           {mode === "decline" && (
             <fieldset className="decline">
               <legend className="small">Why decline? (logged — the sprint's key metric)</legend>
@@ -302,7 +357,9 @@ export function RequestSheet({
             </div>
           )}
         </div>
-      ) : (
+      ) : null}
+      {decision.kind === "pending" && room && <RequestChat request={r0} result={adj} />}
+      {decision.kind !== "pending" && (
         <div className="req-decided small" role="status">
           <strong>
             {decision.kind === "accepted"

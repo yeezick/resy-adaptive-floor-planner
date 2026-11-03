@@ -244,7 +244,9 @@ export function FloorPlan({
       <div className="floor-sub">
         <PhaseStrip />
         <span
-          className={`floor-highlight-tag small${highlight?.source === "ai" ? " is-ai" : ""}`}
+          className={`floor-highlight-tag small${
+            highlight?.source === "ai" ? " is-ai" : highlight?.source === "fit" ? " is-fit" : ""
+          }`}
           aria-live="polite"
           hidden={!highlight}
         >
@@ -269,7 +271,13 @@ export function FloorPlan({
           <PxPerUnit.Provider value={ppu}>
             <svg
               ref={svgRef}
-              className={highlight?.source === "ai" ? "floor lit-ai" : "floor"}
+              className={
+                highlight?.source === "ai"
+                  ? "floor lit-ai"
+                  : highlight?.source === "fit"
+                    ? "floor lit-fit"
+                    : "floor"
+              }
               viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}
               preserveAspectRatio="xMidYMid meet"
               role="group"
@@ -317,6 +325,7 @@ export function FloorPlan({
                     table={t}
                     selected={selected.includes(t.id)}
                     lit={lit.has(t.id)}
+                    badge={highlight?.badges?.[t.id]}
                     dim={dimOthers && !lit.has(t.id)}
                     dragging={drag?.id === t.id && drag.moved}
                     onPointerDown={(e) => onTableDown(e, t)}

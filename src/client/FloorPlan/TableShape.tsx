@@ -9,6 +9,8 @@ interface Props {
   table: Table;
   selected: boolean;
   lit: boolean;
+  /** Readiness bubble on a proposed-join table: "now" (green) or "~25m" until free (red, est.). */
+  badge?: string;
   dim: boolean;
   dragging: boolean;
   onPointerDown: (e: PointerEvent<SVGGElement>) => void;
@@ -50,7 +52,7 @@ function HitArea({ table: t }: { table: Table }) {
   );
 }
 
-export function TableShape({ table: t, selected, lit, dim, dragging, ...handlers }: Props) {
+export function TableShape({ table: t, selected, lit, badge, dim, dragging, ...handlers }: Props) {
   const c = tableColors(t);
   const cx = t.x + t.w / 2;
   const cy = t.y + t.h / 2;
@@ -118,7 +120,7 @@ export function TableShape({ table: t, selected, lit, dim, dragging, ...handlers
       tabIndex={0}
       role="button"
       aria-pressed={selected}
-      aria-label={describe(t)}
+      aria-label={badge ? `${describe(t)}, ${badgeWords(badge)}` : describe(t)}
       {...handlers}
     >
       <HitArea table={t} />
@@ -137,6 +139,32 @@ export function TableShape({ table: t, selected, lit, dim, dragging, ...handlers
         />
       )}
       <TableLabels table={t} color={c.text} />
+      {badge && <ReadyBubble table={t} text={badge} />}
+    </g>
+  );
+}
+
+function badgeWords(b: string): string {
+  if (b === "now") return "free now";
+  if (b === "blocked") return "blocked this service";
+  return `free in about ${b.replace(/[~m]/g, "")} minutes (estimated from meal phase)`;
+}
+
+/** Readiness bubble on the table's top edge: green "now", red "~25m" until free (est.). */
+function ReadyBubble({ table: t, text }: { table: Table; text: string }) {
+  const px = usePx();
+  const font = px(9);
+  const h = font * 1.45;
+  const w = Math.max(h, text.length * font * CHAR_W + font * 0.8);
+  // centred on the top edge, so bubbles on a row of joined tables don't collide
+  const x = t.x + t.w / 2 - w / 2;
+  const y = t.y - h * 0.55;
+  return (
+    <g className={`ready-bubble ${text === "now" ? "is-now" : "is-wait"}`} aria-hidden="true">
+      <rect x={x} y={y} width={w} height={h} rx={h / 2} />
+      <text x={x + w / 2} y={y + h / 2} fontSize={font}>
+        {text}
+      </text>
     </g>
   );
 }
