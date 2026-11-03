@@ -12,7 +12,7 @@ import type { Room, Table } from "./types";
 export interface Hold {
   /** Floor tables held for the party (spare tables from storage are extra, so they cost nothing). */
   tables: string[];
-  /** The same tables by room, as runs: "Garden Room 57–61". */
+  /** The same tables by room, as runs: "Garden Room tables 57–61". */
   byArea: string[];
   /** When the tables stop taking new bookings: a party seated after this could not leave before the build. */
   from: string;
@@ -101,7 +101,9 @@ export function tablesByArea(room: Room, ids: readonly string[]): string[] {
     const a = tableById(room, id)?.area ?? "?";
     by.set(a, [...(by.get(a) ?? []), id]);
   }
-  return [...by.entries()].map(([a, t]) => `${a} ${tableRuns(t)}`);
+  return [...by.entries()].map(
+    ([a, t]) => `${a} ${t.length === 1 ? "table" : "tables"} ${tableRuns(t)}`,
+  );
 }
 
 export function partyFit(
