@@ -51,8 +51,8 @@ const numbersIn = (text: string): Set<number> =>
   new Set([...text.matchAll(/\d+/g)].map((m) => Number(m[0])));
 
 /**
- * Clock times written in the message, as minutes of the day: "19:00", "7:30pm", "7pm", "1900", "at 7", or a bare
- * evening hour ("19"). A number that isn't written as a time ("party of 7") doesn't count.
+ * Clock times written in the message, as minutes of the day: "19:00", "7:30pm", "7pm", "1900", "at 7" or "to 19". A
+ * number that isn't written as a time ("party of 7", "make it 20 people", "a table for 8") doesn't count.
  */
 export function timesIn(text: string): Set<number> {
   const out = new Set<number>();
@@ -76,14 +76,14 @@ export function timesIn(text: string): Set<number> {
   }
   for (const x of t.matchAll(/\b([01]?\d|2[0-3])([0-5]\d)\b/g))
     if ((x[0] ?? "").length >= 3) add(Number(x[1]), Number(x[2]));
+  // "for 8" and "up to 8" are headcounts, not times
   for (const x of t.matchAll(
-    /\b(?:at|to|for|around|by)\s+(\d{1,2})\b(?!\s*(?:people|guests|of|more|seats|tables?))/g,
+    /\b(?<!\bup\s+)(?:at|to|around|by)\s+(\d{1,2})\b(?!\s*(?:people|guests|covers|pax|of|more|seats|tables?))/g,
   )) {
     const h = Number(x[1]);
     add(h, 0);
     if (h < 12) add(h + 12, 0);
   }
-  for (const x of t.matchAll(/\b(1[7-9]|2[0-2])\b/g)) add(Number(x[1]), 0);
   return out;
 }
 

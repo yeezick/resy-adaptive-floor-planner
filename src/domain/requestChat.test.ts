@@ -139,6 +139,21 @@ describe("timesIn (a time must be written as a time)", () => {
       "time isn't one the manager typed",
     );
   });
+
+  it("doesn't read a headcount as a time", () => {
+    expect(chatTurnProblems({ ...none, time: "20:00" }, "make it 20 people")).toContain(
+      "time isn't one the manager typed",
+    );
+    expect(chatTurnProblems({ ...none, time: "22:00" }, "party of 22, can it go later?")).toContain(
+      "time isn't one the manager typed",
+    );
+    expect(
+      chatTurnProblems({ ...none, time: "20:00" }, "can we do a table for 8 instead"),
+    ).toContain("time isn't one the manager typed");
+    expect(chatTurnProblems({ ...none, time: "20:00" }, "seat up to 8")).toContain(
+      "time isn't one the manager typed",
+    );
+  });
 });
 
 describe("changeDelta", () => {
