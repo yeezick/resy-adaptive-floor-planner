@@ -1,0 +1,62 @@
+{
+  "name": "resy-adaptive-floor-planner",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Concept prototype: an AI floor planner that recommends seating and table builds. Not affiliated with Resy or American Express.",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "packageManager": "pnpm@11.2.2",
+  "scripts": {
+    "dev": "concurrently -k -n server,client \"tsx watch src/server/index.ts\" \"vite\"",
+    "build": "vite build && vite build --ssr src/server/index.ts --outDir dist/server --emptyOutDir",
+    "start": "node dist/server/index.js",
+    "lint": "eslint . --max-warnings 0",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "format": "prettier --write .",
+    "evals:deterministic": "tsx evals/run.ts --replay",
+    "evals:live": "tsx evals/run.ts --live",
+    "evals:judge": "tsx evals/judge.ts",
+    "evals:calibrate": "tsx evals/calibrate.ts",
+    "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm evals:deterministic"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix --max-warnings 0",
+      "prettier --write"
+    ],
+    "*.{json,md,yml,yaml,css}": [
+      "prettier --write"
+    ]
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^1.3.0",
+    "express": "^5.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "@vitest/coverage-v8": "^5.0.5",
+    "concurrently": "^10.0.6",
+    "eslint": "^10.14.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.14.0",
+    "lint-staged": "^17.6.0",
+    "prettier": "^3.9.10",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  }
+}

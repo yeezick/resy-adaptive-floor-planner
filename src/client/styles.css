@@ -1,0 +1,17 @@
+:root {
+  font-family: system-ui, sans-serif;
+  color: #1d2327;
+  background: #f6f5f2;
+}
+body {
+  margin: 0;
+}
+.banner {
+  background: #2b2f33;
+  color: #fff;
+  font-size: 13px;
+  padding: 6px 16px;
+}
+main {
+  padding: 16px;
+}
