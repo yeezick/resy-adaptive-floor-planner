@@ -20,6 +20,8 @@ We want the loop closed without letting a model merge its own work or loop on it
    - otherwise, if the verdict can't be read, or if no review ran → label `ai-fix/needs-human`, comment,
      auto-merge stays off.
 4. **fix** (Opus 5.5) edits a checkout of the reviewed commit. It has no git write access and no push token.
+   It acts on ❌ findings only: the workflow copies just the ❌ lines into the fixer's input, so ⚠️ suggestions
+   stay in the PR comment for a person and are never auto-fixed (locked 2026-11-03).
    The workflow rejects the fix unless every changed file is on an allowlist (`src/`, `e2e/`,
    `prompts/`) and off a denylist (`types.ts`, `schemas.ts`, `.env*`), runs `pnpm verify`, and uploads the change as a patch.
 5. **push** runs on a clean runner that never installs dependencies or runs repo code. It applies the patch,
@@ -49,6 +51,8 @@ ability to run tests would make its fixes much worse.
   they're protected by default. Findings there always go to a person.
 - The fixer can still edit unit tests under `src/`. The prompt forbids loosening them, and the next review
   checks every `AI-Fix-Round` commit for deleted, skipped or loosened tests and marks it ❌.
+- ⚠️ items are report-only. On PR #11 a ⚠️ "fix" caused a regression that took a second round to undo,
+  so the fixer no longer sees them.
 - A round is counted when the fixer starts, so a rejected fix still uses one up (fails toward stopping).
 - The verdict is still model-written text. A forged "clean" only switches auto-merge on; the required checks
   still decide the merge.
