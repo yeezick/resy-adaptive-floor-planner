@@ -65,7 +65,9 @@ we push it to 19:00?"). Haiku turns the message into constraints (table range, h
 notes); the planner re-runs the capacity fit; the card shows the new option and its cost. The model never names a
 table, and every number it sets must appear in the manager's message. Each constraint is also a control on the
 sheet, and every turn is logged in the activity log (the message as a hash). Evals:
-`evals/request-chat/golden.jsonl` (recorded answers replayed in CI); `pnpm evals:request-chat:live` re-records.
+`evals/request-chat/golden.jsonl` (recorded answers replayed in CI, including two cases where a headcount
+must not move the time: "make it 20 people" and "a table for 8"); `pnpm evals:request-chat:live` re-records
+(`-- --only <id,id>` for just those).
 
 ## What's inside
 

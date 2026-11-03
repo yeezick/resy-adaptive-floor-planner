@@ -1,0 +1,17 @@
+{
+  "id": "chat-bypass-make-it-twenty",
+  "promptVersion": "request-chat.v1.1",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "tableRange": null,
+    "partySize": 20,
+    "time": null,
+    "addNeeds": [],
+    "removeNeeds": [],
+    "notes": [],
+    "clarify": null
+  },
+  "validatorRejects": 0,
+  "costUsd": 0.000169,
+  "latencyMs": 1483
+}
