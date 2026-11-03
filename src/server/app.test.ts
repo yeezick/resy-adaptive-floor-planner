@@ -210,9 +210,14 @@ describe("server", () => {
     );
   });
 
-  it("lists all three fixtures", async () => {
+  it("lists every fixture", async () => {
     const base = await start();
     const rooms = (await (await fetch(`${base}/api/rooms`)).json()) as { id: string }[];
-    expect(rooms.map((r) => r.id).sort()).toEqual(["dinner-peak", "heavy-saturday", "next-day"]);
+    expect(rooms.map((r) => r.id).sort()).toEqual([
+      "demo-night",
+      "dinner-peak",
+      "heavy-saturday",
+      "next-day",
+    ]);
   });
 });

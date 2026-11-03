@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   area,
   chain,
+  demoNight,
   dinnerPeak,
   heavySaturday,
   ids,
@@ -158,6 +159,27 @@ describe("generateTonight on heavy-saturday 17:00–21:00", () => {
 
   it("is deterministic", () => {
     expect(generateTonight(heavySaturday(), "17:00", "21:00")).toEqual(g);
+  });
+});
+
+describe("generateTonight on demo-night 17:00–22:00 (the demo's Saturday)", () => {
+  const base = demoNight();
+  const g = generateTonight(base, "17:00", "22:00");
+
+  it("is a legal proposal", () => assertProposal(base, g, "17:00", "22:00"));
+
+  it("places every large party but one, and says why the one can't fit", () => {
+    expect(g.summary.largeParties).toBe(11);
+    expect(g.summary.placed).toBe(10);
+    expect(g.infeasible.map((x) => x.reservationId)).toEqual(["D11"]);
+    expect(g.infeasible[0]?.reason).toMatch(/36/);
+  });
+
+  it("stays inside storage", () => {
+    const s = g.summary;
+    expect(s.storageUsed.extenders).toBeLessThanOrEqual(s.storageInStock.extenders);
+    expect(s.storageUsed.chairs).toBeLessThanOrEqual(s.storageInStock.chairs);
+    expect(s.storageUsed.spareTables).toBeLessThanOrEqual(s.storageInStock.spareTables);
   });
 });
 

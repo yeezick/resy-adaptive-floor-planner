@@ -67,10 +67,23 @@ export function TableShape({ table: t, selected, lit, dim, dragging, ...handlers
   let body;
   let ring;
   if (t.shape === "round") {
-    body = <ellipse cx={cx} cy={cy} rx={t.w / 2} ry={t.h / 2} fill={c.fill} stroke={c.stroke} />;
+    body = (
+      <ellipse
+        cx={cx}
+        cy={cy}
+        rx={t.w / 2}
+        ry={t.h / 2}
+        style={{ fill: c.fill, stroke: c.stroke }}
+      />
+    );
     ring = <ellipse className="ring" cx={cx} cy={cy} rx={t.w / 2 + g} ry={t.h / 2 + g} />;
   } else if (t.shape === "diamond") {
-    body = <polygon points={diamond(cx, cy, t.w / 2, t.h / 2)} fill={c.fill} stroke={c.stroke} />;
+    body = (
+      <polygon
+        points={diamond(cx, cy, t.w / 2, t.h / 2)}
+        style={{ fill: c.fill, stroke: c.stroke }}
+      />
+    );
     ring = (
       <polygon className="ring" points={diamond(cx, cy, t.w / 2 + g * 1.4, t.h / 2 + g * 1.4)} />
     );
@@ -82,8 +95,7 @@ export function TableShape({ table: t, selected, lit, dim, dragging, ...handlers
         width={t.w}
         height={t.h}
         rx={t.shape === "booth" ? 0.9 : 0.3}
-        fill={c.fill}
-        stroke={c.stroke}
+        style={{ fill: c.fill, stroke: c.stroke }}
       />
     );
     ring = (
@@ -119,7 +131,7 @@ export function TableShape({ table: t, selected, lit, dim, dragging, ...handlers
           width={t.w - 0.6}
           height={0.45}
           rx={0.2}
-          fill={c.stroke}
+          style={{ fill: c.stroke }}
         />
       )}
       <TableLabels table={t} color={c.text} />
@@ -161,7 +173,7 @@ function TableLabels({ table: t, color }: { table: Table; color: string }) {
         x={cx}
         y={top + idFont / 2}
         fontSize={idFont}
-        fill={color}
+        style={{ fill: color }}
         className={compact ? "t-id is-compact" : "t-id"}
       >
         {t.id.slice(1)}
@@ -171,7 +183,7 @@ function TableLabels({ table: t, color }: { table: Table; color: string }) {
           x={cx}
           y={top + idFont + gap + wordFont / 2}
           fontSize={wordFont}
-          fill={color}
+          style={{ fill: color }}
           className={occupied ? "t-phase" : "t-seats"}
         >
           {word}
@@ -191,11 +203,17 @@ function CornerTick({ table: t, color }: { table: Table; color: string }) {
       <polygon
         className="t-tick"
         points={`${x - s},${t.y} ${x},${t.y} ${x},${t.y + s}`}
-        fill={color}
+        style={{ fill: color }}
       />
     );
   }
   return (
-    <circle className="t-tick" cx={t.x + t.w / 2} cy={t.y + s * 0.6} r={s * 0.28} fill={color} />
+    <circle
+      className="t-tick"
+      cx={t.x + t.w / 2}
+      cy={t.y + s * 0.6}
+      r={s * 0.28}
+      style={{ fill: color }}
+    />
   );
 }

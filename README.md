@@ -29,7 +29,7 @@ control.
 - `src/server/` — Express API and the agent: read-only tools, a validator that rejects any table or seat count the room
   can't support, per-call cost logging and spend caps.
 - `evals/` — golden scenarios, code assertions (CI gate), an LLM judge on a different model, and judge calibration.
-- `fixtures/rooms/` — a fictional 95-table room on three nights.
+- `fixtures/rooms/` — a fictional 95-table room on four nights (`demo-night` is the demo's Saturday: 11 large parties, one that can't fit).
 - `e2e/` — Playwright smoke tests of the host flows at iPad and desktop sizes.
 - `decisions/` — architecture decision records.
 

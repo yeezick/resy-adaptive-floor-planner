@@ -4,6 +4,18 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Adaptive Floor Planner — concept prototype</title>
+    <meta name="color-scheme" content="dark light" />
+    <script>
+      // Apply the saved theme before first paint (dark by default). Storage can throw.
+      (function () {
+        var t = "dark";
+        try {
+          var s = window.localStorage.getItem("afp-theme");
+          if (s === "light" || s === "dark") t = s;
+        } catch (e) {}
+        document.documentElement.dataset.theme = t;
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

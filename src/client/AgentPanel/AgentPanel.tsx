@@ -26,6 +26,11 @@ const EXAMPLES: Record<string, string[]> = {
     "Party of 3 wants a booth",
     "Couple asking for a quiet table with a view",
   ],
+  "demo-night": [
+    "Generate tonight's layout for 17:00–22:00 — what can't we fit?",
+    "Where does the 24-top at 18:00 go, and what do we pull from storage?",
+    "Party of 6 walked in at 17:15 — where?",
+  ],
   "next-day": [
     "Plan tonight's large-party builds 17:00–20:00",
     "Do we have enough extenders and chairs for tonight?",

@@ -145,8 +145,15 @@ export function EditorCanvas({ room, selected, zoom, onSelect, onMoveCommit }: P
                 patternUnits="userSpaceOnUse"
                 patternTransform="rotate(45)"
               >
-                <rect width="0.8" height="0.8" fill="#eceae6" />
-                <line x1="0" y1="0" x2="0" y2="0.8" stroke="#c9c6c0" strokeWidth="0.3" />
+                <rect width="0.8" height="0.8" style={{ fill: "var(--hatch-bg)" }} />
+                <line
+                  x1="0"
+                  y1="0"
+                  x2="0"
+                  y2="0.8"
+                  strokeWidth="0.3"
+                  style={{ stroke: "var(--hatch-line)" }}
+                />
               </pattern>
             </defs>
             <rect x={box.x} y={box.y} width={box.w} height={box.h} fill="url(#grid-5)" />
