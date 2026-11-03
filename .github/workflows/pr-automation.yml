@@ -1,0 +1,30 @@
+# Turns on GitHub's native auto-merge (squash) when a PR opens, so it merges the moment the
+# required checks pass. Off until the main ruleset exists: without required checks, auto-merge
+# would merge immediately. Enable with the Actions variable AUTO_MERGE_ENABLED=true.
+name: pr-automation
+
+on:
+  pull_request:
+    branches: [main]
+    types: [opened, ready_for_review]
+
+permissions:
+  contents: read
+
+jobs:
+  enable-auto-merge:
+    name: Enable auto-merge
+    if: >-
+      vars.AUTO_MERGE_ENABLED == 'true' &&
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - name: gh pr merge --auto --squash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --auto --squash --delete-branch
