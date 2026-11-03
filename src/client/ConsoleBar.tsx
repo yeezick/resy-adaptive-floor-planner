@@ -1,0 +1,121 @@
+import type { ReactNode } from "react";
+import type { Room } from "../domain";
+import type { ActionResult } from "./Planner";
+
+export type PanelMode = "details" | "walkin" | "assistant" | "shift" | "reservation";
+
+interface Props {
+  room: Room;
+  roomSelect: ReactNode;
+  layoutName: string;
+  edited: boolean;
+  notice: ActionResult | null;
+  mode: PanelMode;
+  onMode: (m: PanelMode) => void;
+  onReset: () => void;
+}
+
+function todayLabel(): string {
+  return new Date().toLocaleDateString(undefined, {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  });
+}
+
+export function roomCounts(room: Room) {
+  const occupied = room.tables.filter((t) => t.status === "occupied");
+  const inService = room.tables.filter((t) => t.status !== "blocked");
+  // A party on combined tables is counted once (largest recorded party size in the combo).
+  const parties = new Map<string, number>();
+  for (const t of occupied) {
+    const key = room.combos.find((c) => c.includes(t.id))?.join("+") ?? t.id;
+    parties.set(key, Math.max(parties.get(key) ?? 0, t.partySize ?? t.seats));
+  }
+  return {
+    covers: [...parties.values()].reduce((n, p) => n + p, 0),
+    seatsInService: inService.reduce((n, t) => n + t.seats, 0),
+    seatedTables: occupied.length,
+    open: room.tables.filter((t) => t.status === "open").length,
+    held: room.tables.filter((t) => t.status === "reserved").length,
+    inService: inService.length,
+  };
+}
+
+export function ConsoleBar({
+  room,
+  roomSelect,
+  layoutName,
+  edited,
+  notice,
+  mode,
+  onMode,
+  onReset,
+}: Props) {
+  const c = roomCounts(room);
+  return (
+    <div className="console-bar">
+      <div className="cb-room">
+        <div className="cb-title">
+          <h1 className="room-name">{room.name}</h1>
+          <div className="cb-sub" title={`Layout in use: ${layoutName} — change it in Shift setup`}>
+            <time dateTime={new Date().toLocaleDateString("en-CA")}>{todayLabel()}</time> ·{" "}
+            {layoutName}
+          </div>
+        </div>
+        {roomSelect}
+      </div>
+      <div className="cb-clock" aria-label={`Service clock ${room.clock}`}>
+        {room.clock}
+      </div>
+      <dl className="cb-stats">
+        <Stat k="Covers seated" v={c.covers} />
+        <Stat k="Tables seated" v={c.seatedTables} />
+        <Stat k="Open" v={`${c.open}/${c.inService}`} />
+        <Stat k="Held" v={c.held} />
+      </dl>
+      <div className="cb-actions" role="group" aria-label="Host actions">
+        <button
+          type="button"
+          className="primary"
+          aria-pressed={mode === "walkin"}
+          onClick={() => onMode("walkin")}
+        >
+          + Walk-in
+        </button>
+        <button type="button" aria-pressed={mode === "shift"} onClick={() => onMode("shift")}>
+          Shift setup
+        </button>
+        <button
+          type="button"
+          aria-pressed={mode === "assistant"}
+          onClick={() => onMode("assistant")}
+        >
+          Assistant
+        </button>
+      </div>
+      <div className="cb-right">
+        <span className="cb-notice small" aria-live="polite">
+          {notice && <span className={notice.ok ? "ok-text" : "warn-text"}>{notice.message}</span>}
+        </span>
+        {edited && (
+          <span className="pill pill-accent" title="The assistant sees your current layout">
+            Edited
+          </span>
+        )}
+        <button type="button" onClick={onReset} disabled={!edited}>
+          Reset
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function Stat({ k, v }: { k: string; v: string | number }) {
+  return (
+    <div>
+      <dt>{k}</dt>
+      <dd>{v}</dd>
+    </div>
+  );
+}

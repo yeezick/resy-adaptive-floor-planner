@@ -1,0 +1,40 @@
+{
+  "runAt": "2026-11-03T02:54:22.741Z",
+  "gitSha": "620323883471561ffb76fd9b6998454afd712117",
+  "promptVersion": "agent.v1.0",
+  "model": "claude-opus-5-5",
+  "judgeModel": null,
+  "mode": "replay",
+  "scenarios": [],
+  "byCategory": [],
+  "failureTaxonomy": [],
+  "assertionPassRate": 0,
+  "assertionInterval": {
+    "low": 0,
+    "high": 1,
+    "method": "wilson-95 over scenarios (all assertions pass)"
+  },
+  "rollups": {
+    "recommendations": 0,
+    "costPerRecommendationUsd": 0,
+    "latencyP50Ms": 0,
+    "latencyP95Ms": 0,
+    "avgToolTurns": 0,
+    "validatorRejectRate": 0,
+    "spendUsd": {
+      "agent": 0,
+      "judge": 0,
+      "total": 0
+    },
+    "projectedUsdPer1000": 0
+  },
+  "calibration": null,
+  "knownLimits": [
+    "No transcripts recorded yet, so the deterministic replay has nothing to check.",
+    "Synthetic rooms: fictional restaurants with hand-made fixtures, not real service data.",
+    "Meal-phase timings (minutes left per phase plus a 5-minute reset) are assumptions in src/domain/phases.ts, not measurements.",
+    "Assertions check consistency with the room model and tool outputs, not real-world guest outcomes.",
+    "Costs are computed from response usage and a dated price table (src/server/pricing.ts, read 2026-11-02).",
+    "The LLM judge is advisory; its verdicts count only once its TPR and TNR against human labels clear the threshold."
+  ]
+}
