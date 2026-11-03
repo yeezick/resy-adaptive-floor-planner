@@ -5,7 +5,8 @@
 //   constraints   — the merged constraints match the scenario's expectation
 //   solver-tables — the planner's option uses only tables in the range (when one is set) and its line names no
 //                   "T" id; when nothing fits the line says so in one line
-// A few hand-written bad answers check the validator itself. `--live` records fresh answers (costs money).
+// A few hand-written bad answers check the validator itself. `--live` records fresh answers (costs money);
+// `--live --only <id,id>` records just those scenarios.
 import Anthropic from "@anthropic-ai/sdk";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -39,7 +40,8 @@ export const ChatGolden = z
       .object({
         tableRange: z.object({ from: z.number(), to: z.number() }).optional(),
         partySize: z.number().optional(),
-        time: z.string().optional(),
+        /** null = the time must not change. */
+        time: z.string().nullable().optional(),
         needs: z.array(z.string()).optional(),
         notes: z.array(z.string()).optional(),
         /** No constraint may change (a question back, or nothing usable). */
@@ -180,6 +182,17 @@ export const BAD_ANSWERS: { case: string; message: string; output: Output }[] = 
     message: "party of 7 now",
     output: { ...NONE, time: "19:00" },
   },
+  // Closed in #19: a headcount must never justify a time ("20" → 20:00, "for 8" → 20:00).
+  {
+    case: "time-from-make-it-20",
+    message: "make it 20 people",
+    output: { ...NONE, partySize: 20, time: "20:00" },
+  },
+  {
+    case: "time-from-table-for-8",
+    message: "a table for 8",
+    output: { ...NONE, partySize: 8, time: "20:00" },
+  },
   { case: "empty", message: "hmm", output: NONE },
 ];
 
@@ -230,7 +243,10 @@ async function live(): Promise<void> {
   const book = loadRequestBook();
   const rooms = loadRooms();
   let total = 0;
-  for (const g of loadChatGolden()) {
+  // --only id1,id2 records just those scenarios (keeps the other recordings as they are).
+  const at = process.argv.indexOf("--only");
+  const only = at > 0 ? new Set((process.argv[at + 1] ?? "").split(",")) : null;
+  for (const g of loadChatGolden().filter((x) => !only || only.has(x.id))) {
     const r = book.requests.find((x) => x.id === g.requestId) as GuestRequest;
     const res = await requestChatTurn(
       r.id,

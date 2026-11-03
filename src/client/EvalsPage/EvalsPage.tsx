@@ -85,9 +85,9 @@ function NoRun({ r }: { r: EvalResults }) {
       <section className="state-card no-run" aria-label="No evaluation run yet">
         <h2>No evaluation run is published yet</h2>
         <p className="muted">
-          When one is, this page shows how often the seating assistant's recommendations pass a
-          fixed set of checks, what each recommendation costs and how long it takes. Until then
-          there is nothing to score, so no numbers are shown.
+          When one is, this page shows how often the AI Planner's recommendations pass a fixed set
+          of checks, what each recommendation costs and how long it takes. Until then there is
+          nothing to score, so no numbers are shown.
         </p>
         <h3 className="section-title">What a run will report</h3>
         <ul className="small">

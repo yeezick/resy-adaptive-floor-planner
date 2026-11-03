@@ -68,15 +68,15 @@ export function RequestChat({
   return (
     <section className="req-block req-chat" aria-label="Adjust this request">
       <div className="req-block-head">
-        <h3 className="section-title">Adjust this request</h3>
+        <h3 className="section-title">AI Planner · adjust this request</h3>
         <ProposedTag />
       </div>
       <p className="muted small">
-        Changes apply to this request only. The AI turns a message into the same settings as the
-        controls below; the planner picks the tables.
+        Changes apply to this request only. The AI Planner turns a message into the same settings as
+        the controls below; the planner picks the tables.
       </p>
 
-      <ol className="chat-log" aria-label="Request chat" aria-live="polite">
+      <ol className="chat-log" aria-label="AI Planner chat" aria-live="polite">
         {turns.map((t) => (
           <li key={t.id}>
             <p className="chat-me">{t.message}</p>

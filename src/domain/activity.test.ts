@@ -131,7 +131,7 @@ describe("request-chat rows", () => {
     expect(rows[0]).toMatchObject({
       kind: "request-chat",
       source: "host",
-      what: "Request chat: tables 30–50 → No capacity fit in tables 30–50 for 22 at 18:30.",
+      what: "AI Planner (request chat): tables 30–50 → No capacity fit in tables 30–50 for 22 at 18:30.",
       decision: { kind: "pending" },
     });
     expect(rows[0]?.record.inputs).toContainEqual([

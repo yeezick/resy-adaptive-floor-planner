@@ -77,7 +77,7 @@ test("assistant renders ranked recommendations and never auto-seats", async ({ p
     .locator(".rail")
     .getByText(/parties ·/)
     .allTextContents();
-  await hostButton(page, "Assistant").click();
+  await hostButton(page, "AI Planner").click();
   await page.locator("#agent-input").fill("Party of 8 — where, and how soon?");
   await page.getByRole("button", { name: "Ask", exact: true }).click();
   await expect(page.locator(".rec-card").first()).toContainText("table 41");
@@ -242,7 +242,7 @@ test("in-request chat: a message becomes constraints, the planner re-runs, manua
     .getByRole("textbox", { name: "Message about this request" })
     .fill("headcount is now 26");
   await chat.getByRole("button", { name: "Send" }).click();
-  const log = chat.getByRole("list", { name: "Request chat" });
+  const log = chat.getByRole("list", { name: "AI Planner chat" });
   await expect(log).toContainText("headcount is now 26");
   await expect(log).toContainText("party of 26 and high chair → Capacity fit:");
   const sheet = page.locator(".request-sheet");
@@ -258,7 +258,7 @@ test("in-request chat: a message becomes constraints, the planner re-runs, manua
   // the turn is in the activity log, without the manager's words
   await page.getByRole("link", { name: "Activity" }).click();
   const table = page.locator(".activity-table");
-  await expect(table).toContainText("Request chat");
+  await expect(table).toContainText("AI Planner (request chat)");
   await expect(page.locator(".activity")).not.toContainText("headcount is now 26");
 });
 
@@ -329,7 +329,7 @@ test.describe("scenario URLs open the exact state with no model call", () => {
   test("request-chat: the tables 30–50 chat mid-conversation", async ({ page }) => {
     await page.goto("/?scenario=request-chat");
     const chat = page.getByRole("region", { name: "Adjust this request" });
-    const log = chat.getByRole("list", { name: "Request chat" });
+    const log = chat.getByRole("list", { name: "AI Planner chat" });
     await expect(log).toContainText("find another space between tables 30–50");
     await expect(log).toContainText("tables 30–50 →");
     await expect(chat.getByLabel("Tables from")).toHaveValue("30");

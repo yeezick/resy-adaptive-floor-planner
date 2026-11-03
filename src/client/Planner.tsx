@@ -39,7 +39,7 @@ export type ActionResult = { ok: true; message: string } | { ok: false; message:
 const PANEL_TITLE: Record<PanelMode, string> = {
   details: "Table details",
   walkin: "Walk-in",
-  assistant: "Assistant",
+  assistant: "AI Planner",
   shift: "Shift setup",
   reservation: "Add reservation",
   request: "Large-party request",

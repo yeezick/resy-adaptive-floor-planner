@@ -20,6 +20,10 @@ During service it ranks where a walk-in can sit and how soon, using where each t
 apps → entrées → dessert → check). It **recommends; it never seats anyone.** Everything the agent can do has a manual
 control.
 
+In the app, every AI feature appears under one name: the **AI Planner**. That covers the assistant panel, request
+triage, the in-request chat and the "What the AI Planner did" column on the activity log. The product itself is the
+Adaptive Floor Planner.
+
 ## Large-party requests: capacity fit and the cost of saying yes
 
 Parties above the online cap of 8 reach a request inbox from three sources: the **Resy app**'s request form, an
@@ -51,7 +55,7 @@ fixtures, with AI answers replayed from recordings in `fixtures/scenarios/`, so 
 | ------------------------------ | ------------------------------------------------------------- |
 | `/?scenario=party-22-agent`    | AI-agent request for 22, capacity fit + cost sheet open       |
 | `/?scenario=party-22-accepted` | the 22-top accepted: tonight's layout and crew build list     |
-| `/?scenario=walkin-8-peak`     | walk-in of 8 at 19:10, assistant open with ranked options     |
+| `/?scenario=walkin-8-peak`     | walk-in of 8 at 19:10, AI Planner open with ranked options    |
 | `/?scenario=request-chat`      | the in-request chat mid-conversation ("between tables 30–50") |
 
 ## In-request chat
@@ -61,7 +65,9 @@ we push it to 19:00?"). Haiku turns the message into constraints (table range, h
 notes); the planner re-runs the capacity fit; the card shows the new option and its cost. The model never names a
 table, and every number it sets must appear in the manager's message. Each constraint is also a control on the
 sheet, and every turn is logged in the activity log (the message as a hash). Evals:
-`evals/request-chat/golden.jsonl` (recorded answers replayed in CI); `pnpm evals:request-chat:live` re-records.
+`evals/request-chat/golden.jsonl` (recorded answers replayed in CI, including two cases where a headcount
+must not move the time: "make it 20 people" and "a table for 8"); `pnpm evals:request-chat:live` re-records
+(`-- --only <id,id>` for just those).
 
 ## What's inside
 
@@ -80,7 +86,7 @@ sheet, and every turn is logged in the activity log (the message as a hash). Eva
 
 ```bash
 pnpm install
-cp .env.example .env   # add an API key to use the assistant; everything else works without one
+cp .env.example .env   # add an API key to use the AI Planner; everything else works without one
 pnpm dev               # client on Vite, API on :3001
 pnpm verify            # lint, typecheck, tests, deterministic evals
 pnpm build && pnpm e2e # Playwright smoke tests (no API key needed)

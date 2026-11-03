@@ -37,7 +37,7 @@ export function Legend() {
           builds)
         </span>
         <span className="legend-item">
-          <span className="swatch swatch-lit" aria-hidden="true" /> AI option (assistant)
+          <span className="swatch swatch-lit" aria-hidden="true" /> AI option (AI Planner)
         </span>
         <span className="legend-item">
           <span className="swatch swatch-combo" aria-hidden="true" /> Combined
