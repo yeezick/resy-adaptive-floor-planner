@@ -5,13 +5,14 @@ import { aisleRejects, BUILD_LEAD_MIN, type AisleReject, type Build } from "./bu
 import { TURN_MIN } from "./capacity";
 import { checkRows, clearanceFor, type Clearance, type JoinCheck } from "./clearance";
 import { tableById } from "./room";
+import { tableNumbers } from "./wording";
 import { toHHMM, toMinutes } from "./time";
 import type { Room, Table } from "./types";
 
 export interface Hold {
   /** Floor tables held for the party (spare tables from storage are extra, so they cost nothing). */
   tables: string[];
-  /** The same tables by room, as runs: "Garden Room T57–T61". */
+  /** The same tables by room, as runs: "Garden Room 57–61". */
   byArea: string[];
   /** When the tables stop taking new bookings: a party seated after this could not leave before the build. */
   from: string;
@@ -89,24 +90,9 @@ export function holdFor(
   };
 }
 
-/** "T57, T58, T59, T63" → "T57–T59, T63" (consecutive numbers collapse to a range). */
+/** "T57, T58, T59, T63" → "57–59 and 63" (consecutive numbers collapse to a range; no "T" prefix). */
 export function tableRuns(ids: readonly string[]): string {
-  const nums = [...ids].map((id) => Number(id.slice(1))).sort((a, b) => a - b);
-  const out: string[] = [];
-  for (let i = 0; i < nums.length;) {
-    let j = i;
-    while (j + 1 < nums.length && nums[j + 1] === (nums[j] as number) + 1) j++;
-    out.push(
-      j - i >= 2
-        ? `T${nums[i]}–T${nums[j]}`
-        : nums
-            .slice(i, j + 1)
-            .map((n) => `T${n}`)
-            .join(", "),
-    );
-    i = j + 1;
-  }
-  return out.join(", ");
+  return tableNumbers(ids);
 }
 
 export function tablesByArea(room: Room, ids: readonly string[]): string[] {

@@ -1,18 +1,32 @@
-import type { PartyFit } from "../../domain";
+import {
+  acceptLine,
+  buildMinutes,
+  coverTrade,
+  DECLINE_LINE,
+  type Build,
+  type PartyFit,
+} from "../../domain";
 
-/** Fit + cost for one large party: hold and covers lost, server section(s), aisle check. Solver output only. */
+/**
+ * Capacity fit + cost for one large party: yes vs no in covers, crew build time, hold, server section(s) and
+ * the aisle check. Solver output only; every estimate is labelled "est.".
+ */
 export function PartyFitCard({
   f,
+  build,
   title,
   focus,
   onHover,
 }: {
   f: PartyFit;
+  /** The party's build, for the crew time ("Build time ~15 min (est.)"). */
+  build?: Build;
   title?: string;
   focus?: boolean;
   onHover?: (on: boolean) => void;
 }) {
   const a = f.aisle;
+  const trade = coverTrade(f.partySize, f.hold.coversLost);
   const hover = onHover
     ? {
         tabIndex: 0,
@@ -32,13 +46,26 @@ export function PartyFitCard({
         {focus && <span className="pill pill-accent">just accepted</span>}
       </div>
       <dl className="fit-grid small">
+        <dt>Yes vs no</dt>
+        <dd className="trade">
+          <span className={trade.net < 0 ? "warn-text" : undefined}>
+            <strong>{acceptLine(trade)}</strong>
+          </span>
+          <span className="muted">{DECLINE_LINE}</span>
+        </dd>
+        {build && (
+          <>
+            <dt>Crew</dt>
+            <dd>Build time ~{buildMinutes(build)} min (est.)</dd>
+          </>
+        )}
         <dt>Hold</dt>
         <dd>
           {f.hold.tables.length ? f.hold.byArea.join(" · ") : "spare tables only"} held from{" "}
           <strong>{f.hold.from}</strong> · {f.hold.slotsBlocked} slot
           {f.hold.slotsBlocked === 1 ? "" : "s"} blocked ·{" "}
           <strong className={f.hold.coversLost ? "warn-text" : undefined}>
-            ~{f.hold.coversLost} covers lost
+            ~{f.hold.coversLost} covers lost (est.)
           </strong>
         </dd>
         <dt>Section</dt>
@@ -64,7 +91,7 @@ export function PartyFitCard({
           )}
           {a.rejected.map((r) => (
             <div key={r.tables.join()} className="fit-reject">
-              Rejected {r.reason}
+              Rejected: {r.reason}
             </div>
           ))}
         </dd>

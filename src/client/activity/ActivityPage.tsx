@@ -11,6 +11,7 @@ import { duration, usd } from "../lib/format";
 import { ProposedTag } from "../requests/RequestSheet";
 import { startRequests } from "../requests/store";
 import { useActivity } from "./store";
+import { SOURCE_LABEL as REQUEST_SOURCE } from "../../domain/requests";
 
 const KIND_LABEL: Record<ActivityKind, string> = {
   request: "Request triage",
@@ -20,7 +21,7 @@ const KIND_LABEL: Record<ActivityKind, string> = {
   "assistant-answer": "Assistant answer",
   refusal: "Refusal",
 };
-const SOURCE_LABEL = { "guest-form": "Guest form", "ai-agent": "AI agent", host: "Host" } as const;
+const SOURCE_LABEL = { ...REQUEST_SOURCE, host: "Host (assistant)" } as const;
 
 const TYPES: { id: NonNullable<ActivityFilter["type"]>; label: string }[] = [
   { id: "request", label: "Request triage" },
@@ -56,7 +57,7 @@ export function DecisionChip({ d }: { d: RowDecision }) {
         <span
           className={`verdict ${d.reason === "policy" ? "verdict-policy" : d.reason === "fit" ? "verdict-fit" : "verdict-wait"}`}
         >
-          Declined · {d.reason}
+          Declined · {d.reason === "fit" ? "capacity fit" : d.reason}
         </span>
       );
     case "edited":
@@ -96,7 +97,7 @@ export function ActivityPage() {
         <div className="totals activity-counts" aria-label="This week">
           <Count label="Requests this week" value={counts.requests} />
           <Count label="Accepted" value={counts.accepted} />
-          <Count label="Declined · fit" value={counts.declined.fit} />
+          <Count label="Declined · capacity fit" value={counts.declined.fit} />
           <Count label="Declined · policy" value={counts.declined.policy} />
           <Count label="Declined · other" value={counts.declined.other} />
           <Count label="Pending" value={counts.pending} />
@@ -154,7 +155,7 @@ export function ActivityPage() {
             }
           >
             <option value="">Any</option>
-            <option value="fit">Fit</option>
+            <option value="fit">Capacity fit</option>
             <option value="policy">Policy</option>
             <option value="other">Other</option>
           </select>

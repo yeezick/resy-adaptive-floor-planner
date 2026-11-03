@@ -1,4 +1,5 @@
 import { checkCombine, comboOf, type Room } from "../../domain";
+import { tablesPhrase } from "../../domain/wording";
 
 /** Why a combine is or isn't possible right now (the same checks applyCombine runs). */
 export function combineStatus(room: Room, ids: string[]): { ok: boolean; text: string } {
@@ -27,7 +28,7 @@ export function SelectionBar({ room, selected, onCombine, onSplit, onClear }: Pr
       <div className="selection-label small">
         {selected.length ? (
           <>
-            Selected <strong>{selected.join(", ")}</strong>
+            Selected <strong>{tablesPhrase(selected)}</strong>
           </>
         ) : (
           <span className="muted">Click tables on the floor to select · drag to move</span>

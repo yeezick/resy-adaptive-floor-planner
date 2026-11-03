@@ -5,6 +5,7 @@ import { estimateFreeTime } from "./phases";
 import { adjacentRooms, areaByName, neighbours, tableById } from "./room";
 import { toHHMM, toMinutes } from "./time";
 import type { Reservation, Room, Table } from "./types";
+import { tableNo, tablesPhrase } from "./wording";
 
 export const LARGE_PARTY = 7;
 /** Start each build this many minutes before the party arrives. */
@@ -477,7 +478,11 @@ function describe(r: Reservation, c: Choice): Build {
   for (const d of dividers) steps.push(`Open the divider ${d}`);
   for (const row of unit.rows) {
     const area = unit.tables.find((t) => t.id === row[0])?.area ?? "";
-    steps.push(row.length > 1 ? `Join ${row.join(" + ")} in ${area}` : `Use ${row[0]} in ${area}`);
+    steps.push(
+      row.length > 1
+        ? `Combine ${tablesPhrase(row)} in ${area}`
+        : `Use ${tablesPhrase(row)} in ${area}`,
+    );
   }
   if (c.spareTables)
     steps.push(`Bring ${c.spareTables} spare 4-top(s) from storage to the end of a row`);
@@ -579,7 +584,9 @@ function bestPartial(
 }
 
 const listIds = (ids: string[]) =>
-  ids.length > 3 ? `${ids.slice(0, 3).join(", ")} +${ids.length - 3}` : ids.join(", ");
+  ids.length > 3
+    ? `${ids.slice(0, 3).map(tableNo).join(", ")} +${ids.length - 3}`
+    : ids.map(tableNo).join(", ");
 
 /** One-line reason a party could not be placed (size, needs, timing or storage) and when it could. */
 function diagnose(
@@ -653,8 +660,8 @@ export function checkTableSet(room: Room, ids: readonly string[]): TableSetCheck
   if (new Set(ids).size !== ids.length) return { ok: false, reason: "a table is listed twice" };
   for (const id of ids) {
     const t = tableById(room, id);
-    if (!t) return { ok: false, reason: `table ${id} does not exist` };
-    if (t.status === "blocked") return { ok: false, reason: `${id} is blocked` };
+    if (!t) return { ok: false, reason: `table ${tableNo(id)} does not exist` };
+    if (t.status === "blocked") return { ok: false, reason: `table ${tableNo(id)} is blocked` };
   }
   // split into connected runs
   const left = new Set(ids);

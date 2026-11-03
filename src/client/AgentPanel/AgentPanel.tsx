@@ -14,6 +14,7 @@ import { friendlyError } from "./errors";
 import { Metrics } from "./Metrics";
 import { activityActions } from "../activity/store";
 import { RecommendationCard } from "./RecommendationCard";
+import { plainTables, tablesPhrase } from "../../domain/wording";
 
 export type Turn =
   | { id: number; role: "user"; text: string }
@@ -235,10 +236,10 @@ function AssistantTurn({ turnId, res, room, highlight, actions, partyHint }: Ass
   const recs = [...res.recommendations].sort((a, b) => a.rank - b.rank);
   return (
     <div className="bubble assistant">
-      {res.answer && <p className="answer">{res.answer}</p>}
+      {res.answer && <p className="answer">{plainTables(res.answer)}</p>}
       {res.clarifyingQuestion && (
         <p className="clarify">
-          <span className="pill">Question</span> {res.clarifyingQuestion}
+          <span className="pill">Question</span> {plainTables(res.clarifyingQuestion)}
         </p>
       )}
       {recs.length > 0 && (
@@ -255,14 +256,14 @@ function AssistantTurn({ turnId, res, room, highlight, actions, partyHint }: Ass
                 onApplyRows: (rows) => {
                   activityActions.recordApplied(
                     res.traceId,
-                    `Combined ${rows.map((x) => x.join(" + ")).join("; ")} by the host`,
+                    `Combined ${rows.map((x) => tablesPhrase(x)).join("; ")} by the host`,
                   );
                   actions.onApplyRows(rows);
                 },
                 onSelectTables: (ids, size) => {
                   activityActions.recordApplied(
                     res.traceId,
-                    `Host opened seating for ${size} at ${ids.join(" + ")}`,
+                    `Host opened seating for ${size} at ${tablesPhrase(ids)}`,
                   );
                   actions.onSelectTables(ids, size);
                 },

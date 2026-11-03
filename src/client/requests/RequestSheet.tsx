@@ -1,16 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { partyFits, type Room } from "../../domain";
+import { crewNote, partyFits, tablesPhrase, toMinutes, type Room } from "../../domain";
 import { PartyFitCard } from "../Fit/PartyFitCard";
 import {
   checkRequest,
   draftReply,
+  needsOverview,
+  requestHeader,
   SERVICE,
+  SOURCE_LABEL,
   toReservation,
   type GuestRequest,
 } from "../../domain/requests";
 import { fetchRoom } from "../api";
 import { duration, usd } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
+import { useElapsedMinutes } from "../lib/useDemoClock";
 import {
   decisionOf,
   requestsActions,
@@ -19,10 +23,7 @@ import {
   type TriageState,
 } from "./store";
 
-export const SOURCE_LABEL: Record<GuestRequest["source"], string> = {
-  "guest-form": "Form",
-  "ai-agent": "AI agent",
-};
+export { SOURCE_LABEL, SOURCE_SHORT } from "../../domain/requests";
 
 export function ProposedTag() {
   return <span className="proposed-tag">Proposed feature</span>;
@@ -30,6 +31,7 @@ export function ProposedTag() {
 
 export function VerdictChip({ t }: { t: TriageState | undefined }) {
   if (!t || t.status === "loading") return <span className="verdict verdict-wait">Triaging…</span>;
+  if (t.status === "host") return <span className="verdict verdict-real">At the stand</span>;
   if (t.status === "error") return <span className="verdict verdict-unsure">Needs a person</span>;
   const v = t.result.escalated ? "unsure" : t.result.verdict;
   const label = v === "real" ? "Real" : v === "junk" ? "Likely junk" : "Needs a person";
@@ -39,12 +41,12 @@ export function VerdictChip({ t }: { t: TriageState | undefined }) {
 const loadRoom = (id: string) => fetchRoom(id);
 
 const DECLINE: { id: DeclineReason; label: string; hint: string }[] = [
-  { id: "fit", label: "Fit", hint: "we can't seat them that night" },
+  { id: "fit", label: "Capacity fit", hint: "we can't seat them that night" },
   { id: "policy", label: "Policy", hint: "minimums, buyouts, house rules, junk" },
   { id: "other", label: "Other", hint: "anything else" },
 ];
 
-/** One request: the AI triage, the solver's fit check and the manager's actions. Nothing accepts by itself. */
+/** One request: the AI triage, the solver's capacity fit and the manager's actions. Nothing accepts by itself. */
 export function RequestSheet({
   request: r,
   roomId,
@@ -67,6 +69,10 @@ export function RequestSheet({
     return { ...roomRes.data, reservations: [...roomRes.data.reservations, ...extra] };
   }, [roomRes, s.accepted, r.bookRoomId, r.id]);
   const fit = useMemo(() => (room ? checkRequest(room, r) : null), [room, r]);
+  const elapsed = useElapsedMinutes();
+  const minutesAway = roomRes?.ok
+    ? toMinutes(r.time) - toMinutes(roomRes.data.clock) - elapsed
+    : null;
   const draft = useMemo(() => (fit ? draftReply(r, fit) : ""), [fit, r]);
   const cost = useMemo(() => {
     if (!room || !fit?.ok) return null;
@@ -84,32 +90,38 @@ export function RequestSheet({
       r.id,
       fit.ok
         ? [
-            `Fits: ${fit.build.tables.join(" + ")} · ${fit.build.area} · seats ${fit.build.seats}, build by ${fit.build.buildBy}`,
+            `Capacity fit: ${tablesPhrase(fit.build.tables)} · ${fit.build.area} · seats ${fit.build.seats}, build by ${fit.build.buildBy}`,
             ...(cost
               ? [
-                  `Hold from ${cost.hold.from} · ~${cost.hold.coversLost} covers lost`,
+                  `Hold from ${cost.hold.from} · ~${cost.hold.coversLost} covers lost (est.)`,
                   `Section ${cost.sections.join(" + ")}${cost.spansSections ? " (spans two)" : ""}`,
                   `Aisle: ${cost.aisle.checked.length} joins ${cost.aisle.ok ? "clear" : "fail"}`,
                   ...cost.aisle.rejected.map((x) => `Rejected ${x.reason}`),
                 ]
               : []),
           ]
-        : [`Can't fit: ${fit.reason}`],
+        : [`No capacity fit: ${fit.reason}`],
       fit.ok ? fit.build.tables : [],
     );
   }, [fit, cost, r.id]);
   const junk = t?.status === "ok" && t.result.verdict === "junk" && !t.result.escalated;
+  const overview = t?.status === "ok" ? t.result.summary : [needsOverview(r)];
 
   return (
     <div className="request-sheet">
       <div className="req-head">
         <div>
-          <div className="req-title">
-            Party of {r.partySize} · {r.day} {r.time}
-          </div>
+          <h2 className="req-title" title={`Countdown from ${r.day}'s clock`}>
+            {requestHeader(r, minutesAway)}
+          </h2>
+          <ul className="req-overview" aria-label="What the party needs">
+            {overview.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
           <div className="muted small">
-            {SOURCE_LABEL[r.source]} · received {r.receivedAt}
-            {r.occasion ? ` · ${r.occasion}` : ""}
+            <span className={`source-label source-${r.source}`}>{SOURCE_LABEL[r.source]}</span> ·
+            received {r.receivedAt}
           </div>
         </div>
         <ProposedTag />
@@ -120,13 +132,13 @@ export function RequestSheet({
           <h3 className="section-title">AI triage</h3>
           <VerdictChip t={t} />
         </div>
+        {t?.status === "host" && (
+          <p className="muted small">
+            Taken at the host stand, so no AI triage: the host is talking to the guest.
+          </p>
+        )}
         {t?.status === "ok" && (
           <>
-            <ul className="req-summary">
-              {t.result.summary.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
             <p className="small">
               <span className="muted">Why: </span>
               {t.result.reason}
@@ -155,7 +167,7 @@ export function RequestSheet({
           </div>
         )}
         <details className="small req-message">
-          <summary>Guest's message</summary>
+          <summary>{r.source === "walk-in" ? "Host's note" : "Guest's message"}</summary>
           <p>{r.message}</p>
           <p className="muted">
             Shown here only. The activity log keeps the AI's summary, never the guest's words.
@@ -163,12 +175,12 @@ export function RequestSheet({
         </details>
       </section>
 
-      <section className="req-block" aria-label="Fit check">
+      <section className="req-block" aria-label="Capacity fit">
         <div className="req-block-head">
-          <h3 className="section-title">Fit check · {r.day}</h3>
+          <h3 className="section-title">Capacity fit · {r.day}</h3>
           {fit && (
             <span className={`verdict ${fit.ok ? "verdict-real" : "verdict-unsure"}`}>
-              {fit.ok ? "Fits" : "Can't fit"}
+              {fit.ok ? "Capacity fit" : "No capacity fit"}
             </span>
           )}
         </div>
@@ -185,23 +197,14 @@ export function RequestSheet({
         )}
         {fit?.ok && (
           <div className="small">
-            <p>
-              <strong>{fit.build.tables.join(" + ")}</strong> · {fit.build.area} · seats{" "}
-              {fit.build.seats} for {fit.build.partySize}, build by {fit.build.buildBy}
-            </p>
+            <p className="crew-note">{crewNote(fit.build)}</p>
             <p className="muted">
-              {[
-                fit.build.extenders && `${fit.build.extenders} extender(s)`,
-                fit.build.spareTables && `${fit.build.spareTables} spare table(s)`,
-                fit.build.extraChairs && `${fit.build.extraChairs} chair(s)`,
-              ]
-                .filter(Boolean)
-                .join(", ") || "No storage needed"}
-              . Every booking already on {r.day} keeps its seats.
+              {fit.build.area} · seats {fit.build.seats} for {fit.build.partySize}, build by{" "}
+              {fit.build.buildBy}. Every booking already on {r.day} keeps its seats.
             </p>
             {cost && (
               <ul className="fit-list">
-                <PartyFitCard f={cost} title="Cost of saying yes" />
+                <PartyFitCard f={cost} build={fit.build} title="Cost of saying yes vs no" />
               </ul>
             )}
           </div>
@@ -258,15 +261,15 @@ export function RequestSheet({
                 </label>
               ))}
               <button type="button" onClick={() => requestsActions.decline(r, reason)}>
-                Decline for {reason}
+                Decline for {reason === "fit" ? "capacity fit" : reason}
               </button>
             </fieldset>
           )}
           {mode === "reply" && (
             <div className="reply">
               <label className="small" htmlFor={`reply-${r.id}`}>
-                Draft reply — edit before sending. Drafted from the fit check; it never promises a
-                booking.
+                Draft reply — edit before sending. Drafted from the capacity fit; it never promises
+                a booking.
               </label>
               <textarea
                 id={`reply-${r.id}`}
@@ -288,9 +291,9 @@ export function RequestSheet({
         <div className="req-decided small" role="status">
           <strong>
             {decision.kind === "accepted"
-              ? `Accepted ${decision.at} · ${decision.tables.join(" + ")}`
+              ? `Accepted ${decision.at} · ${tablesPhrase(decision.tables)}`
               : decision.kind === "declined"
-                ? `Declined for ${decision.reason} · ${decision.at}`
+                ? `Declined for ${decision.reason === "fit" ? "capacity fit" : decision.reason} · ${decision.at}`
                 : `Replied ${decision.at}${decision.edited ? " · draft edited" : ""}`}
           </strong>
           <button type="button" className="link-btn" onClick={() => requestsActions.reopen(r)}>

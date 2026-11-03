@@ -12,6 +12,7 @@ import { combineStatus } from "../FloorPlan/SelectionBar";
 import type { Highlight, HighlightControls } from "../highlight";
 import { waitLabel } from "../lib/format";
 import type { RecActions } from "./AgentPanel";
+import { plainTables, tableNo, tablesPhrase } from "../../domain/wording";
 
 interface Props {
   rec: Recommendation;
@@ -44,7 +45,7 @@ export function RecommendationCard({ rec, hlKey, room, highlight, actions, party
   const h: Highlight = {
     key: hlKey,
     ids: rec.tables,
-    label: `AI option ${rec.rank}: ${rows.map((r) => r.join("+")).join(" | ")}`,
+    label: `AI option ${rec.rank}: ${rows.map((r) => tablesPhrase(r)).join(" | ")}`,
     dividers,
     source: "ai",
   };
@@ -65,7 +66,7 @@ export function RecommendationCard({ rec, hlKey, room, highlight, actions, party
     >
       <header className="rec-head">
         <span className="rank">#{rec.rank}</span>
-        <strong>{rows.map((r) => r.join(" + ")).join("  |  ")}</strong>
+        <strong>{rows.map((r) => tablesPhrase(r)).join("  |  ")}</strong>
         <span className="muted">
           {rec.seats} seats · {waitLabel(rec.waitMin)}
         </span>
@@ -84,16 +85,16 @@ export function RecommendationCard({ rec, hlKey, room, highlight, actions, party
           )}
         </div>
       )}
-      <p className="rec-reason">{rec.reasoning}</p>
+      <p className="rec-reason">{plainTables(rec.reasoning)}</p>
       {rec.tradeoffs.length > 0 && (
         <ul className="tradeoffs small">
           {rec.tradeoffs.map((t, i) => (
-            <li key={i}>{t}</li>
+            <li key={i}>{plainTables(t)}</li>
           ))}
         </ul>
       )}
       {unknown.length > 0 && (
-        <p className="warn-text small">Not in this room: {unknown.join(", ")}</p>
+        <p className="warn-text small">Not in this room: {unknown.map(tableNo).join(", ")}</p>
       )}
       <div className="btn-row">
         <button

@@ -149,14 +149,14 @@ function Proposal({
         />
         <Tile
           label="Covers lost to holds"
-          value={`~${s.coversLostToHolds}`}
+          value={`~${s.coversLostToHolds} est.`}
           hint="seats × time held ÷ one 90-min turn"
         />
       </div>
 
-      <section aria-label="Fit and cost by party">
+      <section aria-label="Capacity fit and cost by party">
         <h3 className="section-title">
-          Large parties · fit + cost · {p.parties.length} <ProposedTag />
+          Large parties · capacity fit + cost · {p.parties.length} <ProposedTag />
         </h3>
         <p className="muted small">
           Holds, sections and aisle checks come from the planner. Hover a party to see it on the
@@ -177,6 +177,7 @@ function Proposal({
                 <PartyFitCard
                   key={f.reservationId}
                   f={f}
+                  build={p.builds.find((b) => b.reservationId === f.reservationId)}
                   focus={f.reservationId === focusId}
                   onHover={(on) => highlight.onHover(on ? h : null)}
                 />
@@ -185,8 +186,8 @@ function Proposal({
         </ul>
       </section>
       {p.infeasible.length > 0 && (
-        <section aria-label="Can't fit">
-          <h3 className="section-title">Can't fit · {p.infeasible.length}</h3>
+        <section aria-label="No capacity fit">
+          <h3 className="section-title">No capacity fit · {p.infeasible.length}</h3>
           <p className="muted small">The rest of the plan still stands.</p>
           {p.infeasible.map((x) => (
             <div key={x.reservationId} className="cant-fit">

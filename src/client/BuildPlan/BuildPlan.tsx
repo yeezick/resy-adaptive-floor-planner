@@ -3,6 +3,7 @@ import { LARGE_PARTY, planBuilds, tableById, toMinutes, type Build, type Room } 
 import { normaliseDivider } from "../FloorPlan/geometry";
 import type { Highlight, HighlightControls } from "../highlight";
 import { Storage } from "./Storage";
+import { tablesPhrase } from "../../domain/wording";
 
 interface Props {
   room: Room;
@@ -149,7 +150,7 @@ function BuildCard({
             <span className="muted">
               {b.rows.length > 1 ? `Row ${i + 1}` : "Table"} · {tableById(room, row[0] ?? "")?.area}
             </span>{" "}
-            <strong>{row.join(" + ")}</strong>
+            <strong>{tablesPhrase(row)}</strong>
           </li>
         ))}
       </ul>

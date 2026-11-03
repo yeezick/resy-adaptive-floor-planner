@@ -20,6 +20,28 @@ During service it ranks where a walk-in can sit and how soon, using where each t
 apps → entrées → dessert → check). It **recommends; it never seats anyone.** Everything the agent can do has a manual
 control.
 
+## Large-party requests: capacity fit and the cost of saying yes
+
+Parties above the online cap of 8 reach a request inbox from three sources: the **Resy app**'s request form, an
+**AI agent** (a chat app or MCP client) booking for a guest, and a **walk-in at the host stand** (the host types it).
+Each request gets an AI triage (real vs junk, plus a two-line needs overview) and a **capacity fit** from the
+planner: the night's book is planned with and without the party, and it fits only if every existing booking keeps
+its seats. The AI never picks tables.
+
+The card weighs yes against no, in covers:
+
+- **Accept:** +N covers (the party) − M covers lost to the hold (est.) = net. The hold starts one 90-minute turn
+  before the build, and covers lost = seats × minutes held ÷ 90.
+- **Decline:** 0, and the request leaves Resy.
+- **Build time ~X min (est.):** crew minutes per step from
+  [`fixtures/crew/build-minutes.json`](fixtures/crew/build-minutes.json): 3 per floor table, 3 per extender, 4 per
+  spare table from storage, 5 per divider opened, 1 per 4 chairs carried, and never under 10. The same constants set
+  the crew list's time windows. Labour cost stays out of the prototype.
+
+Table numbers never carry the fixtures' `T` prefix in anything a person reads ("Combine tables 72, 73 and 74 into an
+11-top; bring 2 tables and 6 chairs from storage."). Elapsed time on seated tables is estimated from meal phase and
+is labelled "est.".
+
 ## What's inside
 
 - `src/domain/` — the room model in plain TypeScript: meal-phase timing, legal joins, party fit, build plans, and

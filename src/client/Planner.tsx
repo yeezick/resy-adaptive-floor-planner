@@ -29,6 +29,7 @@ import { ProposedTag, RequestSheet } from "./requests/RequestSheet";
 import { useRequests } from "./requests/store";
 import { ReservationSheet } from "./WalkIn/ReservationSheet";
 import { WalkInSheet, type WalkInDraft } from "./WalkIn/WalkInSheet";
+import { tablesPhrase } from "../domain/wording";
 
 const today = () => new Date().toLocaleDateString("en-CA"); // local YYYY-MM-DD
 
@@ -158,14 +159,14 @@ export function Planner({
   };
 
   const combine = (ids: string[]) => {
-    const r = run(() => applyCombine(room, ids), `Combined ${ids.join(" + ")}`);
+    const r = run(() => applyCombine(room, ids), `Combined ${tablesPhrase(ids)}`);
     if (r.ok) setSelected([]);
     return r;
   };
   const combineRows = (rows: string[][]) =>
     run(
       () => rows.reduce((next, r) => applyCombine(next, r), room),
-      `Combined ${rows.map((r) => r.join(" + ")).join("; ")}`,
+      `Combined ${rows.map((r) => tablesPhrase(r)).join("; ")}`,
     );
   const split = (ids: string[]) => {
     const combos = new Set(ids.map((id) => comboOf(room, id)).filter((c) => c !== undefined));
@@ -175,7 +176,7 @@ export function Planner({
         for (const c of combos) next = applySplit(next, c[0] as string);
         return next;
       },
-      `Split ${[...combos].map((c) => c.join(" + ")).join("; ")}`,
+      `Split ${[...combos].map((c) => tablesPhrase(c)).join("; ")}`,
     );
   };
   const move = (id: string, x: number, y: number) =>
@@ -191,7 +192,10 @@ export function Planner({
     setMode("walkin");
   };
   const seat = (ids: string[], size: number) => {
-    const r = run(() => seatParty(room, ids, size), `Seated party of ${size} at ${ids.join("+")}`);
+    const r = run(
+      () => seatParty(room, ids, size),
+      `Seated party of ${size} at ${tablesPhrase(ids)}`,
+    );
     if (!r.ok) return;
     if (draft.waitId) setWaitlist((w) => w.filter((x) => x.id !== draft.waitId));
     setSelected([]);
@@ -212,7 +216,7 @@ export function Planner({
   };
   const finish = (ids: string[]) => {
     const size = Math.max(...ids.map((id) => tableById(room, id)?.partySize ?? 0));
-    const r = run(() => finishParty(room, ids), `Finished ${ids.join("+")} — tables open`);
+    const r = run(() => finishParty(room, ids), `Finished ${tablesPhrase(ids)} — tables open`);
     if (!r.ok) return;
     setDone((d) => [
       ...d,

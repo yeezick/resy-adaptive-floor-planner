@@ -5,6 +5,7 @@
 import { z } from "zod";
 import venueJson from "../../fixtures/clearance/juniper-and-pine.json";
 import type { Room } from "./types";
+import { tableNo } from "./wording";
 
 export const Clearance = z
   .object({
@@ -58,8 +59,8 @@ export function checkJoin(c: Clearance, a: string, b: string): JoinCheck {
     reason: ok
       ? undefined
       : inches === null
-        ? `${a} + ${b}: no aisle measurement on file — not joined until someone measures it`
-        : `${a} + ${b} leaves ${inches} in of aisle (needs ${c.minAisleIn} in)${note ? ` — ${note}` : ""}`,
+        ? `joining tables ${tableNo(a)} and ${tableNo(b)}: no aisle measurement on file — not joined until someone measures it`
+        : `joining tables ${tableNo(a)} and ${tableNo(b)} leaves ${inches} in of aisle (needs ${c.minAisleIn} in)${note ? ` — ${note}` : ""}`,
   };
 }
 
