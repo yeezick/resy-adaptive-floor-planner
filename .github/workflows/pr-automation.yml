@@ -1,6 +1,6 @@
-# Turns on GitHub's native auto-merge (squash) when a PR opens, so it merges the moment the
-# required checks pass. Off until the main ruleset exists: without required checks, auto-merge
-# would merge immediately. Enable with the Actions variable AUTO_MERGE_ENABLED=true.
+# Fallback auto-merge for when the AI review loop is switched off (AI_REVIEW_ENABLED=false).
+# Normally ai-review.yml turns auto-merge on, and only after a clean review.
+# Requires AUTO_MERGE_ENABLED=true and the main ruleset (required checks), or it would merge at once.
 name: pr-automation
 
 on:
@@ -13,8 +13,9 @@ permissions:
 
 jobs:
   enable-auto-merge:
-    name: Enable auto-merge
+    name: Enable auto-merge (review loop off)
     if: >-
+      vars.AI_REVIEW_ENABLED == 'false' &&
       vars.AUTO_MERGE_ENABLED == 'true' &&
       github.event.pull_request.draft == false &&
       github.event.pull_request.head.repo.full_name == github.repository
@@ -26,5 +27,6 @@ jobs:
     steps:
       - name: gh pr merge --auto --squash
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # A PAT so the merge to main triggers the push workflows (GITHUB_TOKEN merges don't).
+          GH_TOKEN: ${{ secrets.AUTOMATION_PAT || secrets.GITHUB_TOKEN }}
         run: gh pr merge "${{ github.event.pull_request.number }}" --repo "${{ github.repository }}" --auto --squash --delete-branch

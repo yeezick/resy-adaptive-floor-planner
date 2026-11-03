@@ -23,7 +23,7 @@ between checks that block a merge and signals that inform a reviewer, and every 
 | `audit`         | `pnpm audit` (prod, gate at high) with the full report kept, plus dependency review on PRs.                                                                                        |
 | `quality`       | Duplicate-code check (jscpd, fails above 5%) and a coverage summary on the run page.                                                                                               |
 | `branch-sweep`  | Twice-weekly deletion of branches whose PR merged.                                                                                                                                 |
-| `pr-automation` | Native auto-merge once required checks pass; off until the `main` ruleset exists (`AUTO_MERGE_ENABLED`).                                                                           |
+| `pr-automation` | Fallback auto-merge when the review loop is off. With the loop on, ADR-0008 governs auto-merge and auto-fix.                                                                       |
 
 Every action is pinned to a full commit SHA. Workflows default to `contents: read` and widen per job.
 Secrets never reach fork PRs. The AI reviewer and live evals treat PR text as data, not instructions.
