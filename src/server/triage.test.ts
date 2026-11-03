@@ -45,6 +45,18 @@ describe("triageProblems", () => {
     expect(triageProblems(out({ reason: "Alex wants dinner." }), req)).toHaveLength(1);
     expect(triageProblems(out({ reason: "The Rivera group wants dinner." }), req)).toHaveLength(1);
     expect(triageProblems(out({ reason: "Alexandra-style dinner." }), req)).toEqual([]);
+    expect(
+      triageProblems(out({ reason: "Demands free dinner for posts." }), {
+        ...req,
+        contact: "free dinner",
+      }),
+    ).toEqual([]);
+    expect(
+      triageProblems(out({ reason: "Plans a party for a client." }), {
+        ...req,
+        contact: "Party Planner",
+      }),
+    ).toEqual([]);
     expect(triageProblems(out({ reason: "See https://x.example" }), req)).toHaveLength(1);
     expect(triageProblems(out({ reason: "Call 312 555 0100 back" }), req)).toHaveLength(1);
   });
