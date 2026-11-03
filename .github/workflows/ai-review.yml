@@ -119,7 +119,7 @@ jobs:
       - name: Run Claude review
         if: steps.scope.outputs.run == 'true'
         # Pinned to the v1.0.254 commit (2026-10-19). Bump by resolving a newer release tag to its SHA.
-        uses: anthropics/claude-code-action@db77d4d3c98f3f6380e7cd45ffba2342a3dbde3c # v1.0.254
+        uses: anthropics/claude-code-action@d535f5172dec02b204866b393d6b20b9b2aaf98d # v1.0.266
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
@@ -309,7 +309,7 @@ jobs:
 
       - name: Claude fixes the blocking findings (edits only; no git)
         # Same pin as the review step.
-        uses: anthropics/claude-code-action@db77d4d3c98f3f6380e7cd45ffba2342a3dbde3c # v1.0.254
+        uses: anthropics/claude-code-action@d535f5172dec02b204866b393d6b20b9b2aaf98d # v1.0.266
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
