@@ -2879,3 +2879,35 @@ button.primary:disabled {
   gap: 2px;
   margin: 0;
 }
+
+/* Native-feeling IA pass */
+.rail-search {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.rail-search input {
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.proposed-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 4px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--accent);
+  vertical-align: 1px;
+}
+.section-title .proposed-tag,
+h2 .proposed-tag {
+  margin-left: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+  vertical-align: 1px;
+}

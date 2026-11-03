@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { Room } from "../domain";
+import { NIGHTS } from "./nights";
 import type { ActionResult } from "./Planner";
 
 export type PanelMode = "details" | "walkin" | "assistant" | "shift" | "reservation" | "request";
@@ -59,8 +60,12 @@ export function ConsoleBar({
         <div className="cb-title">
           <h1 className="room-name">{room.name}</h1>
           <div className="cb-sub" title={`Layout in use: ${layoutName} — change it in Shift setup`}>
-            <time dateTime={new Date().toLocaleDateString("en-CA")}>{todayLabel()}</time> ·{" "}
-            {layoutName}
+            {NIGHTS[room.id] ? (
+              <span>{NIGHTS[room.id]?.day}</span>
+            ) : (
+              <time dateTime={new Date().toLocaleDateString("en-CA")}>{todayLabel()}</time>
+            )}{" "}
+            · {layoutName}
           </div>
         </div>
         {roomSelect}
@@ -91,7 +96,7 @@ export function ConsoleBar({
           aria-pressed={mode === "assistant"}
           onClick={() => onMode("assistant")}
         >
-          Assistant
+          Assistant <span className="proposed-dot" title="Proposed feature" aria-hidden="true" />
         </button>
       </div>
       <div className="cb-right">

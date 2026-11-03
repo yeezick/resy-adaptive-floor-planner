@@ -3,6 +3,7 @@ import { fetchRoom, fetchRooms } from "./api";
 import { requestsActions, startRequests, useRequests } from "./requests/store";
 import { useAsync } from "./lib/useAsync";
 import { LayoutHost } from "./LayoutHost";
+import { nightLabel } from "./nights";
 
 const DEFAULT_ROOM = "dinner-peak";
 
@@ -47,7 +48,7 @@ export function PlannerPage() {
 
   const roomSelect = (
     <label className="room-select">
-      <span className="sr-only">Room</span>
+      <span className="sr-only">Night</span>
       <select
         value={roomId}
         onChange={(e) => {
@@ -57,8 +58,7 @@ export function PlannerPage() {
       >
         {options.map((r) => (
           <option key={r.id} value={r.id}>
-            {r.id}
-            {r.clock ? ` · ${r.clock}` : ""}
+            {nightLabel(r.id, r.clock)}
           </option>
         ))}
       </select>

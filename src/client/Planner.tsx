@@ -25,7 +25,7 @@ import { TableDetails } from "./FloorPlan/TableDetails";
 import type { Highlight, HighlightControls } from "./highlight";
 import { finishParty, seatParty, type DoneEntry, type WaitEntry } from "./lib/service";
 import { Rail } from "./Rail/Rail";
-import { RequestSheet } from "./requests/RequestSheet";
+import { ProposedTag, RequestSheet } from "./requests/RequestSheet";
 import { useRequests } from "./requests/store";
 import { ReservationSheet } from "./WalkIn/ReservationSheet";
 import { WalkInSheet, type WalkInDraft } from "./WalkIn/WalkInSheet";
@@ -271,7 +271,9 @@ export function Planner({
 
         <aside className="side-col" aria-labelledby="panel-title">
           <div className="panel-head">
-            <h2 id="panel-title">{PANEL_TITLE[mode]}</h2>
+            <h2 id="panel-title">
+              {PANEL_TITLE[mode]} {mode === "assistant" && <ProposedTag />}
+            </h2>
             {mode !== "details" && (
               <button type="button" className="link-btn" onClick={() => setMode("details")}>
                 Close
