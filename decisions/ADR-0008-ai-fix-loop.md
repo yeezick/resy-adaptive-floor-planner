@@ -21,8 +21,7 @@ We want the loop closed without letting a model merge its own work or loop on it
      auto-merge stays off.
 4. **fix** (Opus 5.5) edits a checkout of the reviewed commit. It has no git write access and no push token.
    The workflow rejects the fix unless every changed file is on an allowlist (`src/`, `e2e/`, `fixtures/`,
-   `prompts/`, `evals/`) and off a denylist (human-tier files, the eval gate's expectations and transcripts,
-   `.env*`), runs `pnpm verify`, and uploads the change as a patch.
+   `prompts/`) and off a denylist (`types.ts`, `schemas.ts`, `.env*`), runs `pnpm verify`, and uploads the change as a patch.
 5. **push** runs on a clean runner that never installs dependencies or runs repo code. It applies the patch,
    re-checks the allowlist and denylist, commits with an `AI-Fix-Round: N` trailer and pushes with `AUTOMATION_PAT`
    (not forced: a branch that moved since the review rejects it). That push starts CI and a fresh review.
@@ -44,9 +43,12 @@ ability to run tests would make its fixes much worse.
 ## Consequences
 
 - The model never decides a merge: required checks do. The review only decides whether auto-merge is on.
-- The fixer can change only app code, tests, fixtures, prompts and eval code. CI, its own round limit,
-  dependencies, tool configs, hooks and any new top-level file are outside the allowlist, so they're protected
-  by default. Findings there always go to a person.
+- The fixer can change only app code, tests, fixtures and prompts. CI, its own round limit, dependencies,
+  tool configs, hooks, the eval runner and data, and any new top-level file are outside the allowlist, so
+  they're protected by default. Findings there always go to a person.
+- The fixer can still edit unit tests under `src/`. The prompt forbids loosening them, and the next review
+  checks every `AI-Fix-Round` commit for deleted, skipped or loosened tests and marks it ❌.
+- A round is counted when the fixer starts, so a rejected fix still uses one up (fails toward stopping).
 - The verdict is still model-written text. A forged "clean" only switches auto-merge on; the required checks
   still decide the merge.
 - Worst-case spend per PR, before a person pushes: 3 reviews + 2 fixes, about $3–4 at current Opus prices.
