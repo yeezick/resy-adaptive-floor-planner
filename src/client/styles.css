@@ -768,7 +768,7 @@ h3.section-title {
 }
 .floor-scroll {
   /* leaves room for the covers timeline under the floor on a 820–900 px tall screen */
-  --floor-h: max(400px, calc(100vh - 390px));
+  --floor-h: max(380px, calc(100vh - 420px));
   max-height: var(--floor-h);
   overflow: hidden;
   border-radius: 6px;
