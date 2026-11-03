@@ -26,7 +26,7 @@ interface Props {
   /** Proposal change view: ghosts, arrows, joins and storage pulls drawn over the room. */
   changes?: readonly LayoutChange[];
   /** Open on this tab instead of the screen-size default (the preview opens on a single room). */
-  initialTab?: "first";
+  initialTab?: "first" | ViewPreset;
 }
 
 interface Drag {
@@ -60,7 +60,9 @@ export function FloorPlan({
   const [drag, setDrag] = useState<Drag | null>(null);
   const [zoom, setZoom] = useState(1);
   const [preset, setPreset] = useState<ViewPreset>(() =>
-    initialTab === "first" ? (roomTabs(room)[0]?.id ?? "all") : defaultTab(room, window.innerWidth),
+    initialTab === "first"
+      ? (roomTabs(room)[0]?.id ?? "all")
+      : (initialTab ?? defaultTab(room, window.innerWidth)),
   );
 
   // Tables at their on-screen position (a table being dragged follows the pointer).

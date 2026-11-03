@@ -43,7 +43,7 @@ export type Recommendation = z.infer<typeof Recommendation>;
 export const CallMetrics = z
   .object({
     traceId: z.string(),
-    role: z.enum(["agent", "judge"]),
+    role: z.enum(["agent", "judge", "triage"]),
     model: z.string(),
     promptVersion: z.string(),
     inputTokens: z.number().int(),
@@ -89,3 +89,24 @@ export type ApiError = z.infer<typeof ApiError>;
 /** GET /api/rooms → RoomSummary[] ; GET /api/rooms/:id → Room ; POST /api/agent → AgentResponse | ApiError */
 export const RoomSummary = z.object({ id: z.string(), name: z.string(), clock: z.string() });
 export type RoomSummary = z.infer<typeof RoomSummary>;
+
+export const TriageResult = z
+  .object({
+    requestId: z.string(),
+    traceId: z.string(),
+    promptVersion: z.string(),
+    model: z.string(),
+    verdict: z.enum(["real", "junk", "unsure"]),
+    reason: z.string(),
+    summary: z.array(z.string()).length(2),
+    /** True when a person must read it: the model was unsure, refused, or failed validation twice. */
+    escalated: z.boolean(),
+    validatorRejects: z.number().int(),
+    /** True when served from the server's cache (no new model call). */
+    cached: z.boolean().optional(),
+    metrics: z
+      .object({ costUsd: z.number(), latencyMs: z.number(), calls: z.array(CallMetrics) })
+      .strict(),
+  })
+  .strict();
+export type TriageResult = z.infer<typeof TriageResult>;

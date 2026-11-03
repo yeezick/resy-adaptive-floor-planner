@@ -1,7 +1,14 @@
 // Fetch helpers. Every response is parsed with the shared zod schemas before the UI sees it.
 import { z } from "zod";
 import { parseRoom, type Room } from "../domain";
-import { AgentResponse, ApiError, RoomSummary, type AgentRequest } from "../shared/api";
+import { parseRequestBook, type RequestBook } from "../domain/requests";
+import {
+  AgentResponse,
+  ApiError,
+  RoomSummary,
+  TriageResult,
+  type AgentRequest,
+} from "../shared/api";
 import { EvalResults } from "../shared/evals";
 
 export type ClientErrorCode = ApiError["code"] | "network" | "not_found" | "bad_response";
@@ -77,4 +84,14 @@ export function postAgent(req: AgentRequest): Promise<Result<AgentResponse>> {
 
 export function fetchEvalResults(): Promise<Result<EvalResults>> {
   return call("/evals/results.json", schemaParser(EvalResults), { cache: "no-store" });
+}
+
+export function fetchRequests(): Promise<Result<RequestBook>> {
+  return call("/api/requests", parseRequestBook);
+}
+
+export function postTriage(id: string): Promise<Result<TriageResult>> {
+  return call(`/api/requests/${encodeURIComponent(id)}/triage`, schemaParser(TriageResult), {
+    method: "POST",
+  });
 }

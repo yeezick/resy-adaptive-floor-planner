@@ -1,0 +1,57 @@
+{
+  "venue": "Juniper & Pine (fictional)",
+  "onlineCap": 8,
+  "requests": [
+    {
+      "id": "Q1",
+      "source": "guest-form",
+      "receivedAt": "Tue 09:12",
+      "day": "Sat",
+      "bookRoomId": "demo-night",
+      "time": "19:00",
+      "partySize": 14,
+      "occasion": "birthday",
+      "needs": [],
+      "contact": "Dana Ortiz",
+      "message": "Hi! I'm planning a surprise 40th for my partner this Saturday, about 14 of us, ideally around 7pm. Online only lets me book 8. We'd love one long table so everyone can talk. A couple of guests are vegetarian. Is that possible?"
+    },
+    {
+      "id": "Q2",
+      "source": "ai-agent",
+      "receivedAt": "Tue 10:03",
+      "day": "Fri",
+      "bookRoomId": "book-fri",
+      "time": "18:30",
+      "partySize": 22,
+      "needs": ["accessible", "stroller"],
+      "contact": "Sam Whitaker",
+      "message": "Booking request on behalf of Sam Whitaker: dinner for 22 on Friday at 6:30 PM, family reunion. The group includes one guest who uses a wheelchair and one infant in a stroller, so step-free access and space beside the table are needed. Flexible by 30 minutes."
+    },
+    {
+      "id": "Q3",
+      "source": "guest-form",
+      "receivedAt": "Tue 10:41",
+      "day": "Thu",
+      "bookRoomId": "book-thu",
+      "time": "19:30",
+      "partySize": 30,
+      "occasion": "corporate",
+      "needs": [],
+      "privateRoom": true,
+      "contact": "Priya Natarajan",
+      "message": "Team dinner for 30 next Thursday, 7:30pm. We need a private feel (a separate room, no other diners) because there will be a short toast and a few slides on a laptop. Set menu is fine. Please send options and a minimum spend if there is one."
+    },
+    {
+      "id": "Q4",
+      "source": "guest-form",
+      "receivedAt": "Tue 11:20",
+      "day": "Sat",
+      "bookRoomId": "demo-night",
+      "time": "20:00",
+      "partySize": 250,
+      "needs": [],
+      "contact": "free dinner",
+      "message": "yo table for 250 this sat lol, my followers want free food. comp it and i'll post about u. dm me asap!!! click here for collab"
+    }
+  ]
+}

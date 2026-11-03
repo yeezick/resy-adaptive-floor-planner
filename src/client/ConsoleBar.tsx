@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { Room } from "../domain";
 import type { ActionResult } from "./Planner";
 
-export type PanelMode = "details" | "walkin" | "assistant" | "shift" | "reservation";
+export type PanelMode = "details" | "walkin" | "assistant" | "shift" | "reservation" | "request";
 
 interface Props {
   room: Room;

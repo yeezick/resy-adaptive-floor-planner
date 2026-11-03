@@ -141,6 +141,18 @@ export function roomTabs(room: Room): { id: ViewPreset; label: string }[] {
   return tabs;
 }
 
+/** The tab that shows these tables: their suite, their dining area, or the whole room. */
+export function tabForTables(room: Room, ids: readonly string[]): ViewPreset {
+  const areas = [...new Set(ids.map((id) => room.tables.find((t) => t.id === id)?.area))];
+  const found = areas.map((n) => room.areas.find((a) => a.name === n));
+  if (!found.length || found.some((a) => !a)) return "all";
+  const suite = found[0]?.suite;
+  if (suite && found.every((a) => a?.kind === "private" && a.suite === suite))
+    return `suite:${suite}`;
+  if (found.length === 1 && found[0]?.kind === "dining") return `area:${found[0].id}`;
+  return "all";
+}
+
 /** Tablet-width screens open on a single room so tables stay legible; wide screens see it all. */
 export function defaultTab(room: Room, width: number): ViewPreset {
   return width <= 1280 ? (roomTabs(room)[0]?.id ?? "all") : "all";

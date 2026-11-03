@@ -18,7 +18,10 @@ import { parseTrustProxy, validateEnv } from "./config";
 import { DailyBudget } from "./guards/budget";
 import { RateLimiter } from "./guards/rateLimit";
 import { hashText, logEvent } from "./log";
+import { requestBook } from "./requests";
 import { getRoom, roomSummaries } from "./rooms";
+import { TriageError, triageConfigFromEnv, triageRequest, type TriageConfig } from "./triage";
+import type { TriageResult } from "../shared/api";
 
 export interface AppOptions {
   /** Injected model call (tests). Default: the Anthropic SDK, created only when ANTHROPIC_API_KEY is set. */
@@ -29,6 +32,8 @@ export interface AppOptions {
   maxConcurrentRuns?: number;
   /** Overrides on the env-derived agent config (tests). */
   agent?: Partial<Pick<AgentConfig, "maxTokens" | "timeoutMs" | "model" | "effort">>;
+  /** Overrides on the env-derived triage config (tests). */
+  triage?: Partial<Pick<TriageConfig, "maxTokens" | "timeoutMs" | "model">>;
 }
 
 function sendError(res: Response, status: number, code: ApiError["code"], error: string) {
@@ -163,6 +168,74 @@ export function createApp(opts: AppOptions = {}) {
       return sendError(res, 500, "upstream", "The agent failed unexpectedly.");
     } finally {
       inFlight--;
+    }
+  });
+
+  app.get("/api/requests", (_req, res) => {
+    res.json(requestBook());
+  });
+
+  // One triage per request per prompt version; later views are served from this cache (no new spend).
+  const triaged = new Map<string, TriageResult>();
+  const triaging = new Map<string, Promise<TriageResult>>();
+  app.post("/api/requests/:id/triage", async (req, res) => {
+    const book = requestBook();
+    const r = book.requests.find((x) => x.id === req.params.id);
+    if (!r) return sendError(res, 404, "bad_request", "unknown request");
+    const hit = triaged.get(r.id);
+    if (hit) return res.json({ ...hit, cached: true });
+    if (!limiter.hit(req.ip ?? "unknown"))
+      return sendError(res, 429, "rate_limited", "Too many requests — try again in a minute.");
+    const call = create();
+    if (!call)
+      return sendError(
+        res,
+        503,
+        "no_key",
+        "AI triage is not configured on this server (no API key).",
+      );
+    if (budget.exhausted())
+      return sendError(
+        res,
+        429,
+        "budget",
+        "The demo budget reached its daily limit — try again tomorrow.",
+      );
+    let pending = triaging.get(r.id);
+    if (!pending) {
+      const traceId = randomUUID();
+      const cfg: TriageConfig = { ...triageConfigFromEnv(call), ...opts.triage, budget };
+      pending = triageRequest(r, book.onlineCap, traceId, cfg);
+      triaging.set(r.id, pending);
+    }
+    try {
+      const result = await pending;
+      triaged.set(r.id, result);
+      logEvent("triage_response", {
+        traceId: result.traceId,
+        requestId: r.id,
+        message: hashText(r.message),
+        promptVersion: result.promptVersion,
+        model: result.model,
+        verdict: result.verdict,
+        escalated: result.escalated,
+        validatorRejects: result.validatorRejects,
+        costUsd: result.metrics.costUsd,
+        latencyMs: result.metrics.latencyMs,
+      });
+      res.json(result);
+    } catch (e) {
+      const code = e instanceof TriageError ? e.code : "upstream";
+      logEvent("triage_error", {
+        requestId: r.id,
+        message: hashText(r.message),
+        code,
+        costUsd: e instanceof TriageError ? e.calls.reduce((n, c) => n + c.costUsd, 0) : null,
+      });
+      const status = code === "timeout" ? 504 : code === "budget" ? 429 : 502;
+      return sendError(res, status, code, e instanceof Error ? e.message : "triage failed");
+    } finally {
+      triaging.delete(r.id);
     }
   });
 
