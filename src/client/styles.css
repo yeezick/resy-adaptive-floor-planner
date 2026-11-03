@@ -19,6 +19,10 @@
   --muted: #a8a8ac;
 
   /* The single UI accent: selection, highlight, primary actions */
+  /* Host actions are neutral; the accent is reserved for AI output (suggestions, triage, tags) */
+  --primary: #ececec;
+  --primary-hover: #ffffff;
+  --on-primary: #141414;
   --accent: #a3a6f5;
   --accent-hover: #b9bbf8;
   --on-accent: #14152e;
@@ -91,7 +95,7 @@
 
   /* Meal phase: ordered luminance ramp, dark = just sat, light = about to leave */
   --phase-stroke: #0e0e0f;
-  --phase-seated: #8157d0;
+  --phase-seated: #a0478a; /* plum: darkest step, clear of the AI accent */
   --phase-seated-ink: #ffffff;
   --phase-drinks: #2f93b3;
   --phase-drinks-ink: #101213;
@@ -119,6 +123,9 @@
   --text: #1d2327;
   --muted: #5f666d;
 
+  --primary: #1d2327;
+  --primary-hover: #000000;
+  --on-primary: #ffffff;
   --accent: #4b4fc4;
   --accent-hover: #3e42ad;
   --on-accent: #ffffff;
@@ -371,18 +378,18 @@ button:disabled {
   cursor: not-allowed;
 }
 button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
   font-weight: 600;
 }
 button.primary:hover:not(:disabled) {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 button[aria-pressed="true"]:not(.primary) {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+  background: var(--surface-3);
+  border-color: var(--text);
   color: var(--accent);
 }
 select,
@@ -881,7 +888,8 @@ h3.section-title {
   cursor: grabbing;
   opacity: 0.8;
 }
-.floor .table.is-dim {
+/* Dim the shapes only: table numbers stay legible (AA) while suggestions stand out. */
+.floor .table.is-dim :is(rect, ellipse, polygon, circle):not(.hit) {
   opacity: 0.35;
 }
 .floor .t-id,
@@ -913,7 +921,7 @@ h3.section-title {
 .floor .is-lit .ring {
   stroke: var(--accent);
   stroke-width: 0.4;
-  stroke-dasharray: none;
+  stroke-dasharray: 0.7 0.35;
   fill: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 .floor .combo rect {
@@ -1050,7 +1058,7 @@ table.data.compact td {
   border: 2px solid var(--select-ring);
 }
 .swatch-lit {
-  border: 2px solid var(--accent);
+  border: 2px dashed var(--accent);
   background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 .swatch-combo {
@@ -1472,7 +1480,7 @@ table.data .num {
   gap: 6px;
 }
 .cb-actions button.primary[aria-pressed="true"] {
-  background: var(--accent-hover);
+  background: var(--primary-hover);
 }
 
 /* Rail lists */
@@ -2910,4 +2918,8 @@ h2 .proposed-tag {
   text-transform: none;
   letter-spacing: 0;
   vertical-align: 1px;
+}
+.crew li.is-focus {
+  box-shadow: inset 3px 0 0 var(--accent);
+  background: var(--accent-soft);
 }

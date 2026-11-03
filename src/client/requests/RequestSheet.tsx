@@ -45,7 +45,14 @@ const DECLINE: { id: DeclineReason; label: string; hint: string }[] = [
 ];
 
 /** One request: the AI triage, the solver's fit check and the manager's actions. Nothing accepts by itself. */
-export function RequestSheet({ request: r }: { request: GuestRequest }) {
+export function RequestSheet({
+  request: r,
+  roomId,
+}: {
+  request: GuestRequest;
+  /** The night on screen; when it isn't this request's night, offer to switch. */
+  roomId: string;
+}) {
   const s = useRequests();
   const t = s.triage[r.id];
   const decision = decisionOf(s, r.id);
@@ -88,6 +95,7 @@ export function RequestSheet({ request: r }: { request: GuestRequest }) {
               : []),
           ]
         : [`Can't fit: ${fit.reason}`],
+      fit.ok ? fit.build.tables : [],
     );
   }, [fit, cost, r.id]);
   const junk = t?.status === "ok" && t.result.verdict === "junk" && !t.result.escalated;
@@ -124,7 +132,10 @@ export function RequestSheet({ request: r }: { request: GuestRequest }) {
               {t.result.reason}
             </p>
             <div className="metrics small" aria-label="Triage cost and latency">
-              <span>{t.result.cached ? "cached · $0 now" : usd(t.result.metrics.costUsd)}</span>
+              <span>
+                {usd(t.result.metrics.costUsd)}
+                {t.result.cached ? " (cached view, no new call)" : ""}
+              </span>
               <span>{duration(t.result.metrics.latencyMs)}</span>
               <span>{t.result.model}</span>
               <span>{t.result.promptVersion}</span>
@@ -163,6 +174,15 @@ export function RequestSheet({ request: r }: { request: GuestRequest }) {
         </div>
         {!roomRes && <p className="muted small">Loading {r.day}'s book…</p>}
         {roomRes && !roomRes.ok && <p className="warn-text small">{roomRes.error.message}</p>}
+        {fit?.ok && roomId !== r.bookRoomId && (
+          <button
+            type="button"
+            className="link-btn small"
+            onClick={() => requestsActions.viewNight(r)}
+          >
+            Show on {r.day}'s floor →
+          </button>
+        )}
         {fit?.ok && (
           <div className="small">
             <p>

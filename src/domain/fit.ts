@@ -11,6 +11,8 @@ import type { Room, Table } from "./types";
 export interface Hold {
   /** Floor tables held for the party (spare tables from storage are extra, so they cost nothing). */
   tables: string[];
+  /** The same tables by room, as runs: "Garden Room T57–T61". */
+  byArea: string[];
   /** When the tables stop taking new bookings: a party seated after this could not leave before the build. */
   from: string;
   /** The party's arrival. */
@@ -78,12 +80,42 @@ export function holdFor(
   }
   return {
     tables,
+    byArea: tablesByArea(room, tables),
     from: toHHMM(from),
     until: b.time,
     seats,
     slotsBlocked: slots,
     coversLost: Math.round(seatMinutes / TURN_MIN),
   };
+}
+
+/** "T57, T58, T59, T63" → "T57–T59, T63" (consecutive numbers collapse to a range). */
+export function tableRuns(ids: readonly string[]): string {
+  const nums = [...ids].map((id) => Number(id.slice(1))).sort((a, b) => a - b);
+  const out: string[] = [];
+  for (let i = 0; i < nums.length;) {
+    let j = i;
+    while (j + 1 < nums.length && nums[j + 1] === (nums[j] as number) + 1) j++;
+    out.push(
+      j - i >= 2
+        ? `T${nums[i]}–T${nums[j]}`
+        : nums
+            .slice(i, j + 1)
+            .map((n) => `T${n}`)
+            .join(", "),
+    );
+    i = j + 1;
+  }
+  return out.join(", ");
+}
+
+export function tablesByArea(room: Room, ids: readonly string[]): string[] {
+  const by = new Map<string, string[]>();
+  for (const id of ids) {
+    const a = tableById(room, id)?.area ?? "?";
+    by.set(a, [...(by.get(a) ?? []), id]);
+  }
+  return [...by.entries()].map(([a, t]) => `${a} ${tableRuns(t)}`);
 }
 
 export function partyFit(

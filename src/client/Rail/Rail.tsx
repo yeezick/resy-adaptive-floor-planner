@@ -170,6 +170,7 @@ export function Rail(p: Props) {
       </RailSection>
       <RailSection
         title="Waitlist"
+        defaultOpen={p.waitlist.length > 0}
         parties={waitlist.length}
         covers={covers(waitlist)}
         action={walkIn}
@@ -375,7 +376,13 @@ function RequestsSection({
   );
   const badge = pendingCount(s);
   return (
-    <RailSection title="Requests" parties={list.length} covers={covers(list)} badge={badge}>
+    <RailSection
+      title="Requests"
+      parties={list.length}
+      covers={covers(list)}
+      badge={badge}
+      countText={`${badge} waiting · ${list.length} this week`}
+    >
       {s.error && <p className="rail-empty">Requests unavailable: {s.error.message}</p>}
       {!s.error && !s.book && <p className="rail-empty">Loading requests…</p>}
       {s.book && (
@@ -438,6 +445,8 @@ interface SectionProps {
   defaultOpen?: boolean;
   /** Count of items waiting for someone (shown as a badge). */
   badge?: number;
+  /** Replaces the "N parties · M cov" line. */
+  countText?: string;
   children: ReactNode;
 }
 
@@ -448,6 +457,7 @@ function RailSection({
   action,
   defaultOpen = true,
   badge,
+  countText,
   children,
 }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
@@ -476,7 +486,7 @@ function RailSection({
               ) : null}
             </span>
             <span className="rail-count">
-              {parties} {parties === 1 ? "party" : "parties"} · {covers} cov
+              {countText ?? `${parties} ${parties === 1 ? "party" : "parties"} · ${covers} cov`}
             </span>
           </span>
         </button>

@@ -1,10 +1,5 @@
 import type { PartyFit } from "../../domain";
 
-const tablesShort = (ids: string[]) =>
-  ids.length > 4
-    ? `${ids.slice(0, 2).join(", ")} … ${ids[ids.length - 1]} (${ids.length})`
-    : ids.join(", ");
-
 /** Fit + cost for one large party: hold and covers lost, server section(s), aisle check. Solver output only. */
 export function PartyFitCard({
   f,
@@ -39,7 +34,7 @@ export function PartyFitCard({
       <dl className="fit-grid small">
         <dt>Hold</dt>
         <dd>
-          {f.hold.tables.length ? tablesShort(f.hold.tables) : "spare tables only"} held from{" "}
+          {f.hold.tables.length ? f.hold.byArea.join(" · ") : "spare tables only"} held from{" "}
           <strong>{f.hold.from}</strong> · {f.hold.slotsBlocked} slot
           {f.hold.slotsBlocked === 1 ? "" : "s"} blocked ·{" "}
           <strong className={f.hold.coversLost ? "warn-text" : undefined}>

@@ -264,7 +264,14 @@ function Proposal({
         <h3 className="section-title">Crew build list</h3>
         <ol className="crew">
           {p.crew.map((c) => (
-            <li key={`${c.reservationId}-${c.start}`} className={c.tight ? "is-tight" : undefined}>
+            <li
+              key={`${c.reservationId}-${c.start}`}
+              className={
+                [c.tight && "is-tight", c.reservationId === focusId && "is-focus"]
+                  .filter(Boolean)
+                  .join(" ") || undefined
+              }
+            >
               <div className="crew-head">
                 <span className="crew-time">
                   {c.start}–{c.end}
@@ -273,6 +280,9 @@ function Proposal({
                   {c.reservationId} · {c.partySize}
                 </strong>
                 <span className="pill">{c.when === "set" ? "set before service" : "rebuild"}</span>
+                {c.reservationId === focusId && (
+                  <span className="pill pill-accent">just accepted</span>
+                )}
                 {c.tight && <span className="pill pill-warn">tight</span>}
               </div>
               <details className="small">

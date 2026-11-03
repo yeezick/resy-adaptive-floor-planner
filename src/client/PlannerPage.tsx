@@ -72,6 +72,7 @@ export function PlannerPage() {
         fixture={fixture}
         roomSelect={roomSelect}
         focusRequest={focusRequest}
+        focusView={openPlan?.view}
       />
     );
   }

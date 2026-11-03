@@ -153,9 +153,10 @@ export function tabForTables(room: Room, ids: readonly string[]): ViewPreset {
   return "all";
 }
 
-/** Tablet-width screens open on a single room so tables stay legible; wide screens see it all. */
-export function defaultTab(room: Room, width: number): ViewPreset {
-  return width <= 1280 ? (roomTabs(room)[0]?.id ?? "all") : "all";
+/** Every screen opens on a single room so tables stay legible; Whole room is one tap away. */
+export function defaultTab(room: Room, _width?: number): ViewPreset {
+  // one room at a time keeps table numbers and meal phase legible at any width
+  return roomTabs(room)[0]?.id ?? "all";
 }
 
 export function viewBox(room: Room, preset: ViewPreset): Box {
