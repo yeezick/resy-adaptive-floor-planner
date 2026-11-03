@@ -25,7 +25,7 @@ import { TableDetails } from "./FloorPlan/TableDetails";
 import type { Highlight, HighlightControls } from "./highlight";
 import { finishParty, seatParty, type DoneEntry, type WaitEntry } from "./lib/service";
 import { Rail } from "./Rail/Rail";
-import { RequestSheet } from "./requests/RequestSheet";
+import { ProposedTag, RequestSheet } from "./requests/RequestSheet";
 import { useRequests } from "./requests/store";
 import { ReservationSheet } from "./WalkIn/ReservationSheet";
 import { WalkInSheet, type WalkInDraft } from "./WalkIn/WalkInSheet";
@@ -51,6 +51,8 @@ interface PlannerProps {
   onEditLayout: (req: EditRequest) => void;
   /** Set when a manager just accepted a request for this night: open its plan with the party in focus. */
   focusRequest?: string;
+  /** "request": open that request's sheet (not the plan) with its fit outlined on the floor. */
+  focusView?: "plan" | "request";
 }
 
 export function Planner({
@@ -58,16 +60,22 @@ export function Planner({
   roomSelect,
   layouts,
   onEditLayout,
-  focusRequest,
+  focusRequest: focus,
+  focusView,
 }: PlannerProps) {
+  const focusRequest = focusView === "request" ? undefined : focus;
   const [room, setRoom] = useState(fixture);
   const [proposal, setProposal] = useState<TonightProposal | null>(null);
   const [edited, setEdited] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [hover, setHover] = useState<Highlight | null>(null);
   const [pinned, setPinned] = useState<Highlight | null>(null);
-  const [mode, setMode] = useState<PanelMode>(focusRequest ? "shift" : "details");
-  const [openRequest, setOpenRequest] = useState<string | null>(null);
+  const [mode, setMode] = useState<PanelMode>(
+    focusView === "request" ? "request" : focusRequest ? "shift" : "details",
+  );
+  const [openRequest, setOpenRequest] = useState<string | null>(
+    focusView === "request" ? (focus ?? null) : null,
+  );
   const requests = useRequests();
   const request = requests.book?.requests.find((r) => r.id === openRequest) ?? null;
 
@@ -113,7 +121,19 @@ export function Planner({
   const focusHighlight: Highlight | null = focusTables.length
     ? { key: `focus-${focusRequest}`, ids: focusTables, label: `${focusRequest} · just accepted` }
     : null;
-  const highlight = hover ?? pinned ?? suggested ?? focusHighlight;
+  // An open request whose night is on screen: outline the tables its fit check would hold.
+  const reqTables =
+    mode === "request" && request && request.bookRoomId === room.id
+      ? (requests.fitTables[request.id] ?? [])
+      : [];
+  const reqHighlight: Highlight | null = reqTables.length
+    ? {
+        key: `req-${request?.id}`,
+        ids: reqTables,
+        label: `${request?.id} · party of ${request?.partySize} would sit here`,
+      }
+    : null;
+  const highlight = hover ?? pinned ?? suggested ?? focusHighlight ?? reqHighlight;
   const controls: HighlightControls = {
     pinnedKey: pinned?.key ?? null,
     onHover: setHover,
@@ -247,7 +267,7 @@ export function Planner({
         <section className="floor-col" aria-label="Floor plan">
           {proposal && (
             <div className="preview-bar" role="status">
-              <strong>Previewing tonight's layout</strong> · {proposal.window.from}–
+              <ProposedTag /> <strong>Previewing tonight's layout</strong> · {proposal.window.from}–
               {proposal.window.to} · ghosts and arrows show what moves; nothing changes until you
               apply it.
               <button type="button" className="link-btn" onClick={() => setProposal(null)}>
@@ -256,8 +276,10 @@ export function Planner({
             </div>
           )}
           <FloorPlan
-            key={proposal ? "preview" : "live"}
-            initialTab={proposal ? focusTab : undefined}
+            key={proposal ? "preview" : reqTables.length ? `req-${request?.id}` : "live"}
+            initialTab={
+              proposal ? focusTab : reqTables.length ? tabForTables(room, reqTables) : undefined
+            }
             room={proposal?.variant ?? room}
             selected={proposal ? [] : selected}
             highlight={highlight}
@@ -271,7 +293,9 @@ export function Planner({
 
         <aside className="side-col" aria-labelledby="panel-title">
           <div className="panel-head">
-            <h2 id="panel-title">{PANEL_TITLE[mode]}</h2>
+            <h2 id="panel-title">
+              {PANEL_TITLE[mode]} {(mode === "assistant" || mode === "shift") && <ProposedTag />}
+            </h2>
             {mode !== "details" && (
               <button type="button" className="link-btn" onClick={() => setMode("details")}>
                 Close
@@ -315,7 +339,7 @@ export function Planner({
           </div>
           {mode === "request" && request && (
             <div className="tabpanel">
-              <RequestSheet key={request.id} request={request} />
+              <RequestSheet key={request.id} request={request} roomId={room.id} />
             </div>
           )}
           {mode === "reservation" && (

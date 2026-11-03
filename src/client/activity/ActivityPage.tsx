@@ -52,13 +52,19 @@ export function DecisionChip({ d }: { d: RowDecision }) {
     case "accepted":
       return <span className="verdict verdict-real">Accepted</span>;
     case "declined":
-      return <span className="verdict verdict-junk">Declined · {d.reason}</span>;
+      return (
+        <span
+          className={`verdict ${d.reason === "policy" ? "verdict-policy" : d.reason === "fit" ? "verdict-fit" : "verdict-wait"}`}
+        >
+          Declined · {d.reason}
+        </span>
+      );
     case "edited":
       return <span className="verdict verdict-wait">Reply edited</span>;
     case "replied":
       return <span className="verdict verdict-wait">Replied</span>;
     case "pending":
-      return <span className="verdict verdict-unsure">Pending</span>;
+      return <span className="verdict verdict-pending">Pending</span>;
     case "none":
       return <span className="muted small">—</span>;
   }
@@ -90,7 +96,7 @@ export function ActivityPage() {
         <div className="totals activity-counts" aria-label="This week">
           <Count label="Requests this week" value={counts.requests} />
           <Count label="Accepted" value={counts.accepted} />
-          <Count label="Declined · fit" value={counts.declined.fit} warn />
+          <Count label="Declined · fit" value={counts.declined.fit} />
           <Count label="Declined · policy" value={counts.declined.policy} />
           <Count label="Declined · other" value={counts.declined.other} />
           <Count label="Pending" value={counts.pending} />

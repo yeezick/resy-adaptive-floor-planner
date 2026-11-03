@@ -30,8 +30,10 @@ export interface RequestsState {
   accepted: Record<string, Reservation[]>;
   /** The solver's fit check per request, as shown to the manager (for the activity log). */
   fits: Record<string, string[]>;
+  /** Tables the fit check would use, per request (outlined on that night's floor). */
+  fitTables: Record<string, string[]>;
   /** Set by Accept: the planner opens this night and shows the party's plan. */
-  openPlan: { roomId: string; requestId: string; seq: number } | null;
+  openPlan: { roomId: string; requestId: string; seq: number; view: "plan" | "request" } | null;
 }
 
 let state: RequestsState = {
@@ -41,6 +43,7 @@ let state: RequestsState = {
   decisions: {},
   accepted: {},
   fits: {},
+  fitTables: {},
   openPlan: null,
 };
 const listeners = new Set<() => void>();
@@ -96,7 +99,7 @@ export const requestsActions = {
         [r.id]: { kind: "accepted", at: stamp(), iso: new Date().toISOString(), tables },
       },
       accepted: { ...state.accepted, [r.bookRoomId]: [...list, toReservation(r)] },
-      openPlan: { roomId: r.bookRoomId, requestId: r.id, seq: ++seq },
+      openPlan: { roomId: r.bookRoomId, requestId: r.id, seq: ++seq, view: "plan" },
     });
   },
   decline(r: GuestRequest, reason: DeclineReason) {
@@ -129,9 +132,20 @@ export const requestsActions = {
       },
     });
   },
-  noteFit(id: string, lines: string[]) {
-    if ((state.fits[id] ?? []).join("\n") === lines.join("\n")) return;
-    set({ fits: { ...state.fits, [id]: lines } });
+  noteFit(id: string, lines: string[], tables: string[]) {
+    if (
+      (state.fits[id] ?? []).join("\n") === lines.join("\n") &&
+      (state.fitTables[id] ?? []).join() === tables.join()
+    )
+      return;
+    set({
+      fits: { ...state.fits, [id]: lines },
+      fitTables: { ...state.fitTables, [id]: tables },
+    });
+  },
+  /** Open the request's night with the request sheet open and its fit outlined. */
+  viewNight(r: GuestRequest) {
+    set({ openPlan: { roomId: r.bookRoomId, requestId: r.id, seq: ++seq, view: "request" } });
   },
   consumeOpenPlan() {
     if (state.openPlan) set({ openPlan: null });
@@ -170,6 +184,7 @@ export function resetRequestsStore(): void {
     decisions: {},
     accepted: {},
     fits: {},
+    fitTables: {},
     openPlan: null,
   };
 }

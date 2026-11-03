@@ -1,3 +1,4 @@
+import { ProposedTag } from "../requests/RequestSheet";
 import {
   checkTableSet,
   tableById,
@@ -116,7 +117,8 @@ export function WalkInSheet({
 
       <section aria-label="Suggested tables" className="suggested">
         <h3 className="section-title">
-          Suggested <span className="muted">· outlined on the floor · tap one to pick it</span>
+          Suggested <ProposedTag />{" "}
+          <span className="muted">· outlined on the floor · tap one to pick it</span>
         </h3>
         {suggestions.length === 0 ? (
           <p className="muted small">{fit.note ?? "Nothing fits right now."}</p>

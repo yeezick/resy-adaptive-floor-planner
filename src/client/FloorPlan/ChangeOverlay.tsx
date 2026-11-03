@@ -127,6 +127,12 @@ function groups(room: Room, changes: readonly LayoutChange[], kind: LayoutChange
 export function ChangeOverlay({ room, changes }: { room: Room; changes: readonly LayoutChange[] }) {
   const pulled = groups(room, changes, "pull-table");
   const moved = groups(room, changes, "move");
+  const joined = (party: string) =>
+    new Set(
+      changes
+        .filter((c) => c.kind === "join" && c.reservationId === party)
+        .flatMap((c) => c.tables),
+    ).size;
   return (
     <g className="changes-over" aria-hidden="true">
       {pulled.map((g) => (
@@ -148,7 +154,13 @@ export function ChangeOverlay({ room, changes }: { room: Room; changes: readonly
         <Badge
           key={`moved-${g.party}`}
           box={g.box}
-          text={g.tables.length > 1 ? `${g.tables.length} moved` : "moved"}
+          text={
+            joined(g.party) > g.tables.length
+              ? `${joined(g.party)} joined · ${g.tables.length} moved`
+              : g.tables.length > 1
+                ? `${g.tables.length} moved`
+                : "moved"
+          }
           cls="is-move"
         />
       ))}

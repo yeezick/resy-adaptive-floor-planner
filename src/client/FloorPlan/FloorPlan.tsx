@@ -243,7 +243,11 @@ export function FloorPlan({
       </div>
       <div className="floor-sub">
         <PhaseStrip />
-        <span className="floor-highlight-tag small" aria-live="polite" hidden={!highlight}>
+        <span
+          className={`floor-highlight-tag small${highlight?.source === "ai" ? " is-ai" : ""}`}
+          aria-live="polite"
+          hidden={!highlight}
+        >
           {highlight?.label}
           {outside && " · outside this view"}
         </span>
@@ -265,7 +269,7 @@ export function FloorPlan({
           <PxPerUnit.Provider value={ppu}>
             <svg
               ref={svgRef}
-              className="floor"
+              className={highlight?.source === "ai" ? "floor lit-ai" : "floor"}
               viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}
               preserveAspectRatio="xMidYMid meet"
               role="group"

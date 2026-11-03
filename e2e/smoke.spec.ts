@@ -187,3 +187,14 @@ test("activity log lists AI actions with decisions, never the guest's words", as
     "Nothing. The AI never books or seats",
   );
 });
+
+test("theme defaults to dark, toggles to light and remembers it", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => window.localStorage.clear());
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
+  await page.getByRole("group", { name: "Theme" }).getByRole("button", { name: "Light" }).click();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+  await page.reload();
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+});

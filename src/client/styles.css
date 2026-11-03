@@ -19,6 +19,10 @@
   --muted: #a8a8ac;
 
   /* The single UI accent: selection, highlight, primary actions */
+  /* Host actions are neutral; the accent is reserved for AI output (suggestions, triage, tags) */
+  --primary: #ececec;
+  --primary-hover: #ffffff;
+  --on-primary: #141414;
   --accent: #a3a6f5;
   --accent-hover: #b9bbf8;
   --on-accent: #14152e;
@@ -74,7 +78,7 @@
   --floor-grid-minor: #262628;
   --floor-grid-major: #323235;
   --floor-join: #7a7a7f;
-  --floor-ghost: #8a8fc4;
+  --floor-ghost: #9a9aa0;
   --select-ring: #ffffff;
   --hatch-bg: #2a2a2c;
   --hatch-line: #4a4a4d;
@@ -91,7 +95,7 @@
 
   /* Meal phase: ordered luminance ramp, dark = just sat, light = about to leave */
   --phase-stroke: #0e0e0f;
-  --phase-seated: #8157d0;
+  --phase-seated: #a0478a; /* plum: darkest step, clear of the AI accent */
   --phase-seated-ink: #ffffff;
   --phase-drinks: #2f93b3;
   --phase-drinks-ink: #101213;
@@ -119,6 +123,9 @@
   --text: #1d2327;
   --muted: #5f666d;
 
+  --primary: #1d2327;
+  --primary-hover: #000000;
+  --on-primary: #ffffff;
   --accent: #4b4fc4;
   --accent-hover: #3e42ad;
   --on-accent: #ffffff;
@@ -173,7 +180,7 @@
   --floor-grid-minor: #ece9e4;
   --floor-grid-major: #ddd8cf;
   --floor-join: #9aa0a6;
-  --floor-ghost: #6e74a8;
+  --floor-ghost: #6b6f75;
   --select-ring: #1d2327;
   --hatch-bg: #eceae6;
   --hatch-line: #c9c6c0;
@@ -371,18 +378,18 @@ button:disabled {
   cursor: not-allowed;
 }
 button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--on-accent);
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--on-primary);
   font-weight: 600;
 }
 button.primary:hover:not(:disabled) {
-  background: var(--accent-hover);
-  border-color: var(--accent-hover);
+  background: var(--primary-hover);
+  border-color: var(--primary-hover);
 }
 button[aria-pressed="true"]:not(.primary) {
-  background: var(--accent-soft);
-  border-color: var(--accent);
+  background: var(--surface-3);
+  border-color: var(--text);
   color: var(--accent);
 }
 select,
@@ -760,7 +767,8 @@ h3.section-title {
   border-radius: 0 6px 6px 0;
 }
 .floor-scroll {
-  --floor-h: max(440px, calc(100vh - 230px));
+  /* leaves room for the covers timeline under the floor on a 820–900 px tall screen */
+  --floor-h: max(380px, calc(100vh - 420px));
   max-height: var(--floor-h);
   overflow: hidden;
   border-radius: 6px;
@@ -831,7 +839,7 @@ h3.section-title {
   stroke-linecap: round;
 }
 .floor .divider.is-open {
-  stroke: var(--accent);
+  stroke: var(--text);
   stroke-width: 0.35;
   stroke-dasharray: 0.9 0.7;
 }
@@ -881,7 +889,8 @@ h3.section-title {
   cursor: grabbing;
   opacity: 0.8;
 }
-.floor .table.is-dim {
+/* Dim the shapes only: table numbers stay legible (AA) while suggestions stand out. */
+.floor .table.is-dim :is(rect, ellipse, polygon, circle):not(.hit) {
   opacity: 0.35;
 }
 .floor .t-id,
@@ -910,10 +919,16 @@ h3.section-title {
   stroke: var(--select-ring);
   stroke-width: 0.4;
 }
+/* Planner output (holds, builds, fits): solid neutral. AI output (assistant options): dashed accent. */
 .floor .is-lit .ring {
-  stroke: var(--accent);
+  stroke: var(--text);
   stroke-width: 0.4;
   stroke-dasharray: none;
+  fill: color-mix(in srgb, var(--text) 10%, transparent);
+}
+.floor.lit-ai .is-lit .ring {
+  stroke: var(--accent);
+  stroke-dasharray: 0.7 0.35;
   fill: color-mix(in srgb, var(--accent) 14%, transparent);
 }
 .floor .combo rect {
@@ -929,8 +944,9 @@ h3.section-title {
 }
 .floor-highlight-tag {
   margin-left: auto;
-  background: var(--accent);
-  color: var(--on-accent);
+  background: var(--surface-3);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
   font-weight: 600;
   padding: 2px 10px;
   border-radius: 999px;
@@ -1050,7 +1066,7 @@ table.data.compact td {
   border: 2px solid var(--select-ring);
 }
 .swatch-lit {
-  border: 2px solid var(--accent);
+  border: 2px dashed var(--accent);
   background: color-mix(in srgb, var(--accent) 16%, transparent);
 }
 .swatch-combo {
@@ -1472,7 +1488,7 @@ table.data .num {
   gap: 6px;
 }
 .cb-actions button.primary[aria-pressed="true"] {
-  background: var(--accent-hover);
+  background: var(--primary-hover);
 }
 
 /* Rail lists */
@@ -1487,6 +1503,7 @@ table.data .num {
 }
 .rail-toggle {
   flex: 1;
+  min-height: 44px;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -2011,7 +2028,7 @@ table.data .num {
   font-weight: 600;
 }
 
-/* Change view */
+/* Change view: planner output, so neutral (the accent is for AI only) */
 .floor .change-ghost {
   fill: color-mix(in srgb, var(--floor-ghost) 10%, transparent);
   stroke: var(--floor-ghost);
@@ -2019,37 +2036,37 @@ table.data .num {
   stroke-dasharray: 0.6 0.4;
 }
 .floor .change-arrow {
-  stroke: var(--accent);
+  stroke: var(--text);
   stroke-width: 0.45;
 }
 .floor .arrow-head {
-  fill: var(--accent);
+  fill: var(--text);
 }
 .floor .change-join {
-  fill: color-mix(in srgb, var(--accent) 9%, transparent);
-  stroke: var(--accent);
+  fill: color-mix(in srgb, var(--text) 9%, transparent);
+  stroke: var(--text);
   stroke-width: 0.35;
 }
 .floor .change-pull > rect {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--text);
   stroke-width: 0.35;
   stroke-dasharray: 0.6 0.35;
 }
 .floor .change-badge rect {
-  fill: var(--accent);
+  fill: var(--text);
 }
 .floor .change-badge.is-pull rect {
-  fill: var(--accent-deep);
+  fill: var(--muted);
 }
 .floor .change-badge text {
-  fill: var(--on-accent);
+  fill: var(--bg);
   font-weight: 650;
   text-anchor: middle;
   dominant-baseline: middle;
 }
 .floor .change-badge.is-pull text {
-  fill: var(--on-accent-deep);
+  fill: var(--bg);
 }
 
 /* Editor */
@@ -2270,12 +2287,12 @@ button.primary:disabled {
   font-weight: 650;
   padding: 1px 7px;
   border-radius: 999px;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  background: var(--accent-soft);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  background: var(--surface-3);
 }
 .sugg {
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--text);
 }
 .sugg[aria-pressed="true"] {
   border-color: var(--select-ring);
@@ -2508,21 +2525,21 @@ button.primary:disabled {
     transparent
   );
 }
+/* Section pager: its own strip under the canvas, never over tables */
 .offscreen-chips {
-  position: absolute;
-  z-index: 3;
-  right: 8px;
-  top: 8px;
+  position: static;
+  justify-content: flex-end;
+  padding: 6px 8px 0;
   display: flex;
-  flex-direction: column;
-  align-items: flex-end;
+  flex-direction: row;
+  align-items: center;
   gap: 6px;
 }
 .offscreen-chip {
   border-radius: 999px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--border-strong);
   background: var(--surface);
-  color: var(--accent);
+  color: var(--text);
   font-weight: 600;
   font-size: 12.5px;
   padding: 4px 12px;
@@ -2878,4 +2895,83 @@ button.primary:disabled {
   flex-direction: column;
   gap: 2px;
   margin: 0;
+}
+
+/* Native-feeling IA pass */
+.rail-search {
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.rail-search input {
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  font: inherit;
+}
+.proposed-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-left: 4px;
+  border-radius: 50%;
+  border: 1.5px dashed var(--accent);
+  vertical-align: 1px;
+}
+.section-title .proposed-tag,
+h2 .proposed-tag {
+  margin-left: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+  vertical-align: 1px;
+}
+.crew li.is-focus {
+  box-shadow: inset 3px 0 0 var(--accent);
+  background: var(--accent-soft);
+}
+
+/* 44 pt targets for small text controls on touch screens */
+@media (pointer: coarse), (max-width: 1280px) {
+  .panel-head .link-btn,
+  details > summary,
+  .link-btn.small {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+}
+.req-lines span {
+  -webkit-line-clamp: 1;
+}
+.floor-highlight-tag.is-ai {
+  background: var(--accent);
+  color: var(--on-accent);
+  border-color: var(--accent);
+}
+.swatch-plan {
+  border: 2px solid var(--text);
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+}
+/* Activity outcomes: one look each */
+.verdict-fit {
+  background: var(--warn-soft);
+  color: var(--warn);
+}
+.verdict-policy {
+  background: var(--fail-soft);
+  color: var(--fail);
+}
+.verdict-pending {
+  background: transparent;
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.kind-refusal,
+.kind-reject {
+  background: transparent;
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border-strong);
 }

@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { LARGE_PARTY, planBuilds, toMinutes, type Room } from "../../domain";
+import { LARGE_PARTY, planBuilds, toHHMM, toMinutes, type Room } from "../../domain";
 import { buildHighlight } from "../BuildPlan/BuildPlan";
 import type { Highlight, HighlightControls } from "../highlight";
 import { PHASE_LABEL, seatedParties, type DoneEntry, type WaitEntry } from "../lib/service";
@@ -57,15 +57,44 @@ function hoverProps(highlight: HighlightControls, h: Highlight | null) {
     : {};
 }
 
+/** Guests who asked to hear if a table opens (a standby list). Fictional, per session. */
+interface StandbyEntry {
+  id: string;
+  partySize: number;
+  window: string;
+  needs: string[];
+}
+function standbyFor(room: Room): StandbyEntry[] {
+  const t = toMinutes(room.clock);
+  const at = (m: number) => toHHMM(Math.min(t + m, 22 * 60));
+  return [
+    { id: "S1", partySize: 2, window: `${at(20)}–${at(80)}`, needs: [] },
+    { id: "S2", partySize: 4, window: `${at(50)}–${at(110)}`, needs: ["view"] },
+    { id: "S3", partySize: 6, window: `${at(90)}–${at(150)}`, needs: [] },
+  ];
+}
+
+const matches = (q: string, ...parts: (string | number | undefined)[]) =>
+  !q || parts.some((x) => x !== undefined && String(x).toLowerCase().includes(q));
+
 export function Rail(p: Props) {
-  const { room, waitlist, done, highlight } = p;
+  const { room, done, highlight } = p;
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const waitlist = p.waitlist.filter((w) => matches(q, w.partySize, w.id, ...w.needs));
+  const standby = useMemo(() => standbyFor(room), [room]).filter((s) =>
+    matches(q, s.partySize, s.window, ...s.needs),
+  );
   const now = toMinutes(room.clock);
   const seated = useMemo(() => seatedParties(room), [room]);
   const [allUp, setAllUp] = useState(false);
   const [allSeated, setAllSeated] = useState(false);
-  const reservations = useMemo(
+  const allReservations = useMemo(
     () => [...room.reservations].sort((a, b) => toMinutes(a.time) - toMinutes(b.time)),
     [room.reservations],
+  );
+  const reservations = allReservations.filter((r) =>
+    matches(q, r.id, r.partySize, r.time, r.area, ...r.needs),
   );
   // Where each large party would be built, so hovering an Upcoming row shows it.
   const builds = useMemo(() => {
@@ -83,9 +112,65 @@ export function Rail(p: Props) {
 
   return (
     <div className="rail-lists">
-      <RequestsSection open={p.openRequest} onOpen={p.onOpenRequest} />
+      <div className="rail-search">
+        <label className="sr-only" htmlFor="rail-search">
+          Search guest lists
+        </label>
+        <input
+          id="rail-search"
+          type="search"
+          placeholder="Search party, time, table…"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+      </div>
+      <RequestsSection open={p.openRequest} onOpen={p.onOpenRequest} query={q} />
+      <RailSection
+        title="Standby"
+        parties={standby.length}
+        covers={covers(standby)}
+        defaultOpen={false}
+      >
+        <p className="rail-note">Asked to hear if a table opens</p>
+        <ul className="rows">
+          {standby.map((s) => (
+            <li key={s.id} className="row">
+              <span className="row-time">{s.window.split("–")[0]}</span>
+              <span className="row-party">{s.partySize}</span>
+              <span className="row-main">
+                <span className="row-sub">wants {s.window}</span>
+                {s.needs.length > 0 && (
+                  <span className="needs">
+                    {s.needs.map((n) => (
+                      <span key={n} className="need">
+                        {n}
+                      </span>
+                    ))}
+                  </span>
+                )}
+              </span>
+              <button
+                type="button"
+                className="row-finish"
+                onClick={() =>
+                  p.onSeatWaiting({
+                    id: s.id,
+                    partySize: s.partySize,
+                    needs: s.needs as WaitEntry["needs"],
+                    quoteMin: 0,
+                    addedAt: room.clock,
+                  })
+                }
+              >
+                Offer
+              </button>
+            </li>
+          ))}
+        </ul>
+      </RailSection>
       <RailSection
         title="Waitlist"
+        defaultOpen={p.waitlist.length > 0}
         parties={waitlist.length}
         covers={covers(waitlist)}
         action={walkIn}
@@ -125,12 +210,12 @@ export function Rail(p: Props) {
       </RailSection>
 
       <RailSection
-        title="Upcoming"
+        title="Booked"
         parties={reservations.length}
         covers={covers(reservations)}
         action={
           <button type="button" className="rail-action" onClick={p.onAddReservation}>
-            + Reservation
+            + Book
           </button>
         }
       >
@@ -276,12 +361,28 @@ export function Rail(p: Props) {
   );
 }
 
-function RequestsSection({ open, onOpen }: { open: string | null; onOpen: (id: string) => void }) {
+function RequestsSection({
+  open,
+  onOpen,
+  query,
+}: {
+  open: string | null;
+  onOpen: (id: string) => void;
+  query: string;
+}) {
   const s = useRequests();
-  const list = s.book?.requests ?? [];
+  const list = (s.book?.requests ?? []).filter((r) =>
+    matches(query, r.id, r.partySize, r.day, r.time, r.occasion),
+  );
   const badge = pendingCount(s);
   return (
-    <RailSection title="Requests" parties={list.length} covers={covers(list)} badge={badge}>
+    <RailSection
+      title="Requests"
+      parties={list.length}
+      covers={covers(list)}
+      badge={badge}
+      countText={`${badge} waiting · ${list.length} this week`}
+    >
       {s.error && <p className="rail-empty">Requests unavailable: {s.error.message}</p>}
       {!s.error && !s.book && <p className="rail-empty">Loading requests…</p>}
       {s.book && (
@@ -344,6 +445,8 @@ interface SectionProps {
   defaultOpen?: boolean;
   /** Count of items waiting for someone (shown as a badge). */
   badge?: number;
+  /** Replaces the "N parties · M cov" line. */
+  countText?: string;
   children: ReactNode;
 }
 
@@ -354,6 +457,7 @@ function RailSection({
   action,
   defaultOpen = true,
   badge,
+  countText,
   children,
 }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
@@ -382,7 +486,7 @@ function RailSection({
               ) : null}
             </span>
             <span className="rail-count">
-              {parties} {parties === 1 ? "party" : "parties"} · {covers} cov
+              {countText ?? `${parties} ${parties === 1 ? "party" : "parties"} · ${covers} cov`}
             </span>
           </span>
         </button>

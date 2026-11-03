@@ -16,7 +16,10 @@ export const Clearance = z
     joins: z.record(z.string().regex(/^T\d+\|T\d+$/), z.number().nonnegative()),
     /** Why a short join is short (shown with the rejection). */
     notes: z.record(z.string(), z.string()).default({}),
-    /** Inches left when a spare table from storage is added at a row end, per area. */
+    /**
+     * Inches left when a spare table from storage is added at a row end, per area. Informational (shown on
+     * the fit card): spare-table placement is already limited by each area's spareSlots floor space.
+     */
     spareEnds: z.record(z.string(), z.number().nonnegative()).default({}),
   })
   .strict();

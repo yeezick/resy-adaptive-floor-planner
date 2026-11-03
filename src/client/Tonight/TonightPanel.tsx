@@ -9,6 +9,7 @@ import {
 import { dividersForTables } from "../FloorPlan/geometry";
 import { openedDividers } from "../FloorPlan/ChangeOverlay";
 import { PartyFitCard } from "../Fit/PartyFitCard";
+import { ProposedTag } from "../requests/RequestSheet";
 import type { HighlightControls } from "../highlight";
 import type { LayoutsApi } from "../layouts/useLayouts";
 
@@ -55,7 +56,9 @@ export function TonightPanel({
 
   return (
     <div className="tonight">
-      <h3 className="section-title">Generate tonight's layout</h3>
+      <h3 className="section-title">
+        Generate tonight's layout <ProposedTag />
+      </h3>
       <div className="field-stack">
         <label className="field-inline">
           <span>Start from</span>
@@ -152,7 +155,9 @@ function Proposal({
       </div>
 
       <section aria-label="Fit and cost by party">
-        <h3 className="section-title">Large parties · fit + cost · {p.parties.length}</h3>
+        <h3 className="section-title">
+          Large parties · fit + cost · {p.parties.length} <ProposedTag />
+        </h3>
         <p className="muted small">
           Holds, sections and aisle checks come from the planner. Hover a party to see it on the
           floor.
@@ -259,7 +264,14 @@ function Proposal({
         <h3 className="section-title">Crew build list</h3>
         <ol className="crew">
           {p.crew.map((c) => (
-            <li key={`${c.reservationId}-${c.start}`} className={c.tight ? "is-tight" : undefined}>
+            <li
+              key={`${c.reservationId}-${c.start}`}
+              className={
+                [c.tight && "is-tight", c.reservationId === focusId && "is-focus"]
+                  .filter(Boolean)
+                  .join(" ") || undefined
+              }
+            >
               <div className="crew-head">
                 <span className="crew-time">
                   {c.start}–{c.end}
@@ -268,6 +280,9 @@ function Proposal({
                   {c.reservationId} · {c.partySize}
                 </strong>
                 <span className="pill">{c.when === "set" ? "set before service" : "rebuild"}</span>
+                {c.reservationId === focusId && (
+                  <span className="pill pill-accent">just accepted</span>
+                )}
                 {c.tight && <span className="pill pill-warn">tight</span>}
               </div>
               <details className="small">

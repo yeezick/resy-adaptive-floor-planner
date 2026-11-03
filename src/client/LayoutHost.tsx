@@ -18,10 +18,12 @@ export function LayoutHost({
   fixture,
   roomSelect,
   focusRequest,
+  focusView,
 }: {
   fixture: Room;
   roomSelect: ReactNode;
   focusRequest?: string;
+  focusView?: "plan" | "request";
 }) {
   const layouts = useLayouts(fixture);
   const [editing, setEditing] = useState<EditRequest | null>(null);
@@ -61,6 +63,7 @@ export function LayoutHost({
       layouts={layouts}
       onEditLayout={setEditing}
       focusRequest={focusRequest}
+      focusView={focusView}
     />
   );
 }
