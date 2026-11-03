@@ -78,7 +78,7 @@
   --floor-grid-minor: #262628;
   --floor-grid-major: #323235;
   --floor-join: #7a7a7f;
-  --floor-ghost: #8a8fc4;
+  --floor-ghost: #9a9aa0;
   --select-ring: #ffffff;
   --hatch-bg: #2a2a2c;
   --hatch-line: #4a4a4d;
@@ -180,7 +180,7 @@
   --floor-grid-minor: #ece9e4;
   --floor-grid-major: #ddd8cf;
   --floor-join: #9aa0a6;
-  --floor-ghost: #6e74a8;
+  --floor-ghost: #6b6f75;
   --select-ring: #1d2327;
   --hatch-bg: #eceae6;
   --hatch-line: #c9c6c0;
@@ -839,7 +839,7 @@ h3.section-title {
   stroke-linecap: round;
 }
 .floor .divider.is-open {
-  stroke: var(--accent);
+  stroke: var(--text);
   stroke-width: 0.35;
   stroke-dasharray: 0.9 0.7;
 }
@@ -2028,7 +2028,7 @@ table.data .num {
   font-weight: 600;
 }
 
-/* Change view */
+/* Change view: planner output, so neutral (the accent is for AI only) */
 .floor .change-ghost {
   fill: color-mix(in srgb, var(--floor-ghost) 10%, transparent);
   stroke: var(--floor-ghost);
@@ -2036,37 +2036,37 @@ table.data .num {
   stroke-dasharray: 0.6 0.4;
 }
 .floor .change-arrow {
-  stroke: var(--accent);
+  stroke: var(--text);
   stroke-width: 0.45;
 }
 .floor .arrow-head {
-  fill: var(--accent);
+  fill: var(--text);
 }
 .floor .change-join {
-  fill: color-mix(in srgb, var(--accent) 9%, transparent);
-  stroke: var(--accent);
+  fill: color-mix(in srgb, var(--text) 9%, transparent);
+  stroke: var(--text);
   stroke-width: 0.35;
 }
 .floor .change-pull > rect {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--text);
   stroke-width: 0.35;
   stroke-dasharray: 0.6 0.35;
 }
 .floor .change-badge rect {
-  fill: var(--accent);
+  fill: var(--text);
 }
 .floor .change-badge.is-pull rect {
-  fill: var(--accent-deep);
+  fill: var(--muted);
 }
 .floor .change-badge text {
-  fill: var(--on-accent);
+  fill: var(--bg);
   font-weight: 650;
   text-anchor: middle;
   dominant-baseline: middle;
 }
 .floor .change-badge.is-pull text {
-  fill: var(--on-accent-deep);
+  fill: var(--bg);
 }
 
 /* Editor */
@@ -2287,12 +2287,12 @@ button.primary:disabled {
   font-weight: 650;
   padding: 1px 7px;
   border-radius: 999px;
-  border: 1px solid var(--accent);
-  color: var(--accent);
-  background: var(--accent-soft);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  background: var(--surface-3);
 }
 .sugg {
-  border-left: 3px solid var(--accent);
+  border-left: 3px solid var(--text);
 }
 .sugg[aria-pressed="true"] {
   border-color: var(--select-ring);
@@ -2525,12 +2525,11 @@ button.primary:disabled {
     transparent
   );
 }
-/* One docked pager row along the bottom edge (over the edge fade, not over tables) */
+/* Section pager: its own strip under the canvas, never over tables */
 .offscreen-chips {
-  position: absolute;
-  z-index: 3;
-  right: 8px;
-  bottom: 8px;
+  position: static;
+  justify-content: flex-end;
+  padding: 6px 8px 0;
   display: flex;
   flex-direction: row;
   align-items: center;
