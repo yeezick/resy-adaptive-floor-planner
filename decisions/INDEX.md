@@ -9,3 +9,4 @@
 | [0005](ADR-0005-full-scale-room.md) | Full-scale fictional room with storage and private suites           | Accepted |
 | [0006](ADR-0006-tonights-layout.md) | Generate tonight's layout from tonight's book                       | Accepted |
 | [0007](ADR-0007-ci-pipeline.md)     | CI/CD pipeline: required gates, advisory signals and an AI reviewer | Accepted |
+| [0008](ADR-0008-ai-fix-loop.md)     | AI review → auto-fix → auto-merge loop, at most 2 fix rounds        | Accepted |

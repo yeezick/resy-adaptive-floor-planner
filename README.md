@@ -48,6 +48,8 @@ pnpm build && pnpm e2e # Playwright smoke tests (no API key needed)
 Required checks block a merge; advisory ones inform the reviewer. See [ADR-0007](decisions/ADR-0007-ci-pipeline.md).
 
 - **Required:** PR title, lint + typecheck, unit tests with a coverage gate, build, deterministic evals, secret scan.
-- **Advisory:** AI code review (Claude, one sticky comment per PR), live evals with a judge on AI-surface PRs under a
+- **AI loop:** Claude reviews every PR; blocking findings get up to 2 automatic fix rounds, each gated by
+  `pnpm verify` before it is pushed; a clean review turns on auto-merge ([ADR-0008](decisions/ADR-0008-ai-fix-loop.md)).
+- **Advisory:** live evals with a judge on AI-surface PRs under a
   dollar budget, Playwright e2e, CodeQL, dependency audit + review, duplicate-code check, branch sweep.
 - Every action is pinned to a commit SHA; jobs get least-privilege permissions; fork PRs never see secrets.
