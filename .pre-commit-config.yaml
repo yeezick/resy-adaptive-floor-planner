@@ -1,0 +1,58 @@
+# One-time setup: pre-commit install   (installs all three hook types)
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
+default_stages: [pre-commit]
+repos:
+  # Secrets first. Same gitleaks version as CI (.github/workflows/secret-scan.yml) — bump both together.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        args: ["--markdown-linebreak-ext=md"]
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-json
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+  - repo: local
+    hooks:
+      - id: lint-staged
+        name: eslint + prettier (staged)
+        entry: pnpm exec lint-staged
+        language: system
+        pass_filenames: false
+      - id: typecheck
+        name: typecheck
+        entry: pnpm typecheck
+        language: system
+        pass_filenames: false
+        types_or: [ts, tsx]
+      - id: anti-mutation-guard
+        name: no test + implementation files in one commit
+        entry: bash scripts/hooks/check-test-impl-separation.sh
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: gitleaks-unpushed
+        name: gitleaks — every commit not yet on a remote
+        entry: gitleaks git --no-banner --redact --log-opts="--branches --not --remotes" .
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+      - id: unit-tests
+        name: unit tests
+        entry: pnpm test
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v4.5.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: [feat, fix, chore, docs, refactor, test, build, ci, perf, revert, eval]
