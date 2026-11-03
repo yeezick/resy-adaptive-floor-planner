@@ -194,7 +194,7 @@ jobs:
   decide:
     name: Decide (auto-merge / fix / needs human)
     needs: [hold, review]
-    if: always() && needs.hold.result == 'success'
+    if: ${{ !cancelled() && needs.hold.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -209,6 +209,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PAT: ${{ secrets.AUTOMATION_PAT }}
           RUN: ${{ needs.review.outputs.run }}
+          REVIEW_RESULT: ${{ needs.review.result }}
           BLOCKING: ${{ needs.review.outputs.blocking }}
           AUTO: ${{ vars.AUTO_MERGE_ENABLED }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
@@ -233,6 +234,9 @@ jobs:
             echo "Auto-merge on: merges when the required checks pass." | tee -a "$GITHUB_STEP_SUMMARY"
           }
           rounds=$(gh pr view "$PR" --repo "$REPO" --json labels --jq '[.labels[].name | select(startswith("ai-fix/round-"))] | length')
+          if [ "$REVIEW_RESULT" != "success" ]; then
+            needs_human "the review job failed before it finished"; exit 0
+          fi
           if [ "$RUN" != "true" ]; then
             needs_human "no AI review ran (ANTHROPIC_API_KEY unset). Set AI_REVIEW_ENABLED=false to auto-merge without review"; exit 0
           fi
@@ -359,7 +363,7 @@ jobs:
           retention-days: 7
 
       - name: Report a rejected fix
-        if: always() && steps.gate.outputs.ok != 'true'
+        if: ${{ !cancelled() && steps.gate.outputs.ok != 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REASON: ${{ steps.gate.outputs.reason || 'the fix job failed' }}
@@ -408,17 +412,18 @@ jobs:
             -c user.email="41898282+github-actions[bot]@users.noreply.github.com" commit -q -F - <<EOF
           fix: address AI review findings (round $ROUND)
 
-          Automated fix from the ai-review workflow. It passed the protected-file guard and
-          \`pnpm verify\` before it was pushed; CI and a fresh review run on it next.
+          Automated fix from the ai-review workflow. Path guard re-checked on a clean runner;
+          CI and a fresh review are the real gate.
 
           AI-Fix-Round: $ROUND
           Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
           EOF
           # A PAT push starts CI and the next review; a GITHUB_TOKEN push would not. Not forced: if the
           # branch moved since the review, this is rejected as non-fast-forward.
-          git -c core.hooksPath=/dev/null push "https://x-access-token:${PAT}@github.com/${REPO}.git" "HEAD:refs/heads/${HEAD_REF}"
+          # Comment first: the push starts a new run that cancels this one, which could drop a later comment.
           sha=$(git rev-parse --short HEAD)
-          gh pr comment "$PR" --repo "$REPO" --body "**AI fix round $ROUND** → \`$sha\` ($n file(s)). CI and a fresh review run on it next."
+          gh pr comment "$PR" --repo "$REPO" --body "**AI fix round $ROUND** → pushing \`$sha\` ($n file(s)). CI and a fresh review run on it next."
+          git -c core.hooksPath=/dev/null push "https://x-access-token:${PAT}@github.com/${REPO}.git" "HEAD:refs/heads/${HEAD_REF}"
 
       - name: Report a failed push
         if: failure()

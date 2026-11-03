@@ -34,8 +34,9 @@ push token, a prompt injection could make it steal the token. Keeping the token 
 means edited code never shares a machine with it.
 
 Accepted residual risks: edited code that runs during `pnpm verify` can write `$GITHUB_ENV` / `$GITHUB_OUTPUT`
-and so influence later steps in the fix job; the push job re-checks the patch on a clean runner, so that can't
-widen what gets pushed. While it works, the fixer runs the tests it edits inside the Claude step, whose
+and so influence later steps in the fix job, including the patch and the "verify passed" output. So the fix job's
+`pnpm verify` is a pre-filter, not a gate: the push job re-checks paths on a clean runner, and CI plus a fresh
+review on the pushed commit are the real gate. While it works, the fixer runs the tests it edits inside the Claude step, whose
 environment holds `ANTHROPIC_API_KEY` and a `GITHUB_TOKEN` limited to PR comments and labels. Only same-repo PRs
 (collaborators) reach the fixer, the key has a spending limit, and the token can't push. Removing the fixer's
 ability to run tests would make its fixes much worse.
