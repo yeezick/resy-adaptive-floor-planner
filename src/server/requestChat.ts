@@ -68,7 +68,8 @@ function userMessage(b: RequestChatBody): string {
     c.time !== null ? `Current time: ${c.time}` : null,
     c.notes.length ? `Crew notes so far: ${c.notes.join(", ")}` : null,
   ].filter(Boolean);
-  return `${facts.join("\n")}\n\n<message>\n${b.message}\n</message>`;
+  // Every fact above comes from the client, so it sits inside data tags like the message itself.
+  return `<request>\n${facts.join("\n")}\n</request>\n\n<message>\n${b.message}\n</message>`;
 }
 
 function parseOutput(text: string): ChatTurnOutput | null {
