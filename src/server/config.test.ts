@@ -27,6 +27,23 @@ describe("config", () => {
     expect(() => validateEnv()).toThrow(/MAX_CONCURRENT_RUNS/);
   });
 
+  it("validateEnv checks the triage model and limits", () => {
+    process.env.ANTHROPIC_MODEL = "claude-opus-5-5";
+    process.env.AGENT_EFFORT = "low";
+    delete process.env.TRIAGE_MODEL;
+    delete process.env.TRIAGE_MAX_TOKENS;
+    delete process.env.TRIAGE_TIMEOUT_MS;
+    expect(() => validateEnv()).not.toThrow();
+    process.env.TRIAGE_MODEL = "claude-nope";
+    expect(() => validateEnv()).toThrow(/TRIAGE_MODEL/);
+    delete process.env.TRIAGE_MODEL;
+    process.env.TRIAGE_MAX_TOKENS = "abc";
+    expect(() => validateEnv()).toThrow(/TRIAGE_MAX_TOKENS/);
+    delete process.env.TRIAGE_MAX_TOKENS;
+    process.env.TRIAGE_TIMEOUT_MS = "0";
+    expect(() => validateEnv()).toThrow(/TRIAGE_TIMEOUT_MS/);
+  });
+
   it("parses TRUST_PROXY as a hop count or boolean", () => {
     expect(parseTrustProxy(undefined)).toBe(1);
     expect(parseTrustProxy(" 2 ")).toBe(2);

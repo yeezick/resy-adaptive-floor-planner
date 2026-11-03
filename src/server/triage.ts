@@ -65,7 +65,13 @@ export function triageProblems(out: TriageOutput, r: GuestRequest): string[] {
   if (/https?:\/\/|www\.|@\w+\.\w+|\+?\d[\d\s().-]{8,}\d/.test(text))
     problems.push("repeats a link, email or phone number");
   const name = r.contact.trim();
-  if (name.length > 2 && text.toLowerCase().includes(name.toLowerCase()))
+  const lower = text.toLowerCase();
+  const tokens = name.split(/\s+/).filter((t) => t.length >= 3);
+  const hasToken = (t: string) =>
+    new RegExp(`(^|[^\\p{L}])${t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[^\\p{L}])`, "iu").test(
+      text,
+    );
+  if ((name.length > 2 && lower.includes(name.toLowerCase())) || tokens.some((t) => hasToken(t)))
     problems.push("repeats the guest's name");
   return problems;
 }
