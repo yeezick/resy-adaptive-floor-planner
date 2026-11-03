@@ -12,7 +12,9 @@ import {
   type RequestChatEvent,
   type TriageEvent,
 } from "../../domain/activity";
+import { DEMO_MANAGER, FeedbackRecord, noteRow, rateRow, type Rating } from "../../domain/feedback";
 import type { AgentResponse } from "../../shared/api";
+import { activeScenario, RECORDED_FEEDBACK } from "../scenarios";
 import { decisionOf, useRequests, type RequestsState } from "../requests/store";
 import { tableNumbers } from "../../domain/wording";
 
@@ -21,8 +23,35 @@ const SEED: ActivitySeed = ActivitySeed.parse(weekJson);
 interface State {
   assistant: AssistantEvent[];
   applied: ManagerAction[];
+  /** 👍 / 👎 per activity-log row (this manager). Notes are hash + length only. */
+  feedback: FeedbackRecord[];
 }
-let state: State = { assistant: [], applied: [] };
+
+// Feedback is saved in this browser (the public demo has no accounts); a scenario starts from its fixture.
+const FEEDBACK_KEY = "afp.feedback.v1";
+function loadFeedback(): FeedbackRecord[] {
+  if (activeScenario()?.id === "activity-log") return RECORDED_FEEDBACK;
+  try {
+    const raw = window.localStorage.getItem(FEEDBACK_KEY);
+    return raw ? FeedbackRecord.array().parse(JSON.parse(raw)) : [];
+  } catch {
+    return [];
+  }
+}
+function saveFeedback(list: FeedbackRecord[]): void {
+  if (activeScenario()) return; // scenarios are fixed demo states
+  try {
+    window.localStorage.setItem(FEEDBACK_KEY, JSON.stringify(list));
+  } catch {
+    // storage unavailable: the rating still holds for this page load
+  }
+}
+
+let state: State = {
+  assistant: [],
+  applied: [],
+  feedback: typeof window === "undefined" ? [] : loadFeedback(),
+};
 const listeners = new Set<() => void>();
 const set = (next: Partial<State>) => {
   state = { ...state, ...next };
@@ -93,6 +122,31 @@ export const activityActions = {
           latencyMs: 0,
         };
     set({ assistant: [...state.assistant, e] });
+  },
+  /** 👍 / 👎 on a row: saved at once; the other thumb changes the same entry. */
+  rate(rowId: string, rating: Rating) {
+    const feedback = rateRow(state.feedback, {
+      rowId,
+      manager: DEMO_MANAGER,
+      rating,
+      at: new Date().toISOString(),
+    });
+    set({ feedback });
+    saveFeedback(feedback);
+  },
+  /** Append an optional note to the row's entry. Only its hash + length are kept. */
+  async note(rowId: string, text: string) {
+    const t = text.trim();
+    if (!t) return;
+    const note = { sha256: await sha256(t), length: t.length };
+    const feedback = noteRow(state.feedback, {
+      rowId,
+      manager: DEMO_MANAGER,
+      note,
+      at: new Date().toISOString(),
+    });
+    set({ feedback });
+    saveFeedback(feedback);
   },
   /** The host applied (or started seating from) a recommendation. */
   recordApplied(traceId: string, applied: string) {
@@ -222,4 +276,13 @@ export function useActivity(): ActivityRow[] {
       [...SEED.actions, ...live.actions, ...local.applied],
     );
   }, [s, local]);
+}
+
+export function useFeedback(): FeedbackRecord[] {
+  return useSyncExternalStore(subscribe, () => state).feedback;
+}
+
+/** Tests only. */
+export function resetActivityStore(feedback: FeedbackRecord[] = []): void {
+  state = { assistant: [], applied: [], feedback };
 }
