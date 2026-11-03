@@ -1,6 +1,8 @@
 # Advisory live evals: real API calls under a dollar budget. Never a required check.
 # Runs on demand, nightly, on PRs labeled eval/run, and automatically on PRs that touch the
-# AI surface (prompts, agent, evals, room model, fixtures). Skips cleanly when the secret is unset.
+# AI surface (prompts, agent, evals, room model, fixtures). On a push to an open PR it runs only
+# when that push itself touches the AI surface, so pushes that don't touch it never re-run a $5 eval.
+# If the file list can't be read, it runs (fails toward measuring). Skips cleanly when the secret is unset.
 name: evals-live
 
 on:
@@ -14,8 +16,9 @@ on:
 permissions:
   contents: read
 
+# Unrelated label events get their own group, so they can't cancel an AI-surface run in flight.
 concurrency:
-  group: evals-live-${{ github.ref }}
+  group: evals-live-${{ github.ref }}-${{ github.event.action == 'labeled' && github.event.label.name || 'auto' }}
   cancel-in-progress: true
 
 jobs:
@@ -36,6 +39,9 @@ jobs:
           LABEL: ${{ github.event.label.name }}
           PR: ${{ github.event.pull_request.number }}
           SAME_REPO: ${{ github.event.pull_request.head.repo.full_name == github.repository }}
+          REPO: ${{ github.repository }}
+          BEFORE: ${{ github.event.before }}
+          AFTER: ${{ github.event.after }}
         run: |
           set -euo pipefail
           if [ "$EVENT" != "pull_request" ]; then echo "run=true" >> "$GITHUB_OUTPUT"; exit 0; fi
@@ -44,11 +50,20 @@ jobs:
             [ "$LABEL" = "eval/run" ] && echo "run=true" >> "$GITHUB_OUTPUT" || echo "run=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          gh pr diff "$PR" --repo "${{ github.repository }}" --name-only > changed.txt || true
-          if grep -qE '^(prompts/|src/server/agent/|src/domain/|evals/|fixtures/)' changed.txt; then
-            echo "AI-surface diff — running live evals."; echo "run=true" >> "$GITHUB_OUTPUT"
+          files="$RUNNER_TEMP/changed.txt"
+          if [ "$ACTION" = "synchronize" ]; then
+            ok=$(gh api "repos/$REPO/compare/$BEFORE...$AFTER" --jq '.files[].filename' > "$files" && echo y || echo n)
           else
-            echo "No AI-surface diff — live evals skipped."; echo "run=false" >> "$GITHUB_OUTPUT"
+            ok=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename' > "$files" && echo y || echo n)
+          fi
+          if [ "$ok" != "y" ]; then
+            echo "::warning::Could not list changed files — running live evals to be safe."
+            echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          if grep -qE '^(prompts/|src/server/agent/|src/domain/|evals/|fixtures/)' "$files"; then
+            echo "AI-surface change — running live evals."; echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No AI-surface change — live evals skipped."; echo "run=false" >> "$GITHUB_OUTPUT"
           fi
 
   live-agent:

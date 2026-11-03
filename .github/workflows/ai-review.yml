@@ -37,7 +37,6 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
-      id-token: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -49,6 +48,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           HAS_KEY: ${{ secrets.ANTHROPIC_API_KEY != '' }}
           PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           if [ "$HAS_KEY" != "true" ]; then
@@ -56,8 +56,13 @@ jobs:
             echo "run=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
-          gh pr diff "$PR" --name-only > changed.txt || true
-          if grep -qE '^(src/domain/|src/server/agent/|src/shared/|prompts/|evals/|fixtures/|\.github/workflows/)' changed.txt; then
+          files="$RUNNER_TEMP/changed.txt"
+          if ! gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename' > "$files"; then
+            echo "::warning::Could not list changed files — using the Opus tier to be safe."
+            echo "(file list unavailable — run gh pr diff $PR --name-only)" > "$files"
+            echo "model=claude-opus-5-5" >> "$GITHUB_OUTPUT"
+            echo "tier=Opus 5.5 (file list unavailable)" >> "$GITHUB_OUTPUT"
+          elif grep -qE '^(src/domain/|src/server/agent/|src/shared/|prompts/|evals/|fixtures/|\.github/workflows/)' "$files"; then
             echo "model=claude-opus-5-5" >> "$GITHUB_OUTPUT"
             echo "tier=Opus 5.5 (room model / agent / evals / CI)" >> "$GITHUB_OUTPUT"
           else
@@ -66,7 +71,7 @@ jobs:
           fi
           {
             echo "changed_files<<EOF"
-            if [ -s changed.txt ]; then cat changed.txt; else echo "(none)"; fi
+            if [ -s "$files" ]; then cat "$files"; else echo "(none)"; fi
             echo "EOF"
           } >> "$GITHUB_OUTPUT"
           echo "run=true" >> "$GITHUB_OUTPUT"

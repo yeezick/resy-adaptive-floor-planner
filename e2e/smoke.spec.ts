@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import type { AgentResponse } from "../src/shared/api";
+
 const hostButton = (page: Page, name: string) =>
   page.getByRole("group", { name: "Host actions" }).getByRole("button", { name, exact: true });
 
@@ -65,7 +67,7 @@ test("assistant renders ranked recommendations and never auto-seats", async ({ p
         toolCalls: [{ name: "find_tables_for_party", ok: true }],
         validator: { rejects: 0, notes: [] },
         metrics: { costUsd: 0, latencyMs: 0, toolTurns: 1, validatorRejects: 0, calls: [] },
-      }),
+      } satisfies AgentResponse),
     }),
   );
   await openFloor(page);

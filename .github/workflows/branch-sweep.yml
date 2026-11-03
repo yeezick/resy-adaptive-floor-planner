@@ -25,16 +25,23 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
           deleted=0 kept_open=0 kept_unmerged=0
           while IFS= read -r branch; do
             [ -z "$branch" ] && continue
-            states=$(gh pr list --repo "$REPO" --head "$branch" --state all --json state -q '.[].state')
-            open=$(printf '%s\n' "$states" | grep -c '^OPEN$' || true)
-            merged=$(printf '%s\n' "$states" | grep -c '^MERGED$' || true)
-            if [ "$open" -gt 0 ]; then echo "keep  $branch (open PR)"; kept_open=$((kept_open + 1)); continue; fi
-            if [ "$merged" -eq 0 ]; then echo "keep  $branch (no merged PR)"; kept_unmerged=$((kept_unmerged + 1)); continue; fi
+            # Delete only when the branch tip is exactly the head of a PR from this repo that merged.
+            # Catches same-named fork PRs and branches that got new commits after their merge.
+            tip=$(gh api "repos/$REPO/branches/$branch" -q '.commit.sha')
+            prs=$(gh pr list --repo "$REPO" --head "$branch" --state all --json state,headRefOid,headRepositoryOwner \
+              -q ".[] | select(.headRepositoryOwner.login == \"$OWNER\") | \"\(.state) \(.headRefOid)\"")
+            if printf '%s\n' "$prs" | grep -q '^OPEN '; then
+              echo "keep  $branch (open PR)"; kept_open=$((kept_open + 1)); continue
+            fi
+            if ! printf '%s\n' "$prs" | grep -qx "MERGED $tip"; then
+              echo "keep  $branch (tip not a merged PR head)"; kept_unmerged=$((kept_unmerged + 1)); continue
+            fi
             if gh api -X DELETE "repos/$REPO/git/refs/heads/$branch"; then
               echo "del   $branch"; deleted=$((deleted + 1))
             else

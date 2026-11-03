@@ -28,6 +28,15 @@ between checks that block a merge and signals that inform a reviewer, and every 
 Every action is pinned to a full commit SHA. Workflows default to `contents: read` and widen per job.
 Secrets never reach fork PRs. The AI reviewer and live evals treat PR text as data, not instructions.
 
+Trade-offs, stated plainly:
+
+- `audit` gates production dependencies at **high** but dev dependencies only at **critical**: a high advisory in
+  a build or test tool is reported, not blocking, because it never ships to the server.
+- `evals-live` on PRs runs per push only when that push touches the AI surface, each run capped at
+  `EVAL_RUN_BUDGET_USD`. There is no per-PR total cap; many AI-surface pushes cost many runs. The kill switch is
+  removing the `ANTHROPIC_API_KEY` secret or disabling the workflow.
+- When a changed-file list can't be read, the reviewer picks Opus and live evals run: both fail toward more scrutiny.
+
 ## Consequences
 
 A model's opinion never blocks a merge; deterministic checks do. AI review costs roughly cents to a dollar
