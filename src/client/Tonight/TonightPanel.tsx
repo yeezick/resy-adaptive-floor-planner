@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   generateTonight,
   toMinutes,
@@ -21,14 +21,36 @@ interface Props {
   onProposal: (p: TonightProposal | null) => void;
   onEdit: (room: Room, name: string) => void;
   onApply: (p: TonightProposal) => void;
+  /** Generate once on mount (opening an accepted request's night). */
+  autoGenerate?: { from: string; to: string };
+  /** A party to put first and pin on the floor. */
+  focusId?: string;
 }
 
-export function TonightPanel({ layouts, proposal, highlight, onProposal, onEdit, onApply }: Props) {
+export function TonightPanel({
+  layouts,
+  proposal,
+  highlight,
+  onProposal,
+  onEdit,
+  onApply,
+  autoGenerate,
+  focusId,
+}: Props) {
   const [baseId, setBaseId] = useState(layouts.active.id);
-  const [from, setFrom] = useState("17:00");
-  const [to, setTo] = useState("22:00");
+  const [from, setFrom] = useState(autoGenerate?.from ?? "17:00");
+  const [to, setTo] = useState(autoGenerate?.to ?? "22:00");
   const base = layouts.layouts.find((l) => l.id === baseId) ?? layouts.active;
   const valid = toMinutes(from) < toMinutes(to);
+  const auto = useRef(autoGenerate);
+  useEffect(() => {
+    const a = auto.current;
+    if (!a) return;
+    auto.current = undefined;
+    onProposal(generateTonight(base.room, a.from, a.to));
+    // once, on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="tonight">
@@ -75,6 +97,7 @@ export function TonightPanel({ layouts, proposal, highlight, onProposal, onEdit,
       {proposal && (
         <Proposal
           p={proposal}
+          focusId={focusId}
           highlight={highlight}
           onEdit={() => onEdit(proposal.variant, tonightLabel(proposal))}
           onApply={() => onApply(proposal)}
@@ -90,17 +113,21 @@ function tonightLabel(p: TonightProposal): string {
 
 function Proposal({
   p,
+  focusId,
   highlight,
   onEdit,
   onApply,
 }: {
   p: TonightProposal;
+  focusId?: string;
   highlight: HighlightControls;
   onEdit: () => void;
   onApply: () => void;
 }) {
   const s = p.summary;
-  const parties = groupByParty(p);
+  const parties = groupByParty(p).sort(
+    (a, b) => Number(b.id === focusId) - Number(a.id === focusId),
+  );
   return (
     <div className="proposal">
       <div className="totals">
@@ -170,7 +197,7 @@ function Proposal({
             return (
               <li
                 key={g.id}
-                className="card"
+                className={`card${g.id === focusId ? " is-focus" : ""}`}
                 tabIndex={0}
                 onMouseEnter={() => highlight.onHover(h)}
                 onMouseLeave={() => highlight.onHover(null)}
@@ -179,6 +206,7 @@ function Proposal({
               >
                 <div className="rec-head">
                   <strong>{g.id}</strong>
+                  {g.id === focusId && <span className="pill pill-accent">just accepted</span>}
                   <span className="muted">party of {g.size}</span>
                 </div>
                 {g.reason && <p className="small rec-reason">{g.reason}</p>}

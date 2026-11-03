@@ -18,12 +18,15 @@ import { BuildPlan } from "./BuildPlan/BuildPlan";
 import { ConsoleBar, type PanelMode } from "./ConsoleBar";
 import { CoversStrip } from "./CoversStrip";
 import { FloorPlan } from "./FloorPlan/FloorPlan";
+import { tabForTables } from "./FloorPlan/geometry";
 import { Legend } from "./FloorPlan/Legend";
 import { SelectionBar } from "./FloorPlan/SelectionBar";
 import { TableDetails } from "./FloorPlan/TableDetails";
 import type { Highlight, HighlightControls } from "./highlight";
 import { finishParty, seatParty, type DoneEntry, type WaitEntry } from "./lib/service";
 import { Rail } from "./Rail/Rail";
+import { RequestSheet } from "./requests/RequestSheet";
+import { useRequests } from "./requests/store";
 import { ReservationSheet } from "./WalkIn/ReservationSheet";
 import { WalkInSheet, type WalkInDraft } from "./WalkIn/WalkInSheet";
 
@@ -37,6 +40,7 @@ const PANEL_TITLE: Record<PanelMode, string> = {
   assistant: "Assistant",
   shift: "Shift setup",
   reservation: "Add reservation",
+  request: "Large-party request",
 };
 
 /** Owns the edited room and the session's waitlist / done lists. Remounted per fixture. */
@@ -45,16 +49,28 @@ interface PlannerProps {
   roomSelect: ReactNode;
   layouts: LayoutsApi;
   onEditLayout: (req: EditRequest) => void;
+  /** Set when a manager just accepted a request for this night: open its plan with the party in focus. */
+  focusRequest?: string;
 }
 
-export function Planner({ fixture, roomSelect, layouts, onEditLayout }: PlannerProps) {
+export function Planner({
+  fixture,
+  roomSelect,
+  layouts,
+  onEditLayout,
+  focusRequest,
+}: PlannerProps) {
   const [room, setRoom] = useState(fixture);
   const [proposal, setProposal] = useState<TonightProposal | null>(null);
   const [edited, setEdited] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [hover, setHover] = useState<Highlight | null>(null);
   const [pinned, setPinned] = useState<Highlight | null>(null);
-  const [mode, setMode] = useState<PanelMode>("details");
+  const [mode, setMode] = useState<PanelMode>(focusRequest ? "shift" : "details");
+  const [openRequest, setOpenRequest] = useState<string | null>(null);
+  const requests = useRequests();
+  const request = requests.book?.requests.find((r) => r.id === openRequest) ?? null;
+
   const [notice, setNotice] = useState<ActionResult | null>(null);
   const [draft, setDraft] = useState<WalkInDraft>({ size: 2, needs: [] });
   const [waitlist, setWaitlist] = useState<WaitEntry[]>([]);
@@ -77,7 +93,27 @@ export function Planner({ fixture, roomSelect, layouts, onEditLayout }: PlannerP
           label: `Suggested for party of ${draft.size}`,
         }
       : null;
-  const highlight = hover ?? pinned ?? suggested;
+  // Opening an accepted request's night: show (and outline) that party's tables.
+  const focusTables = useMemo(
+    () =>
+      proposal && focusRequest
+        ? [
+            ...new Set(
+              proposal.changes
+                .filter((c) => c.reservationId === focusRequest)
+                .flatMap((c) => c.tables),
+            ),
+          ]
+        : [],
+    [proposal, focusRequest],
+  );
+  const focusTab = focusTables.length
+    ? tabForTables(proposal?.variant ?? room, focusTables)
+    : "first";
+  const focusHighlight: Highlight | null = focusTables.length
+    ? { key: `focus-${focusRequest}`, ids: focusTables, label: `${focusRequest} · just accepted` }
+    : null;
+  const highlight = hover ?? pinned ?? suggested ?? focusHighlight;
   const controls: HighlightControls = {
     pinnedKey: pinned?.key ?? null,
     onHover: setHover,
@@ -200,6 +236,11 @@ export function Planner({ fixture, roomSelect, layouts, onEditLayout }: PlannerP
               if (mode !== "walkin") setMode("details");
             }}
             onFinish={finish}
+            openRequest={mode === "request" ? openRequest : null}
+            onOpenRequest={(id) => {
+              setOpenRequest(id);
+              setMode("request");
+            }}
           />
         </aside>
 
@@ -216,7 +257,7 @@ export function Planner({ fixture, roomSelect, layouts, onEditLayout }: PlannerP
           )}
           <FloorPlan
             key={proposal ? "preview" : "live"}
-            initialTab={proposal ? "first" : undefined}
+            initialTab={proposal ? focusTab : undefined}
             room={proposal?.variant ?? room}
             selected={proposal ? [] : selected}
             highlight={highlight}
@@ -272,6 +313,11 @@ export function Planner({ fixture, roomSelect, layouts, onEditLayout }: PlannerP
               onOpenShift={() => setMode("shift")}
             />
           </div>
+          {mode === "request" && request && (
+            <div className="tabpanel">
+              <RequestSheet key={request.id} request={request} />
+            </div>
+          )}
           {mode === "reservation" && (
             <div className="tabpanel">
               <ReservationSheet
@@ -298,6 +344,8 @@ export function Planner({ fixture, roomSelect, layouts, onEditLayout }: PlannerP
               />
               <TonightPanel
                 layouts={layouts}
+                autoGenerate={focusRequest ? { from: "17:00", to: "22:00" } : undefined}
+                focusId={focusRequest}
                 proposal={proposal}
                 highlight={controls}
                 onProposal={setProposal}

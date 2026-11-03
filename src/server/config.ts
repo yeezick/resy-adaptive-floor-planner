@@ -32,9 +32,12 @@ export function validateEnv(opts: { judge?: boolean } = {}): void {
   if (opts.judge || process.env.JUDGE_MODEL)
     checkModel("JUDGE_MODEL", process.env.JUDGE_MODEL ?? "claude-sonnet-5-5");
   if (process.env.JUDGE_EFFORT) checkEffort("JUDGE_EFFORT", process.env.JUDGE_EFFORT);
+  checkModel("TRIAGE_MODEL", process.env.TRIAGE_MODEL ?? "claude-haiku-5-5");
   for (const n of [
     "AGENT_MAX_TOKENS",
     "AGENT_TIMEOUT_MS",
+    "TRIAGE_MAX_TOKENS",
+    "TRIAGE_TIMEOUT_MS",
     "RATE_LIMIT_PER_MIN",
     "DAILY_BUDGET_USD",
     "MAX_CONCURRENT_RUNS",

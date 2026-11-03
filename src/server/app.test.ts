@@ -214,10 +214,48 @@ describe("server", () => {
     const base = await start();
     const rooms = (await (await fetch(`${base}/api/rooms`)).json()) as { id: string }[];
     expect(rooms.map((r) => r.id).sort()).toEqual([
+      "book-fri",
+      "book-thu",
       "demo-night",
       "dinner-peak",
       "heavy-saturday",
       "next-day",
     ]);
+  });
+
+  it("lists the large-party requests", async () => {
+    const base = await start();
+    const book = (await (await fetch(`${base}/api/requests`)).json()) as {
+      onlineCap: number;
+      requests: { id: string }[];
+    };
+    expect(book.onlineCap).toBe(8);
+    expect(book.requests.map((r) => r.id)).toEqual(["Q1", "Q2", "Q3", "Q4"]);
+  });
+
+  it("triages a request once, then serves the cached result", async () => {
+    const f = scripted([
+      finalAnswer({
+        verdict: "real",
+        reason: "Specific date, time and headcount.",
+        summary: ["Birthday for 14, Saturday 19:00.", "Wants one long table."],
+      }),
+    ]);
+    const base = await start({ create: f.create });
+    const triage = () => fetch(`${base}/api/requests/Q1/triage`, { method: "POST" });
+    const first = (await (await triage()).json()) as { verdict: string; cached?: boolean };
+    expect(first).toMatchObject({ verdict: "real" });
+    expect(first.cached).toBeUndefined();
+    const second = (await (await triage()).json()) as { cached?: boolean };
+    expect(second.cached).toBe(true);
+    expect(f.requests).toHaveLength(1);
+    expect((await fetch(`${base}/api/requests/Q99/triage`, { method: "POST" })).status).toBe(404);
+  });
+
+  it("returns 503 no_key for triage without an API key", async () => {
+    const base = await start();
+    const res = await fetch(`${base}/api/requests/Q2/triage`, { method: "POST" });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ code: "no_key" });
   });
 });

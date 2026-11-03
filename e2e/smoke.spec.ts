@@ -119,3 +119,47 @@ test("/evals page renders", async ({ page }) => {
   await page.goto("/evals");
   await expect(page.locator(".evals h1")).toBeVisible();
 });
+
+test("request inbox: triage, fit check, accept opens that night's plan", async ({ page }) => {
+  await page.route("**/api/requests/*/triage", (route) => {
+    const id = /requests\/(Q\d+)\//.exec(route.request().url())?.[1] ?? "Q0";
+    const junk = id === "Q4";
+    return route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        requestId: id,
+        traceId: `e2e-${id}`,
+        promptVersion: "e2e",
+        model: "e2e-stub",
+        verdict: junk ? "junk" : "real",
+        reason: junk ? "Asks for free food." : "Specific date, time and headcount.",
+        summary: [`Stub line one for ${id}.`, "Stub line two."],
+        escalated: false,
+        validatorRejects: 0,
+        metrics: { costUsd: 0, latencyMs: 1, calls: [] },
+      }),
+    });
+  });
+  await openFloor(page);
+  const rail = page.getByRole("region", { name: /Requests/ });
+  await expect(rail).toContainText("Proposed feature");
+  await expect(rail.locator(".row-request")).toHaveCount(4);
+  await expect(rail).toContainText("Likely junk");
+
+  // the 30-top can't have a private room at 19:30: Accept stays disabled, the reason is one line
+  await rail.locator(".row-request .row-btn").nth(2).click();
+  await expect(page.locator(".cant-fit-line")).toContainText("earliest 20:30");
+  await expect(page.getByRole("button", { name: /Accept/ })).toBeDisabled();
+  await page.getByRole("button", { name: "Decline", exact: true }).click();
+  await page.getByRole("button", { name: "Decline for fit" }).click();
+  await expect(page.locator(".req-decided")).toContainText("Declined for fit");
+
+  // the 22-top fits: Accept opens Friday's plan with the party in focus
+  await rail.locator(".row-request .row-btn").nth(1).click();
+  await expect(page.getByText("Fits", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: /Accept/ }).click();
+  await expect(page.locator(".room-select select")).toHaveValue("book-fri");
+  await expect(page.locator(".proposal")).toBeVisible();
+  await expect(page.locator(".card.is-focus")).toContainText("Q2");
+});

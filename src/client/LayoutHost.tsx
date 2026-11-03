@@ -14,7 +14,15 @@ export interface EditRequest {
 }
 
 /** Owns the named layouts for one fixture and swaps between the console and the editor. */
-export function LayoutHost({ fixture, roomSelect }: { fixture: Room; roomSelect: ReactNode }) {
+export function LayoutHost({
+  fixture,
+  roomSelect,
+  focusRequest,
+}: {
+  fixture: Room;
+  roomSelect: ReactNode;
+  focusRequest?: string;
+}) {
   const layouts = useLayouts(fixture);
   const [editing, setEditing] = useState<EditRequest | null>(null);
 
@@ -52,6 +60,7 @@ export function LayoutHost({ fixture, roomSelect }: { fixture: Room; roomSelect:
       roomSelect={roomSelect}
       layouts={layouts}
       onEditLayout={setEditing}
+      focusRequest={focusRequest}
     />
   );
 }

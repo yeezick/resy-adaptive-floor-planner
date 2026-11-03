@@ -1,0 +1,2457 @@
+{
+  "name": "Juniper & Pine (fictional)",
+  "areas": [
+    {
+      "id": "dining",
+      "name": "Dining room",
+      "kind": "dining",
+      "x": 0,
+      "y": 0,
+      "w": 90,
+      "h": 56,
+      "spareSlots": 2
+    },
+    {
+      "id": "terrace",
+      "name": "Terrace",
+      "kind": "dining",
+      "x": 0,
+      "y": 58,
+      "w": 52,
+      "h": 12,
+      "spareSlots": 1
+    },
+    {
+      "id": "station",
+      "name": "Service station",
+      "kind": "station",
+      "x": 34,
+      "y": 20,
+      "w": 22,
+      "h": 8
+    },
+    {
+      "id": "bar",
+      "name": "Bar",
+      "kind": "bar",
+      "x": 58,
+      "y": 58,
+      "w": 32,
+      "h": 12
+    },
+    {
+      "id": "garden-room",
+      "name": "Garden Room",
+      "kind": "private",
+      "x": 96,
+      "y": 2,
+      "w": 40,
+      "h": 13,
+      "suite": "East",
+      "order": 0,
+      "spareSlots": 1
+    },
+    {
+      "id": "library",
+      "name": "Library",
+      "kind": "private",
+      "x": 96,
+      "y": 17,
+      "w": 40,
+      "h": 13,
+      "suite": "East",
+      "order": 1,
+      "spareSlots": 1
+    },
+    {
+      "id": "cellar",
+      "name": "Cellar",
+      "kind": "private",
+      "x": 96,
+      "y": 32,
+      "w": 40,
+      "h": 13,
+      "suite": "East",
+      "order": 2,
+      "spareSlots": 1
+    },
+    {
+      "id": "loft",
+      "name": "Loft",
+      "kind": "private",
+      "x": 96,
+      "y": 51,
+      "w": 40,
+      "h": 13,
+      "suite": "West",
+      "order": 0,
+      "spareSlots": 1
+    },
+    {
+      "id": "atrium",
+      "name": "Atrium",
+      "kind": "private",
+      "x": 96,
+      "y": 66,
+      "w": 40,
+      "h": 13,
+      "suite": "West",
+      "order": 1,
+      "spareSlots": 1
+    },
+    {
+      "id": "gallery",
+      "name": "Gallery",
+      "kind": "private",
+      "x": 96,
+      "y": 81,
+      "w": 40,
+      "h": 13,
+      "suite": "West",
+      "order": 2,
+      "spareSlots": 1
+    }
+  ],
+  "joins": [
+    ["T4", "T5"],
+    ["T7", "T8"],
+    ["T8", "T9"],
+    ["T9", "T10"],
+    ["T11", "T12"],
+    ["T14", "T15"],
+    ["T16", "T17"],
+    ["T19", "T20"],
+    ["T20", "T21"],
+    ["T27", "T28"],
+    ["T28", "T29"],
+    ["T30", "T31"],
+    ["T31", "T32"],
+    ["T32", "T33"],
+    ["T34", "T35"],
+    ["T37", "T38"],
+    ["T39", "T40"],
+    ["T42", "T43"],
+    ["T43", "T44"],
+    ["T53", "T54"],
+    ["T54", "T55"],
+    ["T57", "T58"],
+    ["T58", "T59"],
+    ["T59", "T60"],
+    ["T60", "T61"],
+    ["T63", "T64"],
+    ["T64", "T65"],
+    ["T65", "T66"],
+    ["T67", "T68"],
+    ["T68", "T69"],
+    ["T71", "T72"],
+    ["T72", "T73"],
+    ["T73", "T74"],
+    ["T74", "T75"],
+    ["T77", "T78"],
+    ["T78", "T79"],
+    ["T79", "T80"],
+    ["T82", "T83"],
+    ["T83", "T84"],
+    ["T84", "T85"],
+    ["T85", "T86"],
+    ["T87", "T88"],
+    ["T88", "T89"],
+    ["T89", "T90"],
+    ["T92", "T93"],
+    ["T93", "T94"],
+    ["T94", "T95"]
+  ],
+  "combos": [],
+  "inventory": {
+    "extenders": 6,
+    "spareChairs": 40,
+    "spareTables": [
+      {
+        "seats": 4,
+        "count": 6
+      },
+      {
+        "seats": 2,
+        "count": 4
+      }
+    ]
+  },
+  "id": "book-fri",
+  "clock": "15:00",
+  "tables": [
+    {
+      "id": "T1",
+      "area": "Dining room",
+      "section": 1,
+      "x": 3,
+      "y": 3,
+      "w": 6,
+      "h": 4,
+      "shape": "booth",
+      "seats": 4,
+      "minSeats": 2,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": true,
+        "booth": true
+      },
+      "status": "open"
+    },
+    {
+      "id": "T2",
+      "area": "Dining room",
+      "section": 1,
+      "x": 10,
+      "y": 3,
+      "w": 6,
+      "h": 4,
+      "shape": "booth",
+      "seats": 4,
+      "minSeats": 2,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": true,
+        "booth": true
+      },
+      "status": "open"
+    },
+    {
+      "id": "T3",
+      "area": "Dining room",
+      "section": 1,
+      "x": 17,
+      "y": 3,
+      "w": 6,
+      "h": 4,
+      "shape": "booth",
+      "seats": 4,
+      "minSeats": 2,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": true,
+        "booth": true
+      },
+      "status": "open"
+    },
+    {
+      "id": "T4",
+      "area": "Dining room",
+      "section": 1,
+      "x": 4,
+      "y": 11,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": true,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T5",
+      "area": "Dining room",
+      "section": 1,
+      "x": 8,
+      "y": 11,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": true,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T6",
+      "area": "Dining room",
+      "section": 1,
+      "x": 16,
+      "y": 11,
+      "w": 4,
+      "h": 4,
+      "shape": "diamond",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": true,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T7",
+      "area": "Dining room",
+      "section": 2,
+      "x": 25,
+      "y": 3,
+      "w": 3,
+      "h": 3,
+      "shape": "rect",
+      "seats": 2,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T8",
+      "area": "Dining room",
+      "section": 2,
+      "x": 29,
+      "y": 3,
+      "w": 3,
+      "h": 3,
+      "shape": "rect",
+      "seats": 2,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T9",
+      "area": "Dining room",
+      "section": 2,
+      "x": 33,
+      "y": 3,
+      "w": 3,
+      "h": 3,
+      "shape": "rect",
+      "seats": 2,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T10",
+      "area": "Dining room",
+      "section": 2,
+      "x": 37,
+      "y": 3,
+      "w": 3,
+      "h": 3,
+      "shape": "rect",
+      "seats": 2,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T11",
+      "area": "Dining room",
+      "section": 2,
+      "x": 25,
+      "y": 10,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T12",
+      "area": "Dining room",
+      "section": 2,
+      "x": 31,
+      "y": 10,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": true,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T13",
+      "area": "Dining room",
+      "section": 2,
+      "x": 38,
+      "y": 10,
+      "w": 4,
+      "h": 4,
+      "shape": "diamond",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T14",
+      "area": "Dining room",
+      "section": 3,
+      "x": 47,
+      "y": 3,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T15",
+      "area": "Dining room",
+      "section": 3,
+      "x": 53,
+      "y": 3,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T16",
+      "area": "Dining room",
+      "section": 3,
+      "x": 47,
+      "y": 10,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": true,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T17",
+      "area": "Dining room",
+      "section": 3,
+      "x": 53,
+      "y": 10,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T18",
+      "area": "Dining room",
+      "section": 3,
+      "x": 60,
+      "y": 10,
+      "w": 6,
+      "h": 6,
+      "shape": "round",
+      "seats": 8,
+      "minSeats": 5,
+      "joinable": false,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": true,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T19",
+      "area": "Dining room",
+      "section": 4,
+      "x": 69,
+      "y": 3,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T20",
+      "area": "Dining room",
+      "section": 4,
+      "x": 75,
+      "y": 3,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T21",
+      "area": "Dining room",
+      "section": 4,
+      "x": 81,
+      "y": 3,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T22",
+      "area": "Dining room",
+      "section": 4,
+      "x": 70,
+      "y": 11,
+      "w": 4,
+      "h": 4,
+      "shape": "diamond",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T23",
+      "area": "Dining room",
+      "section": 4,
+      "x": 78,
+      "y": 10,
+      "w": 5,
+      "h": 5,
+      "shape": "round",
+      "seats": 6,
+      "minSeats": 3,
+      "joinable": false,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": true,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T24",
+      "area": "Dining room",
+      "section": 4,
+      "x": 85,
+      "y": 11,
+      "w": 3,
+      "h": 3,
+      "shape": "rect",
+      "seats": 2,
+      "minSeats": 1,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T25",
+      "area": "Dining room",
+      "section": 5,
+      "x": 3,
+      "y": 31,
+      "w": 4,
+      "h": 4,
+      "shape": "diamond",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T26",
+      "area": "Dining room",
+      "section": 5,
+      "x": 10,
+      "y": 31,
+      "w": 5,
+      "h": 5,
+      "shape": "round",
+      "seats": 6,
+      "minSeats": 3,
+      "joinable": false,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": true,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T27",
+      "area": "Dining room",
+      "section": 5,
+      "x": 3,
+      "y": 38,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T28",
+      "area": "Dining room",
+      "section": 5,
+      "x": 9,
+      "y": 38,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T29",
+      "area": "Dining room",
+      "section": 5,
+      "x": 15,
+      "y": 38,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T30",
+      "area": "Dining room",
+      "section": 6,
+      "x": 25,
+      "y": 31,
+      "w": 3,
+      "h": 3,
+      "shape": "rect",
+      "seats": 2,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T31",
+      "area": "Dining room",
+      "section": 6,
+      "x": 29,
+      "y": 31,
+      "w": 3,
+      "h": 3,
+      "shape": "rect",
+      "seats": 2,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T32",
+      "area": "Dining room",
+      "section": 6,
+      "x": 33,
+      "y": 31,
+      "w": 3,
+      "h": 3,
+      "shape": "rect",
+      "seats": 2,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T33",
+      "area": "Dining room",
+      "section": 6,
+      "x": 37,
+      "y": 31,
+      "w": 3,
+      "h": 3,
+      "shape": "rect",
+      "seats": 2,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T34",
+      "area": "Dining room",
+      "section": 6,
+      "x": 25,
+      "y": 38,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T35",
+      "area": "Dining room",
+      "section": 6,
+      "x": 31,
+      "y": 38,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": true,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T36",
+      "area": "Dining room",
+      "section": 6,
+      "x": 38,
+      "y": 38,
+      "w": 4,
+      "h": 4,
+      "shape": "diamond",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T37",
+      "area": "Dining room",
+      "section": 7,
+      "x": 47,
+      "y": 31,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T38",
+      "area": "Dining room",
+      "section": 7,
+      "x": 53,
+      "y": 31,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T39",
+      "area": "Dining room",
+      "section": 7,
+      "x": 47,
+      "y": 38,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": true,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T40",
+      "area": "Dining room",
+      "section": 7,
+      "x": 53,
+      "y": 38,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T41",
+      "area": "Dining room",
+      "section": 7,
+      "x": 60,
+      "y": 38,
+      "w": 6,
+      "h": 6,
+      "shape": "round",
+      "seats": 8,
+      "minSeats": 5,
+      "joinable": false,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": true,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T42",
+      "area": "Dining room",
+      "section": 8,
+      "x": 69,
+      "y": 31,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T43",
+      "area": "Dining room",
+      "section": 8,
+      "x": 75,
+      "y": 31,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T44",
+      "area": "Dining room",
+      "section": 8,
+      "x": 81,
+      "y": 31,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T45",
+      "area": "Dining room",
+      "section": 8,
+      "x": 70,
+      "y": 39,
+      "w": 4,
+      "h": 4,
+      "shape": "diamond",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T46",
+      "area": "Dining room",
+      "section": 8,
+      "x": 78,
+      "y": 38,
+      "w": 5,
+      "h": 5,
+      "shape": "round",
+      "seats": 6,
+      "minSeats": 3,
+      "joinable": false,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": true,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T47",
+      "area": "Dining room",
+      "section": 8,
+      "x": 85,
+      "y": 39,
+      "w": 3,
+      "h": 3,
+      "shape": "rect",
+      "seats": 2,
+      "minSeats": 1,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T48",
+      "area": "Terrace",
+      "section": 9,
+      "x": 2,
+      "y": 62,
+      "w": 3,
+      "h": 3,
+      "shape": "rect",
+      "seats": 2,
+      "minSeats": 1,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": true,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T49",
+      "area": "Terrace",
+      "section": 9,
+      "x": 8,
+      "y": 62,
+      "w": 3,
+      "h": 3,
+      "shape": "rect",
+      "seats": 2,
+      "minSeats": 1,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": true,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T50",
+      "area": "Terrace",
+      "section": 9,
+      "x": 14,
+      "y": 62,
+      "w": 3,
+      "h": 3,
+      "shape": "rect",
+      "seats": 2,
+      "minSeats": 1,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": true,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T51",
+      "area": "Terrace",
+      "section": 9,
+      "x": 20,
+      "y": 62,
+      "w": 3,
+      "h": 3,
+      "shape": "rect",
+      "seats": 2,
+      "minSeats": 1,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": true,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T52",
+      "area": "Terrace",
+      "section": 9,
+      "x": 26,
+      "y": 62,
+      "w": 3,
+      "h": 3,
+      "shape": "rect",
+      "seats": 2,
+      "minSeats": 1,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": true,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T53",
+      "area": "Terrace",
+      "section": 9,
+      "x": 34,
+      "y": 62,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": true,
+        "quiet": false,
+        "view": true,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T54",
+      "area": "Terrace",
+      "section": 9,
+      "x": 39,
+      "y": 62,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": true,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T55",
+      "area": "Terrace",
+      "section": 9,
+      "x": 44,
+      "y": 62,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": false,
+        "view": true,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T56",
+      "area": "Garden Room",
+      "section": 10,
+      "x": 98,
+      "y": 6,
+      "w": 6,
+      "h": 6,
+      "shape": "round",
+      "seats": 8,
+      "minSeats": 5,
+      "joinable": false,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T57",
+      "area": "Garden Room",
+      "section": 10,
+      "x": 106,
+      "y": 3,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": true,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T58",
+      "area": "Garden Room",
+      "section": 10,
+      "x": 111,
+      "y": 3,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T59",
+      "area": "Garden Room",
+      "section": 10,
+      "x": 116,
+      "y": 3,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T60",
+      "area": "Garden Room",
+      "section": 10,
+      "x": 121,
+      "y": 3,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T61",
+      "area": "Garden Room",
+      "section": 10,
+      "x": 126,
+      "y": 3,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T62",
+      "area": "Library",
+      "section": 11,
+      "x": 98,
+      "y": 21,
+      "w": 4,
+      "h": 4,
+      "shape": "diamond",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T63",
+      "area": "Library",
+      "section": 11,
+      "x": 106,
+      "y": 18,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": true,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T64",
+      "area": "Library",
+      "section": 11,
+      "x": 111,
+      "y": 18,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T65",
+      "area": "Library",
+      "section": 11,
+      "x": 116,
+      "y": 18,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T66",
+      "area": "Library",
+      "section": 11,
+      "x": 121,
+      "y": 18,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T67",
+      "area": "Library",
+      "section": 11,
+      "x": 106,
+      "y": 24,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T68",
+      "area": "Library",
+      "section": 11,
+      "x": 111,
+      "y": 24,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T69",
+      "area": "Library",
+      "section": 11,
+      "x": 116,
+      "y": 24,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T70",
+      "area": "Cellar",
+      "section": 12,
+      "x": 98,
+      "y": 36,
+      "w": 6,
+      "h": 6,
+      "shape": "round",
+      "seats": 8,
+      "minSeats": 5,
+      "joinable": false,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T71",
+      "area": "Cellar",
+      "section": 12,
+      "x": 106,
+      "y": 33,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": true,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T72",
+      "area": "Cellar",
+      "section": 12,
+      "x": 111,
+      "y": 33,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T73",
+      "area": "Cellar",
+      "section": 12,
+      "x": 116,
+      "y": 33,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T74",
+      "area": "Cellar",
+      "section": 12,
+      "x": 121,
+      "y": 33,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T75",
+      "area": "Cellar",
+      "section": 12,
+      "x": 126,
+      "y": 33,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": true,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T76",
+      "area": "Loft",
+      "section": 13,
+      "x": 98,
+      "y": 55,
+      "w": 4,
+      "h": 4,
+      "shape": "diamond",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T77",
+      "area": "Loft",
+      "section": 13,
+      "x": 106,
+      "y": 52,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": true,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T78",
+      "area": "Loft",
+      "section": 13,
+      "x": 111,
+      "y": 52,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T79",
+      "area": "Loft",
+      "section": 13,
+      "x": 116,
+      "y": 52,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T80",
+      "area": "Loft",
+      "section": 13,
+      "x": 121,
+      "y": 52,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T81",
+      "area": "Atrium",
+      "section": 14,
+      "x": 98,
+      "y": 70,
+      "w": 6,
+      "h": 6,
+      "shape": "round",
+      "seats": 8,
+      "minSeats": 5,
+      "joinable": false,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T82",
+      "area": "Atrium",
+      "section": 14,
+      "x": 106,
+      "y": 67,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": true,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T83",
+      "area": "Atrium",
+      "section": 14,
+      "x": 111,
+      "y": 67,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T84",
+      "area": "Atrium",
+      "section": 14,
+      "x": 116,
+      "y": 67,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T85",
+      "area": "Atrium",
+      "section": 14,
+      "x": 121,
+      "y": 67,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T86",
+      "area": "Atrium",
+      "section": 14,
+      "x": 126,
+      "y": 67,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T87",
+      "area": "Atrium",
+      "section": 14,
+      "x": 106,
+      "y": 73,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T88",
+      "area": "Atrium",
+      "section": 14,
+      "x": 111,
+      "y": 73,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T89",
+      "area": "Atrium",
+      "section": 14,
+      "x": 116,
+      "y": 73,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T90",
+      "area": "Atrium",
+      "section": 14,
+      "x": 121,
+      "y": 73,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T91",
+      "area": "Gallery",
+      "section": 15,
+      "x": 98,
+      "y": 85,
+      "w": 4,
+      "h": 4,
+      "shape": "diamond",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": false,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T92",
+      "area": "Gallery",
+      "section": 15,
+      "x": 106,
+      "y": 82,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": true,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T93",
+      "area": "Gallery",
+      "section": 15,
+      "x": 111,
+      "y": 82,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T94",
+      "area": "Gallery",
+      "section": 15,
+      "x": 116,
+      "y": 82,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 0,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    },
+    {
+      "id": "T95",
+      "area": "Gallery",
+      "section": 15,
+      "x": 121,
+      "y": 82,
+      "w": 4,
+      "h": 4,
+      "shape": "rect",
+      "seats": 4,
+      "minSeats": 1,
+      "joinable": true,
+      "maxExtraChairs": 1,
+      "attrs": {
+        "accessible": false,
+        "strollerSpace": false,
+        "quiet": true,
+        "view": false,
+        "booth": false
+      },
+      "status": "open"
+    }
+  ],
+  "reservations": [
+    {
+      "id": "F1",
+      "time": "18:00",
+      "partySize": 12,
+      "needs": ["quiet"]
+    },
+    {
+      "id": "F2",
+      "time": "18:30",
+      "partySize": 16,
+      "area": "Atrium"
+    },
+    {
+      "id": "F3",
+      "time": "19:00",
+      "partySize": 10
+    },
+    {
+      "id": "F4",
+      "time": "21:00",
+      "partySize": 24
+    },
+    {
+      "id": "F5",
+      "time": "20:00",
+      "partySize": 8
+    },
+    {
+      "id": "F6",
+      "time": "20:15",
+      "partySize": 11
+    },
+    {
+      "id": "f1",
+      "time": "17:00",
+      "partySize": 2
+    },
+    {
+      "id": "f2",
+      "time": "18:45",
+      "partySize": 4
+    },
+    {
+      "id": "f3",
+      "time": "20:30",
+      "partySize": 2
+    },
+    {
+      "id": "f4",
+      "time": "18:00",
+      "partySize": 3
+    },
+    {
+      "id": "f5",
+      "time": "19:45",
+      "partySize": 6
+    },
+    {
+      "id": "f6",
+      "time": "17:15",
+      "partySize": 2
+    },
+    {
+      "id": "f7",
+      "time": "19:00",
+      "partySize": 4
+    },
+    {
+      "id": "f8",
+      "time": "20:45",
+      "partySize": 5
+    },
+    {
+      "id": "f9",
+      "time": "18:15",
+      "partySize": 2
+    },
+    {
+      "id": "f10",
+      "time": "20:00",
+      "partySize": 4
+    },
+    {
+      "id": "f11",
+      "time": "17:30",
+      "partySize": 3
+    },
+    {
+      "id": "f12",
+      "time": "19:15",
+      "partySize": 2
+    },
+    {
+      "id": "f13",
+      "time": "21:00",
+      "partySize": 6
+    },
+    {
+      "id": "f14",
+      "time": "18:30",
+      "partySize": 4
+    },
+    {
+      "id": "f15",
+      "time": "20:15",
+      "partySize": 2
+    },
+    {
+      "id": "f16",
+      "time": "17:45",
+      "partySize": 5
+    },
+    {
+      "id": "f17",
+      "time": "19:30",
+      "partySize": 2
+    },
+    {
+      "id": "f18",
+      "time": "17:00",
+      "partySize": 4
+    },
+    {
+      "id": "f19",
+      "time": "18:45",
+      "partySize": 3
+    },
+    {
+      "id": "f20",
+      "time": "20:30",
+      "partySize": 2
+    },
+    {
+      "id": "f21",
+      "time": "18:00",
+      "partySize": 4
+    },
+    {
+      "id": "f22",
+      "time": "19:45",
+      "partySize": 2
+    },
+    {
+      "id": "f23",
+      "time": "17:15",
+      "partySize": 6
+    },
+    {
+      "id": "f24",
+      "time": "19:00",
+      "partySize": 3
+    },
+    {
+      "id": "f25",
+      "time": "20:45",
+      "partySize": 2
+    },
+    {
+      "id": "f26",
+      "time": "18:15",
+      "partySize": 4
+    },
+    {
+      "id": "f27",
+      "time": "20:00",
+      "partySize": 2
+    },
+    {
+      "id": "f28",
+      "time": "17:30",
+      "partySize": 5
+    },
+    {
+      "id": "f29",
+      "time": "19:15",
+      "partySize": 2
+    },
+    {
+      "id": "f30",
+      "time": "21:00",
+      "partySize": 3
+    }
+  ]
+}

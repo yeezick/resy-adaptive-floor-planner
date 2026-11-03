@@ -3,6 +3,8 @@ import { LARGE_PARTY, planBuilds, toMinutes, type Room } from "../../domain";
 import { buildHighlight } from "../BuildPlan/BuildPlan";
 import type { Highlight, HighlightControls } from "../highlight";
 import { PHASE_LABEL, seatedParties, type DoneEntry, type WaitEntry } from "../lib/service";
+import { ProposedTag, SOURCE_LABEL, VerdictChip } from "../requests/RequestSheet";
+import { decisionOf, pendingCount, useRequests } from "../requests/store";
 
 interface Props {
   room: Room;
@@ -15,6 +17,8 @@ interface Props {
   onRemoveWaiting: (id: string) => void;
   onSelectTables: (ids: string[]) => void;
   onFinish: (ids: string[]) => void;
+  openRequest: string | null;
+  onOpenRequest: (id: string) => void;
 }
 
 /** Long lists show this many rows until "Show all", so every list header stays on screen. */
@@ -79,6 +83,7 @@ export function Rail(p: Props) {
 
   return (
     <div className="rail-lists">
+      <RequestsSection open={p.openRequest} onOpen={p.onOpenRequest} />
       <RailSection
         title="Waitlist"
         parties={waitlist.length}
@@ -271,12 +276,74 @@ export function Rail(p: Props) {
   );
 }
 
+function RequestsSection({ open, onOpen }: { open: string | null; onOpen: (id: string) => void }) {
+  const s = useRequests();
+  const list = s.book?.requests ?? [];
+  const badge = pendingCount(s);
+  return (
+    <RailSection title="Requests" parties={list.length} covers={covers(list)} badge={badge}>
+      {s.error && <p className="rail-empty">Requests unavailable: {s.error.message}</p>}
+      {!s.error && !s.book && <p className="rail-empty">Loading requests…</p>}
+      {s.book && (
+        <p className="rail-note">
+          <ProposedTag /> Parties above the online cap of {s.book.onlineCap}
+        </p>
+      )}
+      <ul className="rows">
+        {list.map((r) => {
+          const t = s.triage[r.id];
+          const d = decisionOf(s, r.id);
+          return (
+            <li key={r.id} className={`row row-request${open === r.id ? " is-open" : ""}`}>
+              <button
+                type="button"
+                className="row-btn"
+                aria-current={open === r.id ? "true" : undefined}
+                onClick={() => onOpen(r.id)}
+              >
+                <span className="row-time">
+                  {r.day}
+                  <br />
+                  {r.time}
+                </span>
+                <span className="row-party" aria-label={`party of ${r.partySize}`}>
+                  {r.partySize}
+                </span>
+                <span className="row-main">
+                  <span className="row-sub">
+                    <VerdictChip t={t} />
+                    <span className="muted"> {SOURCE_LABEL[r.source]}</span>
+                  </span>
+                  {t?.status === "ok" && (
+                    <span className="req-lines">
+                      {t.result.summary.map((line) => (
+                        <span key={line}>{line}</span>
+                      ))}
+                    </span>
+                  )}
+                  {d.kind !== "pending" && (
+                    <span className={`tag tag-${d.kind}`}>
+                      {d.kind === "declined" ? `declined · ${d.reason}` : d.kind}
+                    </span>
+                  )}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </RailSection>
+  );
+}
+
 interface SectionProps {
   title: string;
   parties: number;
   covers: number;
   action?: ReactNode;
   defaultOpen?: boolean;
+  /** Count of items waiting for someone (shown as a badge). */
+  badge?: number;
   children: ReactNode;
 }
 
@@ -286,6 +353,7 @@ function RailSection({
   covers,
   action,
   defaultOpen = true,
+  badge,
   children,
 }: SectionProps) {
   const [open, setOpen] = useState(defaultOpen);
@@ -305,7 +373,14 @@ function RailSection({
             {open ? "▾" : "▸"}
           </span>
           <span className="rail-name">
-            {title}
+            <span className="rail-name-row">
+              {title}
+              {badge ? (
+                <span className="badge" aria-label={`${badge} waiting`}>
+                  {badge}
+                </span>
+              ) : null}
+            </span>
             <span className="rail-count">
               {parties} {parties === 1 ? "party" : "parties"} · {covers} cov
             </span>

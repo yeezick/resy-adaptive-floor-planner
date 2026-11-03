@@ -289,7 +289,17 @@ function choicesFor(
  * Searches assignments (earliest party first) to place as many parties as possible, then to minimise
  * wasted seats, tables, rooms opened and storage used. Windows do not cross midnight.
  */
-export function planBuilds(room: Room, from: string, to: string): BuildPlan {
+export interface PlanOptions {
+  /** Reservations that may only use private event rooms (a "private feel" request). */
+  privateOnly?: readonly string[];
+}
+
+export function planBuilds(
+  room: Room,
+  from: string,
+  to: string,
+  opts: PlanOptions = {},
+): BuildPlan {
   const start = toMinutes(from);
   const end = toMinutes(to);
   const large = room.reservations
@@ -298,7 +308,11 @@ export function planBuilds(room: Room, from: string, to: string): BuildPlan {
     )
     .sort((a, b) => toMinutes(a.time) - toMinutes(b.time) || b.partySize - a.partySize);
   const units = buildUnits(room);
-  const pools = large.map((r) => poolFor(room, units, r));
+  const privateOnly = new Set(opts.privateOnly ?? []);
+  const isPrivate = (u: Unit) => u.areas.every((a) => areaByName(room, a)?.kind === "private");
+  const pools = large.map((r) =>
+    poolFor(room, privateOnly.has(r.id) ? units.filter(isPrivate) : units, r),
+  );
   const spare4 = room.inventory.spareTables
     .filter((t) => t.seats >= 4)
     .reduce((n, t) => n + t.count, 0);
@@ -538,4 +552,75 @@ export function checkTableSet(room: Room, ids: readonly string[]): TableSetCheck
       MAX_EXTENDERS_PER_ROW * SEATS_PER_EXTENDER * unit.extendableRows +
       (unit.extendableRows ? unit.spareSlots * 2 : 0),
   };
+}
+
+export interface FitOptions {
+  /** Only private event rooms (a "private feel" request). */
+  privateOnly?: boolean;
+  /** Latest arrival time to try when the requested time does not fit (default 22:00). */
+  latest?: string;
+}
+
+export type RequestFit =
+  | { ok: true; build: Build; plan: BuildPlan }
+  | {
+      ok: false;
+      /** One line, e.g. "No private-room set for 30 is free at 19:30 — earliest 20:30." */
+      reason: string;
+      /** Earliest arrival (15-minute steps) that would fit without moving any booking, if any. */
+      nextFit: string | null;
+      plan: BuildPlan;
+    };
+
+/**
+ * Can one more large party (a request above the online cap) be built tonight without bumping a booking?
+ * Plans the book with and without the request: it fits when the planner places it and still places every
+ * booking it placed before (their tables may change; their seats may not). Read-only. When it cannot fit,
+ * says why in one line and finds the earliest later arrival (15-minute steps) that would.
+ */
+export function fitRequest(
+  room: Room,
+  r: Reservation,
+  from: string,
+  to: string,
+  opts: FitOptions = {},
+): RequestFit {
+  const book = room.reservations.filter((x) => x.id !== r.id);
+  const before = planBuilds({ ...room, reservations: book }, from, to);
+  const placedBefore = new Set(before.builds.map((b) => b.reservationId));
+  const latest = opts.latest ?? "22:00";
+  const attempt = (time: string): BuildPlan | undefined => {
+    const at = { ...r, time };
+    const plan = planBuilds({ ...room, reservations: [...book, at] }, from, time > to ? time : to, {
+      privateOnly: opts.privateOnly ? [r.id] : [],
+    });
+    const placed = new Set(plan.builds.map((b) => b.reservationId));
+    return placed.has(r.id) && [...placedBefore].every((id) => placed.has(id)) ? plan : undefined;
+  };
+  const plan = attempt(r.time);
+  const build = plan?.builds.find((b) => b.reservationId === r.id);
+  if (plan && build) return { ok: true, build, plan };
+
+  let nextFit: string | null = null;
+  for (let m = toMinutes(r.time) + 15; m <= toMinutes(latest); m += 15) {
+    if (attempt(toHHMM(m))) {
+      nextFit = toHHMM(m);
+      break;
+    }
+  }
+  const what = opts.privateOnly ? "private-room set" : "table set";
+  const needs = r.needs.length ? ` (${r.needs.join(", ")})` : "";
+  const units = buildUnits(room).filter(
+    (u) =>
+      meetsNeeds(u.tables, r.needs) &&
+      (!opts.privateOnly || u.areas.every((a) => areaByName(room, a)?.kind === "private")),
+  );
+  const largest = Math.max(0, ...units.map(maxSeats));
+  const reason =
+    largest < r.partySize
+      ? `No ${what}${needs} seats ${r.partySize}, even with storage (largest: ${largest}).`
+      : `No ${what} for ${r.partySize}${needs} is free at ${r.time} without bumping a booking${
+          nextFit ? ` — earliest ${nextFit}` : " — none later tonight"
+        }.`;
+  return { ok: false, reason, nextFit, plan: before };
 }
