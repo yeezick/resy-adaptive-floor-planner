@@ -3,8 +3,9 @@ import { LARGE_PARTY, planBuilds, toHHMM, toMinutes, type Room } from "../../dom
 import { buildHighlight } from "../BuildPlan/BuildPlan";
 import type { Highlight, HighlightControls } from "../highlight";
 import { PHASE_LABEL, seatedParties, type DoneEntry, type WaitEntry } from "../lib/service";
-import { ProposedTag, SOURCE_LABEL, VerdictChip } from "../requests/RequestSheet";
+import { ProposedTag, SOURCE_LABEL, SOURCE_SHORT, VerdictChip } from "../requests/RequestSheet";
 import { decisionOf, pendingCount, useRequests } from "../requests/store";
+import { tableNo } from "../../domain/wording";
 
 interface Props {
   room: Room;
@@ -280,14 +281,14 @@ export function Rail(p: Props) {
                     {...hoverProps(highlight, {
                       key: `held-${t.id}`,
                       ids: [t.id],
-                      label: `${t.id} held for ${t.reservedAt ?? "later"}`,
+                      label: `Table ${tableNo(t.id)} held for ${t.reservedAt ?? "later"}`,
                     })}
                   >
                     <span className="row-time">{t.reservedAt ?? "—"}</span>
                     <span className="row-party">{t.seats}</span>
                     <span className="row-main">
                       <span className="row-sub">
-                        <strong>{t.id}</strong> · {short(t.area)}
+                        <strong>Table {tableNo(t.id)}</strong> · {short(t.area)}
                       </span>
                     </span>
                   </button>
@@ -413,7 +414,10 @@ function RequestsSection({
                 <span className="row-main">
                   <span className="row-sub">
                     <VerdictChip t={t} />
-                    <span className="muted"> {SOURCE_LABEL[r.source]}</span>
+                    <span className="muted" title={SOURCE_LABEL[r.source]}>
+                      {" "}
+                      {SOURCE_SHORT[r.source]}
+                    </span>
                   </span>
                   {t?.status === "ok" && (
                     <span className="req-lines">

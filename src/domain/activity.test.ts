@@ -19,7 +19,7 @@ const triage = (over: Partial<TriageEvent> = {}): TriageEvent => ({
   refId: "Q1",
   traceId: "t1",
   at: "2026-11-03T15:00:00.000Z",
-  source: "guest-form",
+  source: "app",
   partySize: 14,
   when: "Sat 19:00",
   verdict: "real",

@@ -3,6 +3,7 @@ import { estimateFreeTime, RESET_MIN, REMAINING_MIN, sectionLoad } from "./phase
 import { neighbours, tableById } from "./room";
 import { toHHMM, toMinutes } from "./time";
 import type { Need, Room, Table } from "./types";
+import { tablesPhrase } from "./wording";
 
 /** Expected minutes a newly seated party holds the table, including reset. */
 export const TURN_MIN = REMAINING_MIN.seated + RESET_MIN;
@@ -142,7 +143,7 @@ export function findTablesForParty(room: Room, req: PartyRequest): FitResult {
     ];
     if (needs.length) reasons.push(`meets: ${needs.join(", ")}`);
     const tradeoffs: string[] = [];
-    if (ids.length > 1) tradeoffs.push(`needs a build: join ${ids.join(" + ")}`);
+    if (ids.length > 1) tradeoffs.push(`needs a build: combine ${tablesPhrase(ids)}`);
     if (extraChairs) tradeoffs.push(`tight: add ${extraChairs} chair(s) from storage`);
     if (load >= 2) tradeoffs.push(`section ${sections.join("/")} is already slammed`);
     if (waste > WASTE_CAP) tradeoffs.push(`${waste} empty seats`);

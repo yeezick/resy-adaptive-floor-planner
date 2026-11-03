@@ -1,0 +1,9 @@
+{
+  "note": "Crew minutes per build step (fictional venue; estimates). Drives the crew list time windows and 'Build time ~X min (est.)'.",
+  "perTable": 3,
+  "extender": 3,
+  "spareTable": 4,
+  "chairsPerMinute": 4,
+  "openDivider": 5,
+  "minimum": 10
+}

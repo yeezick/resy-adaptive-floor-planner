@@ -4,7 +4,7 @@
   "requests": [
     {
       "id": "Q1",
-      "source": "guest-form",
+      "source": "app",
       "receivedAt": "Tue 09:12",
       "day": "Sat",
       "bookRoomId": "demo-night",
@@ -29,7 +29,7 @@
     },
     {
       "id": "Q3",
-      "source": "guest-form",
+      "source": "app",
       "receivedAt": "Tue 10:41",
       "day": "Thu",
       "bookRoomId": "book-thu",
@@ -43,7 +43,7 @@
     },
     {
       "id": "Q4",
-      "source": "guest-form",
+      "source": "app",
       "receivedAt": "Tue 11:20",
       "day": "Sat",
       "bookRoomId": "demo-night",
@@ -52,6 +52,32 @@
       "needs": [],
       "contact": "free dinner",
       "message": "yo table for 250 this sat lol, my followers want free food. comp it and i'll post about u. dm me asap!!! click here for collab"
+    },
+    {
+      "id": "Q5",
+      "source": "ai-agent",
+      "receivedAt": "Wed 21:47",
+      "day": "Sat",
+      "bookRoomId": "demo-night",
+      "time": "18:00",
+      "partySize": 12,
+      "occasion": "graduation",
+      "needs": ["stroller"],
+      "contact": "Noor Haddad",
+      "message": "Request from a booking assistant for Noor Haddad: graduation dinner for 12 on Saturday at 6:00 PM. One toddler in a stroller. Could also do 6:30 PM. Prefers a table where the group can sit together."
+    },
+    {
+      "id": "Q6",
+      "source": "walk-in",
+      "receivedAt": "Sat 14:40",
+      "day": "Sat",
+      "bookRoomId": "demo-night",
+      "time": "20:30",
+      "partySize": 10,
+      "occasion": "anniversary",
+      "needs": ["quiet"],
+      "contact": "Lee Okafor",
+      "message": "Stopped by the host stand at 14:40 to ask for 10 tonight around 8:30 for their parents' anniversary. Would like somewhere quieter. Can wait at the bar a little if needed."
     }
   ]
 }

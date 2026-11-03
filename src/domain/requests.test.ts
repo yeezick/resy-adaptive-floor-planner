@@ -3,7 +3,17 @@ import { describe, expect, it } from "vitest";
 import bookFriJson from "../../fixtures/rooms/book-fri.json";
 import bookThuJson from "../../fixtures/rooms/book-thu.json";
 import { demoNight } from "./__fixtures__/build";
-import { checkRequest, draftReply, parseRequestBook, type GuestRequest } from "./requests";
+import {
+  checkRequest,
+  draftReply,
+  needsOverview,
+  parseRequestBook,
+  requestHeader,
+  SOURCE_LABEL,
+  SOURCES,
+  walkInRequest,
+  type GuestRequest,
+} from "./requests";
 import { parseRoom } from "./room";
 import type { Room } from "./types";
 
@@ -19,11 +29,57 @@ const rooms: Record<string, () => Room> = {
 const roomFor = (r: GuestRequest) => (rooms[r.bookRoomId] as () => Room)();
 
 describe("request fixture", () => {
-  it("holds four fictional requests above the online cap of 8, from both sources", () => {
+  it("holds six fictional requests above the online cap of 8, from all three sources", () => {
     expect(book.onlineCap).toBe(8);
-    expect(book.requests.map((r) => r.partySize)).toEqual([14, 22, 30, 250]);
+    expect(book.requests.map((r) => r.partySize)).toEqual([14, 22, 30, 250, 12, 10]);
     expect(new Set(book.requests.map((r) => r.source))).toEqual(
-      new Set(["guest-form", "ai-agent"]),
+      new Set(["app", "ai-agent", "walk-in"]),
+    );
+  });
+
+  it("the demo night (Saturday) has a request from every source", () => {
+    const sat = book.requests.filter((r) => r.bookRoomId === "demo-night");
+    expect(new Set(sat.map((r) => r.source))).toEqual(new Set(SOURCES));
+  });
+
+  it("labels every source for the card", () => {
+    expect(SOURCES.map((s) => SOURCE_LABEL[s])).toEqual([
+      "Resy app",
+      "AI agent (chat app or MCP)",
+      "Walk-in at the host stand",
+    ]);
+  });
+
+  it("heads the card with name, size, time and a countdown", () => {
+    const q2 = byId("Q2");
+    expect(requestHeader(q2, 210)).toBe("Sam Whitaker, party of 22 · Fri 18:30 (in 3h 30m)");
+    expect(requestHeader(q2, null)).toBe("Sam Whitaker, party of 22 · Fri 18:30");
+  });
+
+  it("a host-stand walk-in is a valid request of any size, with a default name and note", () => {
+    const w = walkInRequest({
+      id: "Q901",
+      day: "Sat",
+      bookRoomId: "demo-night",
+      clock: "15:00",
+      time: "19:30",
+      partySize: 6,
+      needs: ["quiet"],
+    });
+    expect(w).toMatchObject({
+      source: "walk-in",
+      contact: "Walk-in guest",
+      receivedAt: "Sat 15:00",
+    });
+    expect(w.message).toBe("Asked at the host stand: party of 6 at 19:30 (quiet).");
+    expect(() => parseRequestBook({ ...book, requests: [w] })).not.toThrow();
+  });
+
+  it("describes needs without triage", () => {
+    expect(needsOverview(byId("Q2"))).toBe("Step-free access · space for a stroller.");
+    expect(needsOverview(byId("Q6"))).toBe("Anniversary · a quieter spot.");
+    expect(needsOverview({ ...byId("Q1"), occasion: undefined, needs: [] })).toBe(
+      "No special needs given.",
     );
   });
 
@@ -87,7 +143,8 @@ describe("draftReply", () => {
       expect(text).not.toMatch(/\b(confirmed|booked)\b/i);
       expect(text).toMatch(new RegExp(`party of ${r.partySize}`));
     }
-  });
+    // six capacity fits, each up to 13 plans of a 95-table night; slow under coverage in CI
+  }, 20_000);
 
   it("offers the earliest time when the request can't fit as asked", () => {
     const r = byId("Q3");

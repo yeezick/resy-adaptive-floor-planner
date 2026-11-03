@@ -40,7 +40,9 @@ test("walk-in for 8 suggests tables without seating anyone", async ({ page }) =>
   await page.locator(".walkin .size-grid").getByRole("button", { name: "8", exact: true }).click();
   const suggested = page.locator(".suggested");
   await expect(suggested).toBeVisible();
-  await expect(suggested).toContainText("T41");
+  await expect(suggested).toContainText("table 41");
+  // table numbers never carry the fixture's "T" prefix
+  await expect(suggested).not.toContainText(/\bT\d/);
 });
 
 test("assistant renders ranked recommendations and never auto-seats", async ({ page }) => {
@@ -78,7 +80,8 @@ test("assistant renders ranked recommendations and never auto-seats", async ({ p
   await hostButton(page, "Assistant").click();
   await page.locator("#agent-input").fill("Party of 8 — where, and how soon?");
   await page.getByRole("button", { name: "Ask", exact: true }).click();
-  await expect(page.locator(".rec-card").first()).toContainText("T41");
+  await expect(page.locator(".rec-card").first()).toContainText("table 41");
+  await expect(page.locator(".answer")).toHaveText("Table 41 frees in about 11 minutes.");
   await expect(page.getByText(/never auto-seat/i)).toBeVisible();
   expect(
     await page
@@ -99,7 +102,7 @@ test("generate tonight's layout places parties and explains what can't fit", asy
   await page.getByRole("button", { name: "Generate tonight's layout" }).click();
   await expect(page.locator(".proposal")).toBeVisible();
   await expect(page.locator('[aria-label="Crew build list"]')).toBeVisible();
-  await expect(page.locator('[aria-label="Can\'t fit"]')).toBeVisible();
+  await expect(page.locator('[aria-label="No capacity fit"]')).toBeVisible();
 });
 
 test("editor opens the base layout and inspects a table", async ({ page }) => {
@@ -112,7 +115,7 @@ test("editor opens the base layout and inspects a table", async ({ page }) => {
     .click();
   await expect(page.locator(".editor-canvas")).toBeVisible();
   await page.locator('.editor-canvas g[data-id="T41"]').click();
-  await expect(page.locator(".inspector")).toContainText("T41");
+  await expect(page.locator(".inspector")).toContainText("Table 41");
 });
 
 test("/evals page renders", async ({ page }) => {
@@ -120,7 +123,7 @@ test("/evals page renders", async ({ page }) => {
   await expect(page.locator(".evals h1")).toBeVisible();
 });
 
-test("request inbox: triage, fit check, accept opens that night's plan", async ({ page }) => {
+test("request inbox: triage, capacity fit, accept opens that night's plan", async ({ page }) => {
   await page.route("**/api/requests/*/triage", (route) => {
     const id = /requests\/(Q\d+)\//.exec(route.request().url())?.[1] ?? "Q0";
     const junk = id === "Q4";
@@ -145,7 +148,8 @@ test("request inbox: triage, fit check, accept opens that night's plan", async (
   await openFloor(page);
   const rail = page.getByRole("region", { name: /Requests/ });
   await expect(rail).toContainText("Proposed feature");
-  await expect(rail.locator(".row-request")).toHaveCount(4);
+  await expect(rail.locator(".row-request")).toHaveCount(6);
+  for (const label of ["Resy app", "AI agent", "Walk-in"]) await expect(rail).toContainText(label);
   await expect(rail).toContainText("Likely junk");
 
   // the 30-top can't have a private room at 19:30: Accept stays disabled, the reason is one line
@@ -153,14 +157,27 @@ test("request inbox: triage, fit check, accept opens that night's plan", async (
   await expect(page.locator(".cant-fit-line")).toContainText("earliest 20:30");
   await expect(page.getByRole("button", { name: /Accept/ })).toBeDisabled();
   await page.getByRole("button", { name: "Decline", exact: true }).click();
-  await page.getByRole("button", { name: "Decline for fit" }).click();
-  await expect(page.locator(".req-decided")).toContainText("Declined for fit");
+  await page.getByRole("button", { name: "Decline for capacity fit" }).click();
+  await expect(page.locator(".req-decided")).toContainText("Declined for capacity fit");
 
   // the 22-top fits: Accept opens Friday's plan with the party in focus
   await rail.locator(".row-request .row-btn").nth(1).click();
-  await expect(page.getByText("Fits", { exact: true })).toBeVisible();
+  const sheet = page.locator(".request-sheet");
+  await expect(sheet.locator(".req-title")).toHaveText(
+    "Sam Whitaker, party of 22 · Fri 18:30 (in 3h 30m)",
+  );
+  await expect(sheet.locator(".req-overview")).toContainText("Stub line one for Q2.");
+  await expect(sheet).toContainText("AI agent (chat app or MCP)");
+  await expect(sheet.getByText("Capacity fit", { exact: true }).last()).toBeVisible();
+  await expect(sheet.locator(".crew-note")).toHaveText(/^(Open|Combine|Set) .*tables? \d/);
+  await expect(sheet).not.toContainText(/\bT\d/);
   const cost = page.locator(".request-sheet .fit-card");
-  await expect(cost).toContainText("covers lost");
+  await expect(cost).toContainText(
+    /Accept: \+22 covers \(the party\) · −\d+ covers lost to the hold \(est\.\) = net [+−]?\d+/,
+  );
+  await expect(cost).toContainText("Decline: 0 · request leaves Resy");
+  await expect(cost).toContainText(/Build time ~\d+ min \(est\.\)/);
+  await expect(cost).toContainText("covers lost (est.)");
   await expect(cost).toContainText("spans two servers' sections");
   await expect(cost).toContainText("joins clear");
   await page.getByRole("button", { name: /Accept/ }).click();
@@ -170,6 +187,24 @@ test("request inbox: triage, fit check, accept opens that night's plan", async (
   await expect(page.locator(".fit-card.is-focus")).toContainText("Q2");
 });
 
+test("a large walk-in at the host stand gets the same capacity fit and cost", async ({ page }) => {
+  await openFloor(page);
+  await page.locator(".room-select select").selectOption("demo-night");
+  await expect(page.locator(".room-name")).toBeVisible();
+  await hostButton(page, "+ Walk-in").click();
+  await page.locator(".walkin .size-more input").fill("14");
+  const stand = page.getByRole("region", { name: "Large party at the host stand" });
+  await expect(stand).toContainText("Party of 14 at the stand");
+  await stand.getByRole("combobox").selectOption("21:00");
+  await stand.getByRole("textbox").fill("Kim Lee");
+  await stand.getByRole("button", { name: "Check capacity fit →" }).click();
+  const sheet = page.locator(".request-sheet");
+  await expect(sheet.locator(".req-title")).toHaveText("Kim Lee, party of 14 · Sat 21:00 (in 6h)");
+  await expect(sheet).toContainText("Walk-in at the host stand");
+  await expect(sheet).toContainText("At the stand");
+  await expect(sheet.getByRole("region", { name: "Capacity fit" })).toBeVisible();
+});
+
 test("activity log lists AI actions with decisions, never the guest's words", async ({ page }) => {
   await openFloor(page);
   await page.getByRole("link", { name: "Activity" }).click();
@@ -177,7 +212,7 @@ test("activity log lists AI actions with decisions, never the guest's words", as
   await expect(page.locator(".activity")).toContainText("Proposed feature");
   const table = page.locator(".activity-table");
   await expect(table).toContainText("Refusal");
-  await expect(table).toContainText("Declined · fit");
+  await expect(table).toContainText("Declined · capacity fit");
   await expect(table).toContainText("Declined · policy");
   await expect(page.locator(".activity")).not.toContainText("surprise 40th for my partner");
   await page.getByRole("combobox", { name: "Type" }).selectOption("refusal");

@@ -1,6 +1,14 @@
-import { comboOf, estimateFreeTime, tableById, type Room, type Table } from "../../domain";
+import {
+  comboOf,
+  ELAPSED_EST_MIN,
+  estimateFreeTime,
+  tableById,
+  type Room,
+  type Table,
+} from "../../domain";
 import { waitLabel } from "../lib/format";
 import { PHASE_LABEL } from "../lib/service";
+import { tableNo, tablesPhrase } from "../../domain/wording";
 
 const ATTRS: [keyof Table["attrs"], string][] = [
   ["accessible", "Accessible"],
@@ -44,9 +52,9 @@ function TableCard({
   const free = estimateFreeTime(t);
   const combo = comboOf(room, t.id);
   return (
-    <article className="card table-card" aria-label={`Details for ${t.id}`}>
+    <article className="card table-card" aria-label={`Details for table ${tableNo(t.id)}`}>
       <header>
-        <strong>{t.id}</strong>
+        <strong>Table {tableNo(t.id)}</strong>
         <span className={`pill status-${t.status}`}>{t.status}</span>
       </header>
       <dl className="kv">
@@ -70,6 +78,8 @@ function TableCard({
               {PHASE_LABEL[t.phase ?? "seated"]}
               {t.partySize ? ` · party of ${t.partySize}` : ""}
             </dd>
+            <dt>Seated</dt>
+            <dd>~{ELAPSED_EST_MIN[t.phase ?? "seated"]} min ago (est.)</dd>
           </>
         )}
         {t.reservedAt && (
@@ -88,7 +98,7 @@ function TableCard({
         {combo && (
           <>
             <dt>Combo</dt>
-            <dd>{combo.join(" + ")}</dd>
+            <dd>{tablesPhrase(combo)}</dd>
           </>
         )}
       </dl>
@@ -101,7 +111,7 @@ function TableCard({
       </div>
       {t.status === "occupied" && (
         <button type="button" className="finish-btn" onClick={() => onFinish(combo ?? [t.id])}>
-          Finish {combo ? combo.join("+") : t.id} — party leaves, tables open
+          Finish {tablesPhrase(combo ?? [t.id])} — party leaves, tables open
         </button>
       )}
     </article>

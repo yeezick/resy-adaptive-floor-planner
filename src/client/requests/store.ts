@@ -3,7 +3,7 @@
 // book in this browser session (fictional data; no guest is contacted).
 import { useSyncExternalStore } from "react";
 import type { GuestRequest, RequestBook } from "../../domain/requests";
-import { toReservation } from "../../domain/requests";
+import { toReservation, walkInRequest } from "../../domain/requests";
 import type { Reservation } from "../../domain";
 import type { TriageResult } from "../../shared/api";
 import { fetchRequests, postDecision, postTriage, type ClientError } from "../api";
@@ -18,6 +18,8 @@ export type Decision =
 
 export type TriageState =
   | { status: "loading" }
+  /** Taken at the host stand in this session: the host is talking to the guest, so no AI triage runs. */
+  | { status: "host" }
   | { status: "ok"; result: TriageResult; at: string }
   | { status: "error"; error: ClientError; at: string };
 
@@ -49,6 +51,14 @@ let state: RequestsState = {
 const listeners = new Set<() => void>();
 let started = false;
 let seq = 0;
+/** Requests the host created at the stand this session (the server has no record of them). */
+const local = new Set<string>();
+let walkInSeq = 0;
+
+/** Log a decision on the server, except for host-stand requests the server has never seen. */
+function logDecision(id: string, d: Parameters<typeof postDecision>[1]): void {
+  if (!local.has(id)) void postDecision(id, d);
+}
 
 function set(next: Partial<RequestsState>): void {
   state = { ...state, ...next };
@@ -88,10 +98,26 @@ export function startRequests(): void {
 
 export const requestsActions = {
   retryTriage(r: GuestRequest) {
-    void triage(r);
+    if (!local.has(r.id)) void triage(r);
+  },
+  /**
+   * A large party asking in person: added to the inbox as a walk-in request and opened on its night, where it
+   * gets the same capacity fit and cost as an online request. Returns the new request.
+   */
+  addWalkIn(input: Omit<Parameters<typeof walkInRequest>[0], "id">): GuestRequest | null {
+    if (!state.book) return null;
+    const id = `Q${900 + ++walkInSeq}`;
+    const r = walkInRequest({ ...input, id });
+    local.add(id);
+    set({
+      book: { ...state.book, requests: [...state.book.requests, r] },
+      triage: { ...state.triage, [id]: { status: "host" } },
+      openPlan: { roomId: r.bookRoomId, requestId: id, seq: ++seq, view: "request" },
+    });
+    return r;
   },
   accept(r: GuestRequest, tables: string[]) {
-    void postDecision(r.id, { kind: "accepted" });
+    logDecision(r.id, { kind: "accepted" });
     const list = (state.accepted[r.bookRoomId] ?? []).filter((x) => x.id !== r.id);
     set({
       decisions: {
@@ -103,7 +129,7 @@ export const requestsActions = {
     });
   },
   decline(r: GuestRequest, reason: DeclineReason) {
-    void postDecision(r.id, { kind: "declined", reason });
+    logDecision(r.id, { kind: "declined", reason });
     set({
       decisions: {
         ...state.decisions,
@@ -112,7 +138,7 @@ export const requestsActions = {
     });
   },
   reply(r: GuestRequest, edited: boolean) {
-    void postDecision(r.id, { kind: "replied", edited });
+    logDecision(r.id, { kind: "replied", edited });
     set({
       decisions: {
         ...state.decisions,
@@ -122,7 +148,7 @@ export const requestsActions = {
   },
   /** Undo a decision (back to pending); an accepted party leaves that night's book. */
   reopen(r: GuestRequest) {
-    void postDecision(r.id, { kind: "reopened" });
+    logDecision(r.id, { kind: "reopened" });
     const { [r.id]: _gone, ...decisions } = state.decisions;
     set({
       decisions,
@@ -177,6 +203,8 @@ export function getRequestsState(): RequestsState {
 /** Tests only. */
 export function resetRequestsStore(): void {
   started = false;
+  local.clear();
+  walkInSeq = 0;
   state = {
     book: null,
     error: null,

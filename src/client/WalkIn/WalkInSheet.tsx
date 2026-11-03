@@ -1,4 +1,9 @@
+import { useState } from "react";
 import { ProposedTag } from "../requests/RequestSheet";
+import { requestsActions, useRequests } from "../requests/store";
+import { NIGHTS } from "../nights";
+import { NEEDS as REQUEST_NEEDS, SERVICE } from "../../domain/requests";
+import { toHHMM, toMinutes } from "../../domain/time";
 import {
   checkTableSet,
   tableById,
@@ -9,6 +14,7 @@ import {
 } from "../../domain";
 import type { HighlightControls } from "../highlight";
 import { etaText, NEEDS, typicalWait } from "../lib/service";
+import { tablesPhrase } from "../../domain/wording";
 
 export interface WalkInDraft {
   size: number;
@@ -30,6 +36,81 @@ interface Props {
 }
 
 const SIZES = Array.from({ length: 12 }, (_, i) => i + 1);
+
+/** Arrival times a host-stand request can ask for: 15-minute slots from now (or service start) to close. */
+function laterSlots(clock: string): string[] {
+  const from = Math.max(toMinutes(SERVICE.from), Math.ceil(toMinutes(clock) / 15) * 15);
+  const out: string[] = [];
+  for (let m = from; m <= toMinutes(SERVICE.to); m += 15) out.push(toHHMM(m));
+  return out;
+}
+
+/**
+ * A party above the online cap asking in person: take it as a request so it gets the same capacity fit and
+ * cost of saying yes vs no as an online request. Nothing is booked.
+ */
+function HostStandRequest({ room, size, needs }: { room: Room; size: number; needs: Need[] }) {
+  const s = useRequests();
+  const slots = laterSlots(room.clock);
+  const [time, setTime] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const cap = s.book?.onlineCap ?? 8;
+  if (size <= cap || !s.book || !slots.length) return null;
+  const at = time && slots.includes(time) ? time : (slots[0] as string);
+  const day = (NIGHTS[room.id]?.day ?? "Sat") as Parameters<
+    typeof requestsActions.addWalkIn
+  >[0]["day"];
+  return (
+    <section className="host-stand card" aria-label="Large party at the host stand">
+      <h3 className="section-title">
+        Party of {size} at the stand <ProposedTag />
+      </h3>
+      <p className="muted small">
+        Above the online cap of {cap}: check the capacity fit and the cost of saying yes, like any
+        request.
+      </p>
+      <div className="host-stand-row">
+        <label className="small">
+          Arrival
+          <select value={at} onChange={(e) => setTime(e.target.value)}>
+            {slots.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+        </label>
+        <label className="small">
+          Name (optional)
+          <input
+            type="text"
+            maxLength={60}
+            value={name}
+            placeholder="Walk-in guest"
+            onChange={(e) => setName(e.target.value)}
+          />
+        </label>
+      </div>
+      <button
+        type="button"
+        className="primary"
+        onClick={() =>
+          requestsActions.addWalkIn({
+            day,
+            bookRoomId: room.id,
+            clock: room.clock,
+            time: at,
+            partySize: size,
+            needs: needs.filter((n): n is (typeof REQUEST_NEEDS)[number] =>
+              (REQUEST_NEEDS as readonly string[]).includes(n),
+            ),
+            contact: name,
+          })
+        }
+      >
+        Check capacity fit →
+      </button>
+    </section>
+  );
+}
 
 export function WalkInSheet({
   fit,
@@ -59,7 +140,7 @@ export function WalkInSheet({
     : check && !check.ok
       ? check.reason
       : busy.length
-        ? `${busy.map((t) => t.id).join(", ")} still ${busy.length === 1 ? "has" : "have"} guests — add to the waitlist or pick free tables`
+        ? `${tablesPhrase(busy.map((t) => t.id))} still ${busy.length === 1 ? "has" : "have"} guests — add to the waitlist or pick free tables`
         : null;
   const short = Math.max(0, size - base);
 
@@ -115,6 +196,8 @@ export function WalkInSheet({
         </div>
       </fieldset>
 
+      <HostStandRequest room={room} size={size} needs={needs} />
+
       <section aria-label="Suggested tables" className="suggested">
         <h3 className="section-title">
           Suggested <ProposedTag />{" "}
@@ -139,14 +222,14 @@ export function WalkInSheet({
                       highlight.onHover({
                         key: `sugg-${o.tables.join("+")}`,
                         ids: o.tables,
-                        label: `Suggested: ${o.tables.join(" + ")}`,
+                        label: `Suggested: ${tablesPhrase(o.tables)}`,
                       })
                     }
                     onMouseLeave={() => highlight.onHover(null)}
                   >
                     <span className="sugg-head">
                       <span className="ai-chip">Suggested</span>
-                      <strong>{o.tables.join(" + ")}</strong>
+                      <strong>{tablesPhrase(o.tables)}</strong>
                       <span className={o.waitMin === 0 ? "ok-text eta" : "muted eta"}>
                         {etaText(room, o)}
                       </span>
@@ -172,7 +255,7 @@ export function WalkInSheet({
         <div className="small">
           {selected.length ? (
             <>
-              Selected <strong>{selected.join(", ")}</strong> · {base} seats
+              Selected <strong>{tablesPhrase(selected)}</strong> · {base} seats
               {short > 0 && !problem && (
                 <span className="warn-text"> · short {short}, add chairs from storage</span>
               )}

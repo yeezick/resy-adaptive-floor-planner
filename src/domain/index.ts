@@ -10,3 +10,4 @@ export * from "./clearance";
 export * from "./fit";
 export * from "./requests";
 export * from "./activity";
+export * from "./wording";

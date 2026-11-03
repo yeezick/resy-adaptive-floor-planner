@@ -1,16 +1,34 @@
-// Large-party requests: parties above the venue's online cap ask through a form or a diner-side AI agent instead
-// of booking online. A manager sees each one with an AI triage, checks the fit and decides. Nothing here books.
+// Large-party requests: parties above the venue's online cap ask through the booking app's request form, a
+// diner-side AI agent (a chat app or an MCP client) or in person at the host stand, instead of booking online. A manager sees each one with an AI triage, checks the fit and decides. Nothing here books.
 import { z } from "zod";
 import { fitRequest, type RequestFit } from "./buildplan";
 import { HHMM, Label, type Reservation, type Room } from "./types";
+import { countdown } from "./wording";
 
 export const NEEDS = ["accessible", "stroller", "quiet", "view"] as const;
+
+export const SOURCES = ["app", "ai-agent", "walk-in"] as const;
+export type RequestSource = (typeof SOURCES)[number];
+
+/** How each source reads on the card and in the activity log. */
+export const SOURCE_LABEL: Record<RequestSource, string> = {
+  app: "Resy app",
+  "ai-agent": "AI agent (chat app or MCP)",
+  "walk-in": "Walk-in at the host stand",
+};
+
+/** The same, short enough for a one-line inbox row (the full label is the row's tooltip). */
+export const SOURCE_SHORT: Record<RequestSource, string> = {
+  app: "Resy app",
+  "ai-agent": "AI agent",
+  "walk-in": "Walk-in",
+};
 
 export const GuestRequest = z
   .object({
     id: z.string().regex(/^Q\d{1,4}$/),
-    /** Where it came from: the venue's web form, or an AI agent booking for a guest. */
-    source: z.enum(["guest-form", "ai-agent"]),
+    /** Where it came from: the booking app's request form, an AI agent booking for a guest, or the host stand. */
+    source: z.enum(SOURCES),
     receivedAt: z.string().regex(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) ([01]\d|2[0-3]):[0-5]\d$/),
     day: z.enum(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]),
     /** The room fixture holding that night's book. */
@@ -45,7 +63,8 @@ export function parseRequestBook(json: unknown): RequestBook {
   for (const r of book.requests) {
     if (ids.has(r.id)) throw new Error(`duplicate request id ${r.id}`);
     ids.add(r.id);
-    if (r.partySize <= book.onlineCap)
+    // walk-ins of any size can ask in person; online sources only reach this inbox above the cap
+    if (r.source !== "walk-in" && r.partySize <= book.onlineCap)
       throw new Error(`request ${r.id}: party of ${r.partySize} is within the online cap`);
   }
   return book;
@@ -79,4 +98,62 @@ export function draftReply(r: GuestRequest, fit: RequestFit): string {
   if (fit.nextFit)
     return `Hi ${first}, thanks for asking about a party of ${r.partySize} on ${when}. We're full for a group that size at ${r.time}, but we could host you from ${fit.nextFit}. Would that work?`;
   return `Hi ${first}, thanks for asking about a party of ${r.partySize} on ${when}. Unfortunately we can't fit a group that size that night. Could another night work?`;
+}
+
+/** Card header: "Dana Ruiz, party of 22 · Fri 18:30 (in 3h 30m)". `minutesAway` is from that night's clock. */
+export function requestHeader(r: GuestRequest, minutesAway: number | null): string {
+  const when = `${r.day} ${r.time}`;
+  return `${r.contact}, party of ${r.partySize} · ${when}${
+    minutesAway === null ? "" : ` (${countdown(minutesAway)})`
+  }`;
+}
+
+/**
+ * A request taken at the host stand: the host types the size, time, needs and a name. It goes through the same
+ * capacity fit and cost as an online request. The note is the host's own words (never logged).
+ */
+export function walkInRequest(input: {
+  id: string;
+  day: GuestRequest["day"];
+  bookRoomId: string;
+  clock: string;
+  time: string;
+  partySize: number;
+  needs: GuestRequest["needs"];
+  contact?: string;
+  note?: string;
+}): GuestRequest {
+  return GuestRequest.parse({
+    id: input.id,
+    source: "walk-in",
+    receivedAt: `${input.day} ${input.clock}`,
+    day: input.day,
+    bookRoomId: input.bookRoomId,
+    time: input.time,
+    partySize: input.partySize,
+    needs: input.needs,
+    contact: input.contact?.trim() || "Walk-in guest",
+    message:
+      input.note?.trim() ||
+      `Asked at the host stand: party of ${input.partySize} at ${input.time}${
+        input.needs.length ? ` (${input.needs.join(", ")})` : ""
+      }.`,
+  });
+}
+
+/** What the party needs, from the form fields alone (used when there is no AI triage, e.g. a host-stand walk-in). */
+export function needsOverview(r: GuestRequest): string {
+  const NEED_TEXT: Record<GuestRequest["needs"][number], string> = {
+    accessible: "step-free access",
+    stroller: "space for a stroller",
+    quiet: "a quieter spot",
+    view: "a view",
+  };
+  const parts = [
+    r.occasion,
+    ...r.needs.map((n) => NEED_TEXT[n]),
+    r.privateRoom && "a private room",
+  ].filter((x): x is string => Boolean(x));
+  const text = parts.join(" · ");
+  return text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}.` : "No special needs given.";
 }

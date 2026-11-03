@@ -3,6 +3,7 @@ import { ELAPSED_EST_MIN, type Table } from "../../domain";
 import { PHASE_ABBR } from "../lib/service";
 import { AlwaysShowIds, usePpu, usePx } from "./scale";
 import { tableColors } from "./colors";
+import { tableNo } from "../../domain/wording";
 
 interface Props {
   table: Table;
@@ -25,7 +26,7 @@ function describe(t: Table): string {
         ? `reserved for ${t.reservedAt ?? "later"}`
         : t.status;
   const shape = t.shape === "diamond" ? "diamond (square at 45°)" : t.shape;
-  return `Table ${t.id}, ${t.seats} seats, ${shape}, ${t.area}, section ${t.section}, ${state}`;
+  return `Table ${tableNo(t.id)}, ${t.seats} seats, ${shape}, ${t.area}, section ${t.section}, ${state}`;
 }
 
 function diamond(cx: number, cy: number, rx: number, ry: number): string {
@@ -198,7 +199,7 @@ function Elapsed({ table: t, phase }: { table: Table; phase: string | null }) {
         </tspan>
       )}
       <tspan x={x} dy={phase ? font * 1.1 : 0}>
-        {m}m
+        {m}m est.
       </tspan>
     </text>
   );

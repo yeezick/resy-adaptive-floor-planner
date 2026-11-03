@@ -13,6 +13,7 @@ import {
 } from "../../domain/activity";
 import type { AgentResponse } from "../../shared/api";
 import { decisionOf, useRequests, type RequestsState } from "../requests/store";
+import { tableNumbers } from "../../domain/wording";
 
 const SEED: ActivitySeed = ActivitySeed.parse(weekJson);
 
@@ -119,7 +120,7 @@ export function liveEvents(s: RequestsState): { events: TriageEvent[]; actions: 
   const actions: ManagerAction[] = [];
   for (const r of s.book?.requests ?? []) {
     const t = s.triage[r.id];
-    if (!t || t.status === "loading") continue;
+    if (!t || t.status === "loading" || t.status === "host") continue;
     // When it arrived this week, but never later than when its triage finished (the AI action).
     const received = weekdayToIso(r.receivedAt);
     const at = received < t.at ? received : t.at;
@@ -165,7 +166,7 @@ export function liveEvents(s: RequestsState): { events: TriageEvent[]; actions: 
     );
     const d = decisionOf(s, r.id);
     if (d.kind === "accepted")
-      actions.push({ refId: r.id, at: d.iso, kind: "accepted", applied: d.tables.join(" + ") });
+      actions.push({ refId: r.id, at: d.iso, kind: "accepted", applied: tableNumbers(d.tables) });
     else if (d.kind === "declined")
       actions.push({ refId: r.id, at: d.iso, kind: "declined", reason: d.reason });
     else if (d.kind === "replied")

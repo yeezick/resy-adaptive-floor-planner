@@ -1,5 +1,6 @@
 import { neighbours, tableById, type Room, type Table } from "../../domain";
 import { joinCandidates, MAX_NEIGHBOURS } from "./edit";
+import { tableNo } from "../../domain/wording";
 
 interface Props {
   room: Room;
@@ -73,7 +74,7 @@ export function TableInspector({ room, id, onPatch, onJoin }: Props) {
   return (
     <div className="inspector">
       <div className="insp-head">
-        <strong>{t.id}</strong>
+        <strong>Table {tableNo(t.id)}</strong>
         <span className="muted small">
           {t.x}, {t.y} · {t.w}×{t.h}
         </span>
@@ -174,7 +175,7 @@ export function TableInspector({ room, id, onPatch, onJoin }: Props) {
               {n}
               <button
                 type="button"
-                aria-label={`Remove join ${t.id}–${n}`}
+                aria-label={`Remove join ${tableNo(t.id)}–${tableNo(n)}`}
                 onClick={() => onJoin(n, false)}
               >
                 Remove

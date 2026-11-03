@@ -1,6 +1,9 @@
 // "Generate tonight's layout": tonight's book + base layout + storage → a one-day layout variant,
 // the changes from the base, an ordered crew build list and a reason for every choice. Read-only:
 // it returns a proposal; a person edits it and applies it.
+import { buildMinutes, tableNo, tablesPhrase } from "./wording";
+
+export { buildMinutes };
 import { planBuilds, type Build } from "./buildplan";
 import { TURN_MIN } from "./capacity";
 import { partyFits, type PartyFit } from "./fit";
@@ -44,6 +47,8 @@ export interface TonightProposal {
   infeasible: { reservationId: string; partySize: number; reason: string; partial?: string }[];
   /** Per placed large party: hold + covers lost, section(s), aisle check. In arrival order. */
   parties: PartyFit[];
+  /** The planner's build per placed party (rows, storage), for crew notes and build time. */
+  builds: Build[];
   summary: {
     /** Covers the holds cost tonight (sum over parties). */
     coversLostToHolds: number;
@@ -56,18 +61,6 @@ export interface TonightProposal {
     storageUsed: { extenders: number; chairs: number; spareTables: number };
     storageInStock: { extenders: number; chairs: number; spareTables: number };
   };
-}
-
-/** Minutes of crew time for one build (rough, stated on the page). */
-export function buildMinutes(b: Build): number {
-  return Math.max(
-    10,
-    3 * b.tables.length +
-      3 * b.extenders +
-      4 * b.spareTables +
-      Math.ceil(b.extraChairs / 4) +
-      5 * b.dividersOpened.length,
-  );
 }
 
 /** Push a row's tables together along its long axis, keeping the first table where it is. */
@@ -155,7 +148,7 @@ export function generateTonight(base: Room, from: string, to: string): TonightPr
             tables: [m.id],
             from: m.from,
             to: m.to,
-            text: `Push ${m.id} up against its neighbour`,
+            text: `Push table ${tableNo(m.id)} up against its neighbour`,
           });
         }
         // spare tables go on the end of a joinable row
@@ -188,9 +181,9 @@ export function generateTonight(base: Room, from: string, to: string): TonightPr
             reservationId: b.reservationId,
             tables: [id],
             to: { x: t.x, y: t.y },
-            text: `Bring a spare 4-top from storage to the end of the row (${id})`,
+            text: "Bring a spare 4-top from storage to the end of the row",
           });
-          actions.push(`Bring a spare 4-top from storage to the end of ${end.id}`);
+          actions.push(`Bring a spare 4-top from storage to the end of table ${tableNo(end.id)}`);
           end = t;
           sparesLeft--;
         }
@@ -200,11 +193,11 @@ export function generateTonight(base: Room, from: string, to: string): TonightPr
             kind: "join",
             reservationId: b.reservationId,
             tables: ids,
-            text: `Join ${ids.join(" + ")}`,
+            text: `Combine ${tablesPhrase(ids)}`,
           });
         }
       }
-      actions.push(ids.length > 1 ? `Join ${ids.join(" + ")}` : `Set ${ids[0]}`);
+      actions.push(ids.length > 1 ? `Combine ${tablesPhrase(ids)}` : `Set ${tablesPhrase(ids)}`);
     }
     if (rebuild && b.spareTables)
       actions.push(`Bring ${b.spareTables} spare 4-top(s) from storage to the row end`);
@@ -289,6 +282,7 @@ export function generateTonight(base: Room, from: string, to: string): TonightPr
     crew,
     reasons,
     infeasible: plan.unplaced,
+    builds: plan.builds,
     parties,
     summary: {
       coversLostToHolds: parties.reduce((n, f) => n + f.hold.coversLost, 0),

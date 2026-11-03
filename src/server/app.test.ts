@@ -230,7 +230,7 @@ describe("server", () => {
       requests: { id: string }[];
     };
     expect(book.onlineCap).toBe(8);
-    expect(book.requests.map((r) => r.id)).toEqual(["Q1", "Q2", "Q3", "Q4"]);
+    expect(book.requests.map((r) => r.id)).toEqual(["Q1", "Q2", "Q3", "Q4", "Q5", "Q6"]);
   });
 
   it("triages a request once, then serves the cached result", async () => {

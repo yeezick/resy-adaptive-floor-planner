@@ -3,11 +3,12 @@
 // actions); read-only. Free text never appears: guest and host text are kept as sha256 + length, and a row
 // shows the AI's own summary. A row can show "accepted" only when a manager action says so.
 import { z } from "zod";
+import { SOURCES, type RequestSource } from "./requests";
 
 export const TextHash = z.object({ sha256: z.string().min(8), length: z.number().int() }).strict();
 export type TextHash = z.infer<typeof TextHash>;
 
-export type ActivitySource = "guest-form" | "ai-agent" | "host";
+export type ActivitySource = RequestSource | "host";
 
 export const TriageEvent = z
   .object({
@@ -16,7 +17,7 @@ export const TriageEvent = z
     traceId: z.string(),
     /** ISO time the request arrived (the triage runs on arrival). */
     at: z.string(),
-    source: z.enum(["guest-form", "ai-agent"]),
+    source: z.enum(SOURCES),
     partySize: z.number().int().positive(),
     when: z.string(), // "Thu 19:30"
     verdict: z.enum(["real", "junk", "unsure"]),

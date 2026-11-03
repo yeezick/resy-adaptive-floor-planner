@@ -15,7 +15,8 @@ import { planBuilds, usableFor, type Build } from "./buildplan";
 import { findTablesForParty, TURN_MIN } from "./capacity";
 import { parseRoom, tableById } from "./room";
 import { toHHMM, toMinutes } from "./time";
-import { buildMinutes, generateTonight, type TonightProposal } from "./tonight";
+import { generateTonight, type TonightProposal } from "./tonight";
+import { buildMinutes } from "./wording";
 import type { Room, Table } from "./types";
 
 const spare4 = (r: Room) =>
@@ -252,7 +253,7 @@ describe("generateTonight on hand-built rooms", () => {
     expect(tableById(g.variant, "T4")).toMatchObject({ x: 12, y: 0 });
     expect(g.variant.joins).toContainEqual(["T3", "T4"]);
     expect(g.variant.combos).toEqual([["T1", "T2", "T3", "T4"]]);
-    expect(g.crew[0]?.actions).toContain("Bring a spare 4-top from storage to the end of T3");
+    expect(g.crew[0]?.actions).toContain("Bring a spare 4-top from storage to the end of table 3");
     expect(g.reasons[0]?.text).toBe(
       "R1 (10) → Main · one long table of 3 · storage: 1 spare table(s), 2 chair(s) · seats 10 for 10, build by 18:30",
     );

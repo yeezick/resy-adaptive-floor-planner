@@ -15,7 +15,9 @@ describe("clearance", () => {
   it("fails a join below the minimum with a one-line reason, and an unmeasured join", () => {
     const bad = checkJoin(VENUE_CLEARANCE, "T44", "T43");
     expect(bad.ok).toBe(false);
-    expect(bad.reason).toMatch(/^T44 \+ T43 leaves 32 in of aisle \(needs 36 in\) — /);
+    expect(bad.reason).toMatch(
+      /^joining tables 44 and 43 leaves 32 in of aisle \(needs 36 in\) — /,
+    );
     const unknown = checkJoin(VENUE_CLEARANCE, "T1", "T99");
     expect(unknown).toMatchObject({ ok: false, clearanceIn: null });
     expect(checkJoin(VENUE_CLEARANCE, "T27", "T28").ok).toBe(true);

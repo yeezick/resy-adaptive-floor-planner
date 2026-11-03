@@ -59,7 +59,8 @@ export function triageConfigFromEnv(create: CreateMessage): TriageConfig {
 export function triageProblems(out: TriageOutput, r: GuestRequest): string[] {
   const problems: string[] = [];
   const text = [out.reason, ...out.summary].join(" \n ");
-  if (/\bT\d{1,4}\b/.test(text)) problems.push("names a table — seating is the planner's job");
+  if (/\bT\d{1,4}\b|\btables?\s+(no\.?\s*)?\d{1,4}\b/i.test(text))
+    problems.push("names a table — seating is the planner's job");
   if (/\b(confirmed|booked|reserved|accepted|is held|we('| ha)ve held)\b/i.test(text))
     problems.push("says the party is booked or confirmed — nothing is decided yet");
   if (/https?:\/\/|www\.|@\w+\.\w+|\+?\d[\d\s().-]{8,}\d/.test(text))
@@ -85,9 +86,15 @@ export class TriageError extends Error {
   }
 }
 
+const SOURCE_TEXT: Record<GuestRequest["source"], string> = {
+  app: "the booking app's large-party request form",
+  "ai-agent": "an AI agent booking for a guest (a chat app or MCP client)",
+  "walk-in": "a guest who asked in person at the host stand (the host typed the note)",
+};
+
 function userMessage(r: GuestRequest, cap: number): string {
   const facts = [
-    `Source: ${r.source === "ai-agent" ? "an AI agent booking for a guest" : "the venue's web form"}`,
+    `Source: ${SOURCE_TEXT[r.source]}`,
     `Requested: ${r.day} ${r.time}, party of ${r.partySize} (online cap: ${cap})`,
     r.occasion ? `Occasion field: ${r.occasion}` : null,
     r.needs.length ? `Needs ticked: ${r.needs.join(", ")}` : null,
