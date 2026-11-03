@@ -6,7 +6,7 @@ import { TriageError, triageProblems, triageRequest, type TriageConfig } from ".
 
 const req: GuestRequest = {
   id: "Q9",
-  source: "guest-form",
+  source: "app",
   receivedAt: "Tue 09:00",
   day: "Sat",
   bookRoomId: "demo-night",
@@ -36,6 +36,15 @@ describe("triageProblems", () => {
   it("accepts a clean answer", () => expect(triageProblems(out({}), req)).toEqual([]));
   it("rejects a table name (solver-first)", () =>
     expect(triageProblems(out({ reason: "Seat them at T42." }), req)[0]).toMatch(/table/));
+  it('rejects a table number written without the T ("table 31", "tables 30 and 31")', () => {
+    expect(triageProblems(out({ reason: "Seat them at table 31." }), req)).toContain(
+      "names a table — seating is the planner's job",
+    );
+    expect(triageProblems(out({ summary: ["Tables 30 and 31 work.", "x"] }), req)).toContain(
+      "names a table — seating is the planner's job",
+    );
+    expect(triageProblems(out({ summary: ["A table for 12 people.", "x"] }), req)).toEqual([]);
+  });
   it("rejects a booking claim", () =>
     expect(triageProblems(out({ summary: ["Group of 12 is booked.", "ok"] }), req)[0]).toMatch(
       /booked/,

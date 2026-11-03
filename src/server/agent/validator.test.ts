@@ -47,7 +47,7 @@ describe("validateRecommendations", () => {
     expect(clearanceFor(jp)).not.toBeNull();
     expect(
       msgs(validateRecommendations(jp, [rec({ tables: ["T43", "T44"], seats: 8 })], fit(8))),
-    ).toMatch(/T43 \+ T44 leaves 32 in of aisle \(needs 36 in\)/);
+    ).toMatch(/joining tables 43 and 44 leaves 32 in of aisle \(needs 36 in\)/);
   });
 
   it("fit answers may add header chairs only (capped by spare chairs)", () => {

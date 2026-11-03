@@ -135,7 +135,7 @@ describe("findTablesForParty on dinner-peak", () => {
     expect(second).toMatchObject({ tables: ["T7", "T8", "T9", "T10"], seats: 8, waitMin: 20 });
     expect(second?.freeAt).toBe("19:30");
     expect(second?.reasons[1]?.match(/dessert/g)).toHaveLength(3);
-    expect(second?.tradeoffs).toContain("needs a build: join T7 + T8 + T9 + T10");
+    expect(second?.tradeoffs).toContain("needs a build: combine tables 7–10");
     expect(res.note).toBeUndefined();
   });
 

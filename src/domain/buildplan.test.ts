@@ -248,8 +248,8 @@ describe("planBuilds multi-row builds across suite rooms", () => {
     });
     expect(p.builds[0]?.steps.slice(0, 3)).toEqual([
       "Open the divider P1 | P2",
-      "Join T1 + T2 + T3 in P1",
-      "Join T4 + T5 + T6 in P2",
+      "Combine tables 1–3 in P1",
+      "Combine tables 4–6 in P2",
     ]);
   });
 
@@ -402,7 +402,7 @@ describe("planBuilds storage: header chairs → extenders → spare tables", () 
     });
     const p = planBuilds(r, "18:00", "20:00");
     expect(p.builds[0]).toMatchObject({ tables: ["T1"], seats: 10, extenders: 0, extraChairs: 2 });
-    expect(p.builds[0]?.steps[0]).toBe("Use T1 in Main");
+    expect(p.builds[0]?.steps[0]).toBe("Use table 1 in Main");
   });
 
   it("storage is shared across builds: extenders", () => {
@@ -480,7 +480,7 @@ describe("planBuilds scheduling", () => {
     const p = planBuilds(r, "18:00", "20:00");
     expect(p.builds[0]?.tables).toEqual(["T1"]);
     expect(p.builds[0]?.steps).toEqual([
-      "Use T1 in Main",
+      "Use table 1 in Main",
       "Set for 8 by 18:30; split after ~20:30",
     ]);
   });
@@ -608,8 +608,11 @@ describe("checkTableSet", () => {
       ok: false,
       reason: "a table is listed twice",
     });
-    expect(checkTableSet(r, ["T999"])).toEqual({ ok: false, reason: "table T999 does not exist" });
-    expect(checkTableSet(dinnerPeak(), ["T57"])).toEqual({ ok: false, reason: "T57 is blocked" });
+    expect(checkTableSet(r, ["T999"])).toEqual({ ok: false, reason: "table 999 does not exist" });
+    expect(checkTableSet(dinnerPeak(), ["T57"])).toEqual({
+      ok: false,
+      reason: "table 57 is blocked",
+    });
   });
 
   it("accepts a single table; a non-joinable table can take only its header chairs", () => {
@@ -695,7 +698,7 @@ describe("checkTableSet", () => {
     expect(checkTableSet(r, ["T43", "T44"])).toEqual({
       ok: false,
       reason:
-        "T43 + T44 leaves 32 in of aisle (needs 36 in) — the joined run reaches into the aisle to the service station",
+        "joining tables 43 and 44 leaves 32 in of aisle (needs 36 in) — the joined run reaches into the aisle to the service station",
     });
     expect(checkTableSet(r, ["T42", "T43"])).toMatchObject({ ok: true });
   });
