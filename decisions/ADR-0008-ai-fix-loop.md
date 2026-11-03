@@ -20,7 +20,7 @@ We want the loop closed without letting a model merge its own work or loop on it
    - otherwise, if the verdict can't be read, or if no review ran → label `ai-fix/needs-human`, comment,
      auto-merge stays off.
 4. **fix** (Opus 5.5) edits a checkout of the reviewed commit. It has no git write access and no push token.
-   The workflow rejects the fix unless every changed file is on an allowlist (`src/`, `e2e/`, `fixtures/`,
+   The workflow rejects the fix unless every changed file is on an allowlist (`src/`, `e2e/`,
    `prompts/`) and off a denylist (`types.ts`, `schemas.ts`, `.env*`), runs `pnpm verify`, and uploads the change as a patch.
 5. **push** runs on a clean runner that never installs dependencies or runs repo code. It applies the patch,
    re-checks the allowlist and denylist, commits with an `AI-Fix-Round: N` trailer and pushes with `AUTOMATION_PAT`
@@ -43,8 +43,8 @@ ability to run tests would make its fixes much worse.
 ## Consequences
 
 - The model never decides a merge: required checks do. The review only decides whether auto-merge is on.
-- The fixer can change only app code, tests, fixtures and prompts. CI, its own round limit, dependencies,
-  tool configs, hooks, the eval runner and data, and any new top-level file are outside the allowlist, so
+- The fixer can change only app code, tests and prompts. CI, its own round limit, dependencies,
+  tool configs, hooks, the eval runner and data, the room fixtures, and any new top-level file are outside the allowlist, so
   they're protected by default. Findings there always go to a person.
 - The fixer can still edit unit tests under `src/`. The prompt forbids loosening them, and the next review
   checks every `AI-Fix-Round` commit for deleted, skipped or loosened tests and marks it ❌.
