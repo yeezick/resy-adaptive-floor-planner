@@ -184,6 +184,10 @@ export function createApp(opts: AppOptions = {}) {
   // One triage per request per prompt version; later views are served from this cache (no new spend).
   // Escalated results (refusal, two validator rejects) are not cached, so a one-off can be retried.
   const triaged = new Map<string, TriageResult>();
+  // Escalations are re-tried, but not on every view: hold one for a minute (a short negative cache).
+  const escalatedUntil = new Map<string, { result: TriageResult; until: number }>();
+  // Decisions are free (no model call): their own limiter, so clicks never use up the triage quota.
+  const decisionLimiter = new RateLimiter(60);
   const triaging = new Map<string, Promise<TriageResult>>();
   app.post("/api/requests/:id/triage", async (req, res) => {
     const book = requestBook();
@@ -192,6 +196,8 @@ export function createApp(opts: AppOptions = {}) {
     const key = `${r.id}:${loadTriagePrompt().version}`;
     const hit = triaged.get(key);
     if (hit) return res.json({ ...hit, cached: true });
+    const recent = escalatedUntil.get(key);
+    if (recent && recent.until > Date.now()) return res.json({ ...recent.result, cached: true });
     if (!limiter.hit(req.ip ?? "unknown"))
       return sendError(res, 429, "rate_limited", "Too many requests — try again in a minute.");
     const call = create();
@@ -219,6 +225,7 @@ export function createApp(opts: AppOptions = {}) {
     try {
       const result = await pending;
       if (!result.escalated) triaged.set(key, result);
+      else escalatedUntil.set(key, { result, until: Date.now() + 60_000 });
       logEvent("triage_response", {
         traceId: result.traceId,
         requestId: r.id,
@@ -252,7 +259,7 @@ export function createApp(opts: AppOptions = {}) {
   app.post("/api/requests/:id/decision", (req, res) => {
     const r = requestBook().requests.find((x) => x.id === req.params.id);
     if (!r) return sendError(res, 404, "bad_request", "unknown request");
-    if (!limiter.hit(req.ip ?? "unknown"))
+    if (!decisionLimiter.hit(req.ip ?? "unknown"))
       return sendError(res, 429, "rate_limited", "Too many requests — try again in a minute.");
     const body = RequestDecision.safeParse(req.body);
     if (!body.success)

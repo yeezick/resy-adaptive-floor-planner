@@ -591,11 +591,13 @@ function diagnose(
   if (!free.length && blockedBy.size)
     return `${who}: every table set${where}${needs} that seats them is built for ${listIds([...blockedBy])}${then}.`;
   const inv = room.inventory;
-  const used = builds.reduce((a, b) => ({ e: a.e + b.extenders, c: a.c + b.extraChairs }), {
-    e: 0,
-    c: 0,
-  });
-  return `${who}: storage runs out (${used.e}/${inv.extenders} extenders, ${used.c}/${inv.spareChairs} chairs already in use; storage is held all night).`;
+  const used = builds.reduce(
+    (a, b) => ({ e: a.e + b.extenders, c: a.c + b.extraChairs, s: a.s + b.spareTables }),
+    { e: 0, c: 0, s: 0 },
+  );
+  const spare = inv.spareTables.filter((x) => x.seats >= 4).reduce((n, x) => n + x.count, 0);
+  const spares = spare ? `, ${used.s}/${spare} spare tables` : "";
+  return `${who}: storage runs out (${used.e}/${inv.extenders} extenders, ${used.c}/${inv.spareChairs} chairs${spares} already in use; storage is held all night).`;
 }
 
 export type TableSetCheck =
