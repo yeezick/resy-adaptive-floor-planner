@@ -1,11 +1,11 @@
 {
-  "note": "Recorded in-request chat turn (request-chat.v1.0, Haiku; same answer as evals/request-chat/transcripts/chat-table-range.json).",
+  "note": "Recorded in-request chat turn (request-chat.v1.1, Haiku; same answer as evals/request-chat/transcripts/chat-table-range.json).",
   "requestId": "Q2",
   "message": "find another space between tables 30–50",
   "result": {
     "requestId": "Q2",
     "traceId": "scenario-request-chat-1",
-    "promptVersion": "request-chat.v1.0",
+    "promptVersion": "request-chat.v1.1",
     "model": "claude-haiku-5-5",
     "output": {
       "tableRange": {
@@ -27,8 +27,8 @@
       "length": 39
     },
     "metrics": {
-      "costUsd": 0.00017,
-      "latencyMs": 1981,
+      "costUsd": 0.000173,
+      "latencyMs": 923,
       "calls": []
     }
   }
