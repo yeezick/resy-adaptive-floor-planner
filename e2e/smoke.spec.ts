@@ -298,7 +298,7 @@ test("in-request chat: a message becomes constraints, the planner re-runs, manua
   // the turn is in the activity log, without the manager's words
   await page.getByRole("link", { name: "Activity" }).click();
   const table = page.locator(".activity-table");
-  await expect(table).toContainText("AI Planner (request chat)");
+  await expect(table).toContainText("AI Planner chat");
   await expect(page.locator(".activity")).not.toContainText("headcount is now 26");
 });
 
@@ -318,6 +318,70 @@ test("activity log lists AI actions with decisions, never the guest's words", as
   await expect(page.getByRole("complementary", { name: "Full record" })).toContainText(
     "Nothing. The AI never books or seats",
   );
+});
+
+test("activity log feedback: a thumb saves at once, the other thumb updates it, notes append", async ({
+  page,
+}) => {
+  await openFloor(page);
+  await page.evaluate(() => window.localStorage.removeItem("afp.feedback.v1"));
+  await page.getByRole("link", { name: "Activity" }).click();
+  const table = page.locator(".activity-table");
+  const rows = table.locator("tbody tr:not(.fb-note-row)");
+  await page.getByRole("combobox", { name: "Type" }).selectOption("refusal");
+  await expect(rows).toHaveCount(1);
+  const row = rows.first();
+  const up = row.getByRole("button", { name: "Helpful", exact: true });
+  const down = row.getByRole("button", { name: "Not helpful" });
+
+  // save
+  await up.click();
+  await expect(up).toHaveAttribute("aria-pressed", "true");
+  await expect(row.locator(".fb-rated")).toHaveText("rated");
+  const box = page.getByRole("textbox", { name: /Add a note \(optional\)/ });
+  await expect(box).toBeFocused();
+  await page.getByRole("button", { name: "Skip" }).click();
+  await expect(box).toBeHidden();
+
+  // change: same entry, other thumb
+  await down.click();
+  await expect(down).toHaveAttribute("aria-pressed", "true");
+  await expect(up).toHaveAttribute("aria-pressed", "false");
+  await expect(row.locator(".fb-rated")).toHaveText("rated");
+
+  // note-append: two notes on the same entry, no new row
+  await box.fill("too cautious for a quiet Monday");
+  await page.getByRole("button", { name: "Add note" }).click();
+  await expect(row.locator(".fb-rated")).toHaveText("rated · 1 note");
+  await up.click();
+  await box.fill("on second look, fine");
+  await page.getByRole("button", { name: "Add note" }).click();
+  await expect(row.locator(".fb-rated")).toHaveText("rated · 2 notes");
+  await expect(rows).toHaveCount(1);
+  await expect(page.locator(".activity")).not.toContainText("too cautious");
+
+  // the Feedback filter
+  await page.getByRole("combobox", { name: "Type" }).selectOption("");
+  await page.getByRole("combobox", { name: "Feedback" }).selectOption("up");
+  await expect(rows).toHaveCount(1);
+  await page.getByRole("combobox", { name: "Feedback" }).selectOption("down");
+  await expect(table).toContainText("Nothing matches these filters.");
+  await page.getByRole("combobox", { name: "Feedback" }).selectOption("unrated");
+  await expect(rows.locator(".fb-rated")).toHaveCount(0);
+
+  // saved at once, as one entry with the notes kept as hash + length only
+  const saved = await page.evaluate(() => window.localStorage.getItem("afp.feedback.v1") ?? "");
+  const list = JSON.parse(saved) as {
+    rating: string;
+    notes: { sha256: string; length: number }[];
+  }[];
+  expect(list).toHaveLength(1);
+  expect(list[0]?.rating).toBe("up");
+  expect(list[0]?.notes.map((n) => Object.keys(n).sort().join())).toEqual([
+    "length,sha256",
+    "length,sha256",
+  ]);
+  expect(saved).not.toContain("cautious");
 });
 
 test("theme defaults to dark, toggles to light and remembers it", async ({ page }) => {
@@ -350,6 +414,21 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     await expect(sheet.locator(".impacts")).toContainText("Accept: +22 covers");
     await expect(sheet.locator(".impacts")).toContainText("= net −2");
     await expect(page.locator(".room-select select")).toHaveValue("book-fri");
+  });
+
+  test("activity-log: the Activity page with a rated row and a request-chat row", async ({
+    page,
+  }) => {
+    await page.goto("/?scenario=activity-log");
+    await expect(page).toHaveURL(/\/activity\?scenario=activity-log$/);
+    await expect(page.getByRole("heading", { name: /AI activity/ })).toBeVisible();
+    const table = page.locator(".activity-table");
+    await expect(table).toContainText("AI Planner chat");
+    await expect(table).toContainText("No capacity fit in tables 30–50");
+    await expect(table.locator(".fb-rated").first()).toBeVisible();
+    await expect(table).toContainText("rated · 1 note");
+    await page.getByRole("combobox", { name: "Feedback" }).selectOption("down");
+    await expect(table.locator("tbody tr")).toHaveCount(1);
   });
 
   test("party-22-accepted: tonight's layout with the crew build list", async ({ page }) => {
