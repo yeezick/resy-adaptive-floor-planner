@@ -168,18 +168,35 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
   );
   await expect(sheet.locator(".req-overview")).toContainText("Stub line one for Q2.");
   await expect(sheet).toContainText("AI agent (chat app or MCP)");
-  await expect(sheet.getByText("Capacity fit", { exact: true }).last()).toBeVisible();
+  await expect(sheet.locator(".fit-pill")).toHaveText("capacity fit ✓ · Ready");
+  await sheet.getByRole("button", { name: "Show on Fri's floor →" }).click();
+  await expect(page.locator("svg.floor.lit-fit .ready-bubble.is-now").first()).toBeVisible();
   await expect(sheet.locator(".crew-note")).toHaveText(/^(Open|Combine|Set) .*tables? \d/);
   await expect(sheet).not.toContainText(/\bT\d/);
-  const cost = page.locator(".request-sheet .fit-card");
+  const cost = page.locator(".request-sheet .impacts");
+  await expect(cost.getByRole("list", { name: "Pros" })).toContainText("+22 covers in one booking");
+  await expect(cost.getByRole("list", { name: "Pros" })).toContainText(
+    "Aisle clear for a wheelchair",
+  );
+  await expect(cost.getByRole("list", { name: "Cons" })).toContainText(
+    /Tables held \d\d:\d\d–18:30/,
+  );
   await expect(cost).toContainText(
     /Accept: \+22 covers \(the party\) · −\d+ covers lost to the hold \(est\.\) = net [+−]?\d+/,
   );
   await expect(cost).toContainText("Decline: 0 · request leaves Resy");
-  await expect(cost).toContainText(/Build time ~\d+ min \(est\.\)/);
-  await expect(cost).toContainText("covers lost (est.)");
-  await expect(cost).toContainText("spans two servers' sections");
-  await expect(cost).toContainText("joins clear");
+  await expect(cost).toContainText(/Crew: build time ~\d+ min \(est\.\)/);
+  await expect(cost).toContainText("covers lost over one turn (est.)");
+  await expect(cost).toContainText("spans two servers");
+  // actions, in order
+  await expect(sheet.locator(".req-actions .btn-row button")).toHaveText([
+    "Accept",
+    "Decline",
+    "Message guest",
+    "Ask AI Planner",
+  ]);
+  await sheet.getByRole("button", { name: "Ask AI Planner" }).click();
+  await expect(sheet.getByRole("textbox", { name: "Message about this request" })).toBeFocused();
   await page.getByRole("button", { name: /Accept/ }).click();
   await expect(page.locator(".room-select select")).toHaveValue("book-fri");
   await expect(page.locator(".proposal")).toBeVisible();
@@ -203,6 +220,29 @@ test("a large walk-in at the host stand gets the same capacity fit and cost", as
   await expect(sheet).toContainText("Walk-in at the host stand");
   await expect(sheet).toContainText("At the stand");
   await expect(sheet.getByRole("region", { name: "Capacity fit" })).toBeVisible();
+});
+
+test("during service, a proposed join shows each table's readiness (green now, red until free)", async ({
+  page,
+}) => {
+  await openFloor(page);
+  await page.locator(".room-select select").selectOption("dinner-peak");
+  await expect(page.locator(".room-name")).toBeVisible();
+  await hostButton(page, "+ Walk-in").click();
+  await page.locator(".walkin .size-more input").fill("10");
+  const stand = page.getByRole("region", { name: "Large party at the host stand" });
+  await stand.getByRole("combobox").selectOption("20:00");
+  await stand.getByRole("textbox").fill("Ari Dalton");
+  await stand.getByRole("button", { name: "Check capacity fit →" }).click();
+  const sheet = page.locator(".request-sheet");
+  await expect(sheet.locator(".fit-pill")).toHaveText(
+    /^capacity fit ✓ · ready to set up in ~\d+ min$/,
+  );
+  const list = sheet.getByRole("list", { name: "Tables in the join, and when each is free" });
+  await expect(list.locator(".ready-chip.is-wait").first()).toHaveText(/^~\d+m$/);
+  await expect(list).toContainText("until free (est.)");
+  await expect(page.locator("svg.floor.lit-fit .ready-bubble.is-wait").first()).toBeVisible();
+  await expect(page.locator("svg.floor.lit-fit .is-lit").first()).toBeVisible();
 });
 
 test("in-request chat: a message becomes constraints, the planner re-runs, manual controls match", async ({
@@ -247,7 +287,7 @@ test("in-request chat: a message becomes constraints, the planner re-runs, manua
   await expect(log).toContainText("party of 26 and high chair → Capacity fit:");
   const sheet = page.locator(".request-sheet");
   await expect(sheet.locator(".req-title")).toContainText("party of 26");
-  await expect(sheet.locator(".fit-card")).toContainText("Accept: +26 covers");
+  await expect(sheet.locator(".impacts")).toContainText("Accept: +26 covers");
   await expect(sheet.locator(".crew-note")).toContainText("Also: high chair.");
   // manual parity: the same table range from the controls, no chat needed
   await chat.getByLabel("Tables from").fill("30");
@@ -307,7 +347,8 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     );
     await expect(sheet).toContainText("AI agent (chat app or MCP)");
     await expect(sheet.locator(".req-overview")).toContainText("Family reunion");
-    await expect(sheet.locator(".fit-card")).toContainText("Accept: +22 covers");
+    await expect(sheet.locator(".impacts")).toContainText("Accept: +22 covers");
+    await expect(sheet.locator(".impacts")).toContainText("= net −2");
     await expect(page.locator(".room-select select")).toHaveValue("book-fri");
   });
 

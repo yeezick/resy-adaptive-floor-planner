@@ -114,6 +114,10 @@ describe("checkRequest (solver fit check, no model)", () => {
     const tables = fit.build.tables.map((id) => room.tables.find((t) => t.id === id));
     expect(tables.every((t) => t?.attrs.accessible)).toBe(true);
     expect(tables.some((t) => t?.attrs.strollerSpace)).toBe(true);
+    // every large party already planned for Friday is still placed; those whose tables change are listed
+    const before = new Set(fit.plan.builds.map((b) => b.reservationId));
+    for (const id of fit.moved) expect(before.has(id)).toBe(true);
+    expect(fit.moved).not.toContain("Q2");
   });
 
   it("says in one line why the Thursday 30-top can't have a private room, and when it could", () => {
