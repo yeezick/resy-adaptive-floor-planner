@@ -1,0 +1,218 @@
+import type { AddressInfo } from "node:net";
+import type { Server } from "node:http";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { finalAnswer, scripted } from "./agent/fake";
+import type { CreateMessage } from "./agent/loop";
+import { getRoom } from "./rooms";
+import { DailyBudget } from "./guards/budget";
+import { RateLimiter } from "./guards/rateLimit";
+import { createApp, type AppOptions } from "./index";
+
+let server: Server | undefined;
+const savedKey = process.env.ANTHROPIC_API_KEY;
+
+async function start(opts: AppOptions = {}): Promise<string> {
+  server = createApp(opts).listen(0);
+  await new Promise<void>((r) => server?.once("listening", () => r()));
+  return `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+}
+
+const post = (base: string, body: unknown) =>
+  fetch(`${base}/api/agent`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+const answer = {
+  answer: "T11 is open now and seats 4.",
+  clarifyingQuestion: null,
+  recommendations: [
+    { rank: 1, tables: ["T11"], seats: 4, waitMin: 0, reasoning: "open now", tradeoffs: [] },
+  ],
+};
+
+beforeEach(() => {
+  delete process.env.ANTHROPIC_API_KEY;
+});
+afterEach(() => {
+  server?.close();
+  server = undefined;
+  if (savedKey === undefined) delete process.env.ANTHROPIC_API_KEY;
+  else process.env.ANTHROPIC_API_KEY = savedKey;
+});
+
+describe("server", () => {
+  it("serves health and rooms", async () => {
+    const base = await start();
+    expect(await (await fetch(`${base}/healthz`)).json()).toEqual({ ok: true });
+    const rooms = (await (await fetch(`${base}/api/rooms`)).json()) as { id: string }[];
+    expect(rooms.map((r) => r.id)).toContain("dinner-peak");
+    const room = (await (await fetch(`${base}/api/rooms/dinner-peak`)).json()) as { clock: string };
+    expect(room.clock).toBe("19:10");
+    const missing = await fetch(`${base}/api/rooms/nope`);
+    expect(missing.status).toBe(404);
+    expect(await missing.json()).toMatchObject({ code: "bad_request" });
+  });
+
+  it("returns 503 no_key when no API key is configured", async () => {
+    const base = await start();
+    const res = await post(base, { roomId: "dinner-peak", message: "party of 4" });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({ code: "no_key" });
+  });
+
+  it("rejects bad bodies, long messages and invalid rooms with 400", async () => {
+    const base = await start({ create: scripted([]).create });
+    expect((await post(base, { roomId: "dinner-peak" })).status).toBe(400);
+    expect((await post(base, { roomId: "dinner-peak", message: "x".repeat(501) })).status).toBe(
+      400,
+    );
+    const badRoom = await post(base, {
+      roomId: "x",
+      message: "hi",
+      room: {
+        id: "x",
+        name: "x",
+        clock: "19:00",
+        areas: [],
+        tables: [],
+        joins: [],
+        inventory: { extenders: 0, spareChairs: 0 },
+      },
+    });
+    expect(badRoom.status).toBe(400);
+    const malformed = await fetch(`${base}/api/agent`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: "{",
+    });
+    expect(malformed.status).toBe(400);
+  });
+
+  it("rate-limits per client", async () => {
+    const base = await start({ limiter: new RateLimiter(1) });
+    expect((await post(base, { roomId: "dinner-peak", message: "a" })).status).toBe(503);
+    const res = await post(base, { roomId: "dinner-peak", message: "b" });
+    expect(res.status).toBe(429);
+    expect(await res.json()).toMatchObject({ code: "rate_limited" });
+  });
+
+  it("stops at the daily budget", async () => {
+    const base = await start({ create: scripted([]).create, budget: new DailyBudget(0) });
+    const res = await post(base, { roomId: "dinner-peak", message: "party of 4" });
+    expect(res.status).toBe(429);
+    expect(await res.json()).toMatchObject({
+      code: "budget",
+      error: expect.stringMatching(/demo budget reached/),
+    });
+  });
+
+  it("runs the agent and charges the budget", async () => {
+    const budget = new DailyBudget(5);
+    const base = await start({ create: scripted([finalAnswer(answer)]).create, budget });
+    const res = await post(base, { roomId: "dinner-peak", message: "party of 4" });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { recommendations: unknown[]; metrics: { costUsd: number } };
+    expect(body.recommendations).toHaveLength(1);
+    expect(budget.spentToday()).toBeCloseTo(body.metrics.costUsd, 12);
+  });
+
+  it("maps agent failures to upstream", async () => {
+    const base = await start({ create: scripted([]).create });
+    const res = await post(base, { roomId: "dinner-peak", message: "party of 4" });
+    expect(res.status).toBe(500);
+    expect(await res.json()).toMatchObject({ code: "upstream" });
+  });
+
+  it("never lets 8 parallel runs overshoot a $0.01 budget by more than one call's reservation", async () => {
+    const budget = new DailyBudget(0.01);
+    let calls = 0;
+    const create: CreateMessage = async () => {
+      calls++;
+      await new Promise((r) => setTimeout(r, 20));
+      return finalAnswer(answer);
+    };
+    const base = await start({
+      create,
+      budget,
+      limiter: new RateLimiter(100),
+      maxConcurrentRuns: 8,
+      agent: { maxTokens: 300 },
+    });
+    const results = await Promise.all(
+      Array.from({ length: 8 }, () => post(base, { roomId: "dinner-peak", message: "party of 4" })),
+    );
+    const codes = results.map((r) => r.status);
+    expect(codes.filter((c) => c === 200).length).toBeGreaterThanOrEqual(1);
+    expect(codes.every((c) => c === 200 || c === 429)).toBe(true);
+    expect(budget.inFlightUsd()).toBeCloseTo(0, 12);
+    expect(budget.spentToday()).toBeLessThanOrEqual(0.01 + budget.largestReservation);
+    expect(calls).toBe(codes.filter((c) => c === 200).length);
+  });
+
+  it("caps concurrent runs with 429 rate_limited", async () => {
+    let release: () => void = () => undefined;
+    const gate = new Promise<void>((r) => (release = r));
+    const create: CreateMessage = async () => {
+      await gate;
+      return finalAnswer(answer);
+    };
+    const base = await start({ create, limiter: new RateLimiter(100), maxConcurrentRuns: 1 });
+    const first = post(base, { roomId: "dinner-peak", message: "party of 4" });
+    await new Promise((r) => setTimeout(r, 30));
+    const second = await post(base, { roomId: "dinner-peak", message: "party of 4" });
+    expect(second.status).toBe(429);
+    expect(await second.json()).toMatchObject({
+      code: "rate_limited",
+      error: expect.stringMatching(/busy/),
+    });
+    release();
+    expect((await first).status).toBe(200);
+  });
+
+  it("accepts an edited layout of a known room", async () => {
+    const fixture = getRoom("dinner-peak");
+    if (!fixture) throw new Error("fixture missing");
+    const base = await start({
+      create: async () => finalAnswer(answer),
+      limiter: new RateLimiter(100),
+    });
+    const edited = {
+      ...fixture,
+      tables: fixture.tables.map((t) => (t.id === "T11" ? { ...t, x: t.x + 1 } : t)),
+    };
+    expect((await post(base, { roomId: "dinner-peak", message: "4", room: edited })).status).toBe(
+      200,
+    );
+    // Edited layouts are allowed (labels stay data); parseRoom limits still apply.
+    const renamed = { ...fixture, name: "Saturday layout" };
+    expect((await post(base, { roomId: "dinner-peak", message: "4", room: renamed })).status).toBe(
+      200,
+    );
+    const tooLong = { ...fixture, name: "x".repeat(49) };
+    expect((await post(base, { roomId: "dinner-peak", message: "4", room: tooLong })).status).toBe(
+      400,
+    );
+    const otherId = { ...fixture, id: "elsewhere" };
+    expect((await post(base, { roomId: "elsewhere", message: "4", room: otherId })).status).toBe(
+      400,
+    );
+    expect((await post(base, { roomId: "dinner-peak", message: "4", room: otherId })).status).toBe(
+      400,
+    );
+    const bigger = {
+      ...fixture,
+      tables: fixture.tables.map((t) => (t.id === "T11" ? { ...t, seats: 40 } : t)),
+    };
+    expect((await post(base, { roomId: "dinner-peak", message: "4", room: bigger })).status).toBe(
+      200,
+    );
+  });
+
+  it("lists all three fixtures", async () => {
+    const base = await start();
+    const rooms = (await (await fetch(`${base}/api/rooms`)).json()) as { id: string }[];
+    expect(rooms.map((r) => r.id).sort()).toEqual(["dinner-peak", "heavy-saturday", "next-day"]);
+  });
+});

@@ -1,0 +1,1 @@
+{"id":"walkin-four-now","category":"walk-in","room_fixture":"dinner-peak","prompt":"A party of 4 just walked in. Where can they sit, and how soon?","expected":{"partySize":4,"maxWaitMin":15,"expectNoFit":false},"tags":["illustrative"]}

@@ -4,7 +4,7 @@
 set -euo pipefail
 has_test=0; has_impl=0
 while IFS= read -r f; do
-  if [[ "$f" =~ \.(test|spec)\.(ts|tsx)$ ]]; then has_test=1
+  if [[ "$f" =~ \.(test|spec)\.(ts|tsx)$ || "$f" == */__fixtures__/* ]]; then has_test=1
   elif [[ "$f" =~ ^(src|evals)/.*\.(ts|tsx)$ ]]; then has_impl=1; fi
 done < <(git diff --cached --name-only --diff-filter=ACMR)
 if [[ $has_test -eq 1 && $has_impl -eq 1 ]]; then
