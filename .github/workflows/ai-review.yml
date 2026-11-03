@@ -19,7 +19,7 @@
 # Switches (Actions variables): AI_REVIEW_ENABLED=false turns the whole loop off.
 # AUTO_MERGE_ENABLED=true lets a clean review turn on auto-merge.
 # Secrets: ANTHROPIC_API_KEY (review + fix). AUTOMATION_PAT (fine-grained, this repo only:
-# Contents, Pull requests, Workflows = read/write) pushes fixes and enables auto-merge. Pushes and
+# Contents + Pull requests = read/write; no Workflows: the fixer cannot touch .github/) pushes fixes and enables auto-merge. Pushes and
 # merges made with the default GITHUB_TOKEN don't trigger workflows, so CI would never re-run on a fix.
 # Fork and dependabot PRs are skipped.
 name: ai-review
