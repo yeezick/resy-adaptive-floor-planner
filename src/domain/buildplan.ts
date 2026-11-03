@@ -741,7 +741,13 @@ export interface FitOptions {
 export const MAX_FIT_STEPS = 12;
 
 export type RequestFit =
-  | { ok: true; build: Build; plan: BuildPlan }
+  | {
+      ok: true;
+      build: Build;
+      plan: BuildPlan;
+      /** Large parties already planned for the night whose tables change when this party is added. */
+      moved: string[];
+    }
   | {
       ok: false;
       /** One line, e.g. "No private-room set for 30 is free at 19:30 — earliest 20:30." */
@@ -779,7 +785,14 @@ export function fitRequest(
   };
   const plan = attempt(r.time);
   const build = plan?.builds.find((b) => b.reservationId === r.id);
-  if (plan && build) return { ok: true, build, plan };
+  if (plan && build) {
+    const tablesOf = (b: Build) => [...b.tables].sort().join();
+    const after = new Map(plan.builds.map((b) => [b.reservationId, tablesOf(b)]));
+    const moved = before.builds
+      .filter((b) => after.get(b.reservationId) !== tablesOf(b))
+      .map((b) => b.reservationId);
+    return { ok: true, build, plan, moved };
+  }
 
   // At most MAX_FIT_STEPS more plans (each tens of ms on a 95-table night) — bounded for the client.
   let nextFit: string | null = null;

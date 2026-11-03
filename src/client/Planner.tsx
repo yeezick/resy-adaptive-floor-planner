@@ -5,6 +5,9 @@ import {
   applySplit,
   comboOf,
   findTablesForParty,
+  joinReadiness,
+  readinessBadge,
+  readinessPill,
   tableById,
   type Room,
   type TonightProposal,
@@ -130,17 +133,27 @@ export function Planner({
     ? { key: `focus-${focusRequest}`, ids: focusTables, label: `${focusRequest} · just accepted` }
     : null;
   // An open request whose night is on screen: outline the tables its fit check would hold.
-  const reqTables =
-    mode === "request" && request && request.bookRoomId === room.id
-      ? (requests.fitTables[request.id] ?? [])
-      : [];
-  const reqHighlight: Highlight | null = reqTables.length
-    ? {
-        key: `req-${request?.id}`,
-        ids: reqTables,
-        label: `${request?.id} · party of ${request?.partySize} would sit here`,
-      }
-    : null;
+  const reqTables = useMemo(
+    () =>
+      mode === "request" && request && request.bookRoomId === room.id
+        ? (requests.fitTables[request.id] ?? [])
+        : [],
+    [mode, request, room.id, requests.fitTables],
+  );
+  const reqReady = useMemo(
+    () => (reqTables.length ? joinReadiness(room, reqTables) : null),
+    [room, reqTables],
+  );
+  const reqHighlight: Highlight | null =
+    reqTables.length && reqReady
+      ? {
+          key: `req-${request?.id}`,
+          ids: reqTables,
+          label: `${request?.id} · party of ${request?.partySize} · ${readinessPill(reqReady)}`,
+          source: "fit",
+          badges: Object.fromEntries(reqReady.tables.map((t) => [t.id, readinessBadge(t)])),
+        }
+      : null;
   const highlight = hover ?? pinned ?? suggested ?? focusHighlight ?? reqHighlight;
   const controls: HighlightControls = {
     pinnedKey: pinned?.key ?? null,
