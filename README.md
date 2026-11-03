@@ -32,15 +32,30 @@ Each request gets an AI triage (real vs junk, plus a two-line needs overview) an
 planner: the night's book is planned with and without the party, and it fits only if every existing booking keeps
 its seats. The AI never picks tables.
 
-The card weighs yes against no, in covers:
+**Readiness.** Each table in the proposed join turns green on the floor and gets a bubble: "now" if it is free, or a
+red "~Xm" until it is free, estimated from its meal phase. The sheet lists the same tables with their meal stage. The
+pill reads "capacity fit ✓ · Ready" when every table is free now, else "capacity fit ✓ · ready to set up in ~X min"
+(X = the slowest table).
+
+**Impacts of saying yes**, as two columns:
+
+- **Pros:** +N covers in one booking; no reservations moved (when no other planned large party changes tables);
+  aisle clear for a wheelchair or stroller, shown only when the party asked for that.
+- **Cons:** tables held from–to; ~N covers lost over one turn (est.); which server section's load rises; any other
+  large party that moves to other tables.
+
+Beneath them, the card weighs yes against no, in covers (a negative net is shown as it is):
 
 - **Accept:** +N covers (the party) − M covers lost to the hold (est.) = net. The hold starts one 90-minute turn
   before the build, and covers lost = seats × minutes held ÷ 90.
 - **Decline:** 0, and the request leaves Resy.
-- **Build time ~X min (est.):** crew minutes per step from
+- **Crew: build time ~X min (est.):** crew minutes per step from
   [`fixtures/crew/build-minutes.json`](fixtures/crew/build-minutes.json): 3 per floor table, 3 per extender, 4 per
   spare table from storage, 5 per divider opened, 1 per 4 chairs carried, and never under 10. The same constants set
   the crew list's time windows. Labour cost stays out of the prototype.
+
+The actions, in order: **Accept · Decline** (with a reason) **· Message guest · Ask AI Planner** (jumps to the
+in-request chat). Every chat change is also a manual control.
 
 Table numbers never carry the fixtures' `T` prefix in anything a person reads ("Combine tables 72, 73 and 74 into an
 11-top; bring 2 tables and 6 chairs from storage."). Elapsed time on seated tables is estimated from meal phase and
