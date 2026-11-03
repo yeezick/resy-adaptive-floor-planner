@@ -16,5 +16,14 @@
     "noEmit": true,
     "types": ["node", "vite/client"]
   },
-  "include": ["src", "evals", "scripts", "vite.config.ts", "vitest.config.ts", "eslint.config.js"]
+  "include": [
+    "src",
+    "evals",
+    "scripts",
+    "e2e",
+    "playwright.config.ts",
+    "vite.config.ts",
+    "vitest.config.ts",
+    "eslint.config.js"
+  ]
 }

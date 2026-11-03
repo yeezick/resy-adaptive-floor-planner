@@ -22,7 +22,8 @@
     "evals:judge": "tsx evals/judge.ts",
     "evals:calibrate": "tsx evals/calibrate.ts",
     "verify": "pnpm lint && pnpm typecheck && pnpm test && pnpm evals:deterministic",
-    "evals:labelsheet": "tsx evals/labelsheet.ts"
+    "evals:labelsheet": "tsx evals/labelsheet.ts",
+    "e2e": "playwright test"
   },
   "lint-staged": {
     "*.{ts,tsx}": [
@@ -42,6 +43,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.60.0",
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",

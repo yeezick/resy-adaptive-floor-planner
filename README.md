@@ -1,5 +1,11 @@
 # Adaptive Floor Planner
 
+[![ci](https://github.com/yeezick/resy-adaptive-floor-planner/actions/workflows/ci.yml/badge.svg)](https://github.com/yeezick/resy-adaptive-floor-planner/actions/workflows/ci.yml)
+[![e2e](https://github.com/yeezick/resy-adaptive-floor-planner/actions/workflows/e2e.yml/badge.svg)](https://github.com/yeezick/resy-adaptive-floor-planner/actions/workflows/e2e.yml)
+[![codeql](https://github.com/yeezick/resy-adaptive-floor-planner/actions/workflows/codeql.yml/badge.svg)](https://github.com/yeezick/resy-adaptive-floor-planner/actions/workflows/codeql.yml)
+[![secret-scan](https://github.com/yeezick/resy-adaptive-floor-planner/actions/workflows/secret-scan.yml/badge.svg)](https://github.com/yeezick/resy-adaptive-floor-planner/actions/workflows/secret-scan.yml)
+[![evals-live](https://github.com/yeezick/resy-adaptive-floor-planner/actions/workflows/evals-live.yml/badge.svg)](https://github.com/yeezick/resy-adaptive-floor-planner/actions/workflows/evals-live.yml)
+
 > **Concept prototype by Erick Manrique — not affiliated with, endorsed by, or using data from Resy or American Express.**
 > All restaurant data in this repository is fictional.
 
@@ -23,7 +29,8 @@ control.
 - `src/server/` — Express API and the agent: read-only tools, a validator that rejects any table or seat count the room
   can't support, per-call cost logging and spend caps.
 - `evals/` — golden scenarios, code assertions (CI gate), an LLM judge on a different model, and judge calibration.
-- `fixtures/rooms/` — a fictional 126-table room on three nights.
+- `fixtures/rooms/` — a fictional 95-table room on three nights.
+- `e2e/` — Playwright smoke tests of the host flows at iPad and desktop sizes.
 - `decisions/` — architecture decision records.
 
 ## Run it
@@ -33,4 +40,14 @@ pnpm install
 cp .env.example .env   # add an API key to use the assistant; everything else works without one
 pnpm dev               # client on Vite, API on :3001
 pnpm verify            # lint, typecheck, tests, deterministic evals
+pnpm build && pnpm e2e # Playwright smoke tests (no API key needed)
 ```
+
+## CI/CD
+
+Required checks block a merge; advisory ones inform the reviewer. See [ADR-0007](decisions/ADR-0007-ci-pipeline.md).
+
+- **Required:** PR title, lint + typecheck, unit tests with a coverage gate, build, deterministic evals, secret scan.
+- **Advisory:** AI code review (Claude, one sticky comment per PR), live evals with a judge on AI-surface PRs under a
+  dollar budget, Playwright e2e, CodeQL, dependency audit + review, duplicate-code check, branch sweep.
+- Every action is pinned to a commit SHA; jobs get least-privilege permissions; fork PRs never see secrets.

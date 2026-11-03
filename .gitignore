@@ -13,3 +13,5 @@ coverage/
 *credentials*.json
 *.sqlite
 *.sqlite3
+playwright-report/
+test-results/
