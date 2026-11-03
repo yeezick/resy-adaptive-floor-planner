@@ -205,6 +205,63 @@ test("a large walk-in at the host stand gets the same capacity fit and cost", as
   await expect(sheet.getByRole("region", { name: "Capacity fit" })).toBeVisible();
 });
 
+test("in-request chat: a message becomes constraints, the planner re-runs, manual controls match", async ({
+  page,
+}) => {
+  await page.route("**/api/requests/*/chat", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        requestId: "Q2",
+        traceId: "e2e-chat-1",
+        promptVersion: "e2e",
+        model: "e2e-stub",
+        output: {
+          tableRange: null,
+          partySize: 26,
+          time: null,
+          addNeeds: [],
+          removeNeeds: [],
+          notes: ["high chair"],
+          clarify: null,
+        },
+        escalated: false,
+        note: null,
+        validatorRejects: 0,
+        input: { sha256: "e2e0000000000000", length: 19 },
+        metrics: { costUsd: 0.0002, latencyMs: 1, calls: [] },
+      }),
+    }),
+  );
+  await openFloor(page);
+  const rail = page.getByRole("region", { name: /Requests/ });
+  await rail.locator(".row-request .row-btn").nth(1).click();
+  const chat = page.getByRole("region", { name: "Adjust this request" });
+  await chat
+    .getByRole("textbox", { name: "Message about this request" })
+    .fill("headcount is now 26");
+  await chat.getByRole("button", { name: "Send" }).click();
+  const log = chat.getByRole("list", { name: "Request chat" });
+  await expect(log).toContainText("headcount is now 26");
+  await expect(log).toContainText("party of 26 and high chair → Capacity fit:");
+  const sheet = page.locator(".request-sheet");
+  await expect(sheet.locator(".req-title")).toContainText("party of 26");
+  await expect(sheet.locator(".fit-card")).toContainText("Accept: +26 covers");
+  await expect(sheet.locator(".crew-note")).toContainText("Also: high chair.");
+  // manual parity: the same table range from the controls, no chat needed
+  await chat.getByLabel("Tables from").fill("30");
+  await chat.getByLabel("to", { exact: true }).fill("50");
+  await expect(sheet.locator(".cant-fit-line")).toContainText("No capacity fit in tables 30–50");
+  await expect(sheet.locator(".cant-fit-line")).toContainText("Closest:");
+  await expect(sheet).not.toContainText(/\bT\d/);
+  // the turn is in the activity log, without the manager's words
+  await page.getByRole("link", { name: "Activity" }).click();
+  const table = page.locator(".activity-table");
+  await expect(table).toContainText("Request chat");
+  await expect(page.locator(".activity")).not.toContainText("headcount is now 26");
+});
+
 test("activity log lists AI actions with decisions, never the guest's words", async ({ page }) => {
   await openFloor(page);
   await page.getByRole("link", { name: "Activity" }).click();
