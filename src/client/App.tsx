@@ -3,6 +3,7 @@ import { EvalsPage } from "./EvalsPage/EvalsPage";
 import { Link } from "./Link";
 import { PlannerPage } from "./PlannerPage";
 import { usePath } from "./lib/router";
+import { ThemeToggle } from "./ThemeToggle";
 
 export function App() {
   const path = usePath();
@@ -16,6 +17,7 @@ export function App() {
           <Link href="/">Floor</Link>
           <Link href="/evals">Evals</Link>
         </nav>
+        <ThemeToggle />
       </header>
       <main>{path === "/evals" ? <EvalsPage /> : <PlannerPage />}</main>
     </>

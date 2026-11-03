@@ -1,26 +1,43 @@
-import { PHASES, type Phase, type Table } from "../../domain";
+import type { Phase, Table } from "../../domain";
+
+/**
+ * Table colours as CSS custom properties, so they follow the active theme (see styles.css).
+ * Apply them through `style={{ fill, stroke }}`: `var()` is not reliable in SVG presentation attributes.
+ */
+const v = (token: string) => `var(--${token})`;
 
 /** Occupied tables: dark = just sat (long wait), light = on the check (about to free). */
-export const PHASE_FILL: Record<Phase, string> = {
-  seated: "#1b3a57",
-  drinks: "#1f6a80",
-  appetizers: "#28856d",
-  entrees: "#8cc36a",
-  dessert: "#d8d47a",
-  check: "#ecf3d6",
-};
+export function phaseFill(phase: Phase): string {
+  return v(`phase-${phase}`);
+}
+
+/** Text on a phase fill; each theme pairs every ramp step with an ink that passes AA. */
+export function phaseInk(phase: Phase): string {
+  return v(`phase-${phase}-ink`);
+}
 
 export const STATUS_STYLE = {
-  open: { fill: "#ffffff", stroke: "#3f8f5a", text: "#1d2327" },
-  reserved: { fill: "#fbefd2", stroke: "#b98a2a", text: "#4a3812" },
-  blocked: { fill: "url(#hatch)", stroke: "#9aa0a6", text: "#5f6368" },
+  open: {
+    fill: v("table-open-fill"),
+    stroke: v("table-open-stroke"),
+    text: v("table-open-ink"),
+  },
+  reserved: {
+    fill: v("table-reserved-fill"),
+    stroke: v("table-reserved-stroke"),
+    text: v("table-reserved-ink"),
+  },
+  blocked: {
+    fill: "url(#hatch)",
+    stroke: v("table-blocked-stroke"),
+    text: v("table-blocked-ink"),
+  },
 } as const;
 
 export function tableColors(t: Table): { fill: string; stroke: string; text: string } {
   if (t.status === "occupied") {
     const phase = t.phase ?? "seated";
-    const dark = PHASES.indexOf(phase) < 3;
-    return { fill: PHASE_FILL[phase], stroke: "#18303f", text: dark ? "#ffffff" : "#13262d" };
+    return { fill: phaseFill(phase), stroke: v("phase-stroke"), text: phaseInk(phase) };
   }
   return STATUS_STYLE[t.status];
 }
