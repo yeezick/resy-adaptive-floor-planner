@@ -691,6 +691,15 @@ describe("checkTableSet", () => {
     expect(checkTableSet(mixed, ["T1", "T2"])).toMatchObject({ ok: false });
   });
 
+  it("rejects a join that fails the venue aisle check", () => {
+    expect(checkTableSet(r, ["T43", "T44"])).toEqual({
+      ok: false,
+      reason:
+        "T43 + T44 leaves 32 in of aisle (needs 36 in) — the joined run reaches into the aisle to the service station",
+    });
+    expect(checkTableSet(r, ["T42", "T43"])).toMatchObject({ ok: true });
+  });
+
   it("rejects suite rooms with no order", () => {
     const h = suite(2, 2, { areaOver: () => ({ order: undefined }) });
     expect(checkTableSet(h, ids(1, 4))).toEqual({

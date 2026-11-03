@@ -654,6 +654,10 @@ export function checkTableSet(room: Room, ids: readonly string[]): TableSetCheck
     if (orders.some((o, i) => i > 0 && o !== (orders[i - 1] as number) + 1))
       return { ok: false, reason: "the rooms are not next to each other" };
   }
+  // the aisle rule applies to every legality check, not just the planner
+  const clearance = clearanceFor(room);
+  const badJoin = clearance && checkRows(clearance, room, rows).find((j) => !j.ok);
+  if (badJoin) return { ok: false, reason: badJoin.reason as string };
   const unit = makeUnit(room, rows);
   return {
     ok: true,
