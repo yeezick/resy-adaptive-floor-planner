@@ -7,7 +7,7 @@ import { countdown } from "./wording";
 
 export const NEEDS = ["accessible", "stroller", "quiet", "view"] as const;
 
-export const SOURCES = ["app", "ai-agent", "walk-in", "guest-form"] as const; // SHIM
+export const SOURCES = ["app", "ai-agent", "walk-in"] as const;
 export type RequestSource = (typeof SOURCES)[number];
 
 /** How each source reads on the card and in the activity log. */
@@ -15,7 +15,6 @@ export const SOURCE_LABEL: Record<RequestSource, string> = {
   app: "Resy app",
   "ai-agent": "AI agent (chat app or MCP)",
   "walk-in": "Walk-in at the host stand",
-  "guest-form": "Resy app", // SHIM
 };
 
 /** The same, short enough for a one-line inbox row (the full label is the row's tooltip). */
@@ -23,7 +22,6 @@ export const SOURCE_SHORT: Record<RequestSource, string> = {
   app: "Resy app",
   "ai-agent": "AI agent",
   "walk-in": "Walk-in",
-  "guest-form": "Resy app", // SHIM
 };
 
 export const GuestRequest = z

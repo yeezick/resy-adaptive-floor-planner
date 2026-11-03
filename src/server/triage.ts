@@ -90,7 +90,6 @@ const SOURCE_TEXT: Record<GuestRequest["source"], string> = {
   app: "the booking app's large-party request form",
   "ai-agent": "an AI agent booking for a guest (a chat app or MCP client)",
   "walk-in": "a guest who asked in person at the host stand (the host typed the note)",
-  "guest-form": "the booking app's large-party request form", // SHIM
 };
 
 function userMessage(r: GuestRequest, cap: number): string {
