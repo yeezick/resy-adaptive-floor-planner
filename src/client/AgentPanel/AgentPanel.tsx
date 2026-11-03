@@ -157,7 +157,11 @@ export function AgentPanel({ room, highlight, ...actions }: Props) {
             />
           ),
         )}
-        {pending && <div className="bubble assistant muted">Thinking…</div>}
+        {pending && (
+          <div className="bubble assistant muted" role="status">
+            Checking {room.tables.length} tables, meal phases and holds…
+          </div>
+        )}
       </div>
 
       <div className="chips" aria-label="Example prompts">

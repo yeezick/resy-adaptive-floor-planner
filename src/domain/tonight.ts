@@ -41,7 +41,7 @@ export interface TonightProposal {
   changes: LayoutChange[];
   crew: CrewStep[];
   reasons: { reservationId: string; text: string }[];
-  infeasible: { reservationId: string; partySize: number; reason: string }[];
+  infeasible: { reservationId: string; partySize: number; reason: string; partial?: string }[];
   /** Per placed large party: hold + covers lost, section(s), aisle check. In arrival order. */
   parties: PartyFit[];
   summary: {

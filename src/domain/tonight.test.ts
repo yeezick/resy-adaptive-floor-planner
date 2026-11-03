@@ -172,6 +172,8 @@ describe("generateTonight on demo-night 17:00–22:00 (the demo's Saturday)", ()
     expect(g.summary.largeParties).toBe(11);
     expect(g.summary.placed).toBe(10);
     expect(g.infeasible.map((x) => x.reservationId)).toEqual(["D11"]);
+    // the best the room can still do at that time
+    expect(g.infeasible[0]?.partial).toMatch(/^.+ seats \d+ of 36 at 19:30$/);
     expect(g.infeasible[0]?.reason).toMatch(
       /^Party of 36 at 19:30: every table set that seats them is built for /,
     );

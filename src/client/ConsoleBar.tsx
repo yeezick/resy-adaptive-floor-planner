@@ -58,7 +58,9 @@ export function ConsoleBar({
     <div className="console-bar">
       <div className="cb-room">
         <div className="cb-title">
-          <h1 className="room-name">{room.name}</h1>
+          <h1 className="room-name" title={room.name}>
+            {room.name.replace(/\s*\(fictional\)$/, "")}
+          </h1>
           <div className="cb-sub" title={`Layout in use: ${layoutName} — change it in Shift setup`}>
             {NIGHTS[room.id] ? (
               <span>{NIGHTS[room.id]?.day}</span>
@@ -108,9 +110,11 @@ export function ConsoleBar({
             Edited
           </span>
         )}
-        <button type="button" onClick={onReset} disabled={!edited}>
-          Reset
-        </button>
+        {edited && (
+          <button type="button" onClick={onReset}>
+            Reset
+          </button>
+        )}
       </div>
     </div>
   );

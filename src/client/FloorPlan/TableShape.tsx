@@ -1,5 +1,5 @@
 import { useContext, type KeyboardEvent, type PointerEvent } from "react";
-import type { Table } from "../../domain";
+import { ELAPSED_EST_MIN, type Table } from "../../domain";
 import { PHASE_ABBR } from "../lib/service";
 import { AlwaysShowIds, usePpu, usePx } from "./scale";
 import { tableColors } from "./colors";
@@ -122,6 +122,7 @@ export function TableShape({ table: t, selected, lit, dim, dragging, ...handlers
     >
       <HitArea table={t} />
       {(selected || lit) && ring}
+      <Chairs table={t} />
       {body}
       {t.shape === "booth" && (
         <rect
@@ -139,11 +140,75 @@ export function TableShape({ table: t, selected, lit, dim, dragging, ...handlers
   );
 }
 
+/** One dot per seat, just outside the table edge (booths are benches: none). */
+function Chairs({ table: t }: { table: Table }) {
+  if (t.shape === "booth") return null;
+  const n = t.seats;
+  const cx = t.x + t.w / 2;
+  const cy = t.y + t.h / 2;
+  const off = 0.42;
+  const r = 0.2;
+  const dots: [number, number][] = [];
+  if (t.shape === "round" || t.shape === "diamond") {
+    const rx = t.w / 2 + off;
+    const ry = t.h / 2 + off;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * 2 * Math.PI - Math.PI / 2 + (t.shape === "diamond" ? Math.PI / n : 0);
+      dots.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]);
+    }
+  } else {
+    // seats along the two long sides; a 2-top faces across the short axis
+    const horizontal = t.w >= t.h;
+    const perSide = Math.max(1, Math.ceil(n / 2));
+    const len = horizontal ? t.w : t.h;
+    for (let side = 0; side < 2; side++) {
+      const k = side === 0 ? perSide : n - perSide;
+      for (let i = 0; i < k; i++) {
+        const along = ((i + 0.5) / k) * len;
+        if (horizontal) dots.push([t.x + along, side === 0 ? t.y - off : t.y + t.h + off]);
+        else dots.push([side === 0 ? t.x - off : t.x + t.w + off, t.y + along]);
+      }
+    }
+  }
+  return (
+    <g className="chairs" aria-hidden="true">
+      {dots.map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r={r} />
+      ))}
+    </g>
+  );
+}
+
+/**
+ * Estimated time since the party sat (from meal phase), centred under the table. On tables too small for
+ * the phase word inside, the word goes here too (stacked), so phase is never colour alone.
+ */
+function Elapsed({ table: t, phase }: { table: Table; phase: string | null }) {
+  const px = usePx();
+  const m = ELAPSED_EST_MIN[t.phase ?? "seated"];
+  const font = Math.max(px(10), 0.62);
+  const x = t.x + t.w / 2;
+  const y = t.y + t.h + (t.shape === "booth" ? 0.25 : 0.7) + font * 0.8;
+  return (
+    <text className="t-elapsed" x={x} y={y} fontSize={font}>
+      <title>{`about ${m} min since seated (estimated from meal phase)`}</title>
+      {phase && (
+        <tspan x={x} className="t-elapsed-phase">
+          {phase}
+        </tspan>
+      )}
+      <tspan x={x} dy={phase ? font * 1.1 : 0}>
+        {m}m
+      </tspan>
+    </text>
+  );
+}
+
 const CHAR_W = 0.62; // average glyph width / font size for the system UI font
 
 /** ID (≥12px on screen) and, for seated tables, the meal phase as a word (SEAT…CHK). */
 /** Below this on-screen size a table shows colour + a corner tick instead of a phase word. */
-const WORD_MIN_PX = 32;
+const WORD_MIN_PX = 24;
 /** Below this the ID itself is hidden until hover / focus (e.g. the whole-room overview). */
 const ID_MIN_PX = 22;
 
@@ -190,6 +255,7 @@ function TableLabels({ table: t, color }: { table: Table; color: string }) {
         </text>
       )}
       {occupied && !showWord && <CornerTick table={t} color={color} />}
+      {occupied && <Elapsed table={t} phase={showWord ? null : PHASE_ABBR[t.phase ?? "seated"]} />}
     </>
   );
 }
