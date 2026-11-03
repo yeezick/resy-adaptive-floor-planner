@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { toHHMM, toMinutes } from "./time";
+import { clock12, times12, toHHMM, toMinutes } from "./time";
 
 describe("toMinutes", () => {
   it("converts HH:MM to minutes since midnight", () => {
@@ -40,5 +40,40 @@ describe("toHHMM", () => {
 
   it("round-trips every minute of the day", () => {
     for (let m = 0; m < 1440; m += 7) expect(toMinutes(toHHMM(m))).toBe(m);
+  });
+});
+
+describe("clock12", () => {
+  it("reads a 24-hour time as 12-hour AM/PM", () => {
+    expect(clock12("17:00")).toBe("5:00 PM");
+    expect(clock12("09:05")).toBe("9:05 AM");
+    expect(clock12("12:30")).toBe("12:30 PM");
+    expect(clock12("00:15")).toBe("12:15 AM");
+    expect(clock12("23:59")).toBe("11:59 PM");
+  });
+
+  it("leaves anything that isn't a time alone", () => {
+    expect(clock12("later")).toBe("later");
+  });
+});
+
+describe("times12", () => {
+  it("rewrites every time in a sentence", () => {
+    expect(times12("Set for 22 by 18:00; split after ~19:30")).toBe(
+      "Set for 22 by 6:00 PM; split after ~7:30 PM",
+    );
+  });
+
+  it("states AM/PM once for a range on one side of noon", () => {
+    expect(times12("Tables held 16:30–18:00")).toBe("Tables held 4:30–6:00 PM");
+    expect(times12("11:30–12:30")).toBe("11:30 AM–12:30 PM");
+  });
+
+  it("leaves durations, ratios and table numbers alone", () => {
+    expect(times12("~45m · tables 30–50 · 1:4 · T57")).toBe("~45m · tables 30–50 · 1:4 · T57");
+  });
+
+  it("does not touch times inside longer digit runs", () => {
+    expect(times12("id 119:000")).toBe("id 119:000");
   });
 });
