@@ -1,3 +1,4 @@
+import { checkRows, clearanceFor, type Clearance } from "./clearance";
 import { checkCombine, combinedSeats, MAX_COMBO, SEATS_PER_EXTENDER } from "./combine";
 import { candidateGroups, meetsNeeds, TURN_MIN } from "./capacity";
 import { estimateFreeTime } from "./phases";
@@ -292,6 +293,51 @@ function choicesFor(
 export interface PlanOptions {
   /** Reservations that may only use private event rooms (a "private feel" request). */
   privateOnly?: readonly string[];
+  /** Aisle data; default: the room's venue data (clearanceFor). null = no aisle check. */
+  clearance?: Clearance | null;
+}
+
+/** True when every join in the unit leaves the minimum aisle. */
+function aisleOk(room: Room, c: Clearance | null, u: Unit): boolean {
+  return !c || checkRows(c, room, u.rows).every((j) => j.ok);
+}
+
+export interface AisleReject {
+  tables: string[];
+  area: string;
+  reason: string;
+}
+
+/**
+ * Table sets that would seat this party but were rejected because a join fails the aisle check — the
+ * alternatives a manager might have expected, with the reason. Best candidates first.
+ */
+export function aisleRejects(
+  room: Room,
+  r: Reservation,
+  opts: {
+    clearance?: Clearance | null;
+    privateOnly?: boolean;
+    max?: number;
+    /** The tables actually chosen: only options ranked ahead of them are reported. */
+    chosen?: readonly string[];
+  } = {},
+): AisleReject[] {
+  const c = opts.clearance === undefined ? clearanceFor(room) : opts.clearance;
+  if (!c) return [];
+  const units = buildUnits(room).filter(
+    (u) => !opts.privateOnly || u.areas.every((a) => areaByName(room, a)?.kind === "private"),
+  );
+  const out: AisleReject[] = [];
+  const chosen = opts.chosen ? [...opts.chosen].sort().join() : null;
+  for (const u of poolFor(room, units, r)) {
+    if (chosen && [...u.rows.flat()].sort().join() === chosen) break;
+    const bad = checkRows(c, room, u.rows).find((j) => !j.ok);
+    if (bad?.reason)
+      out.push({ tables: u.rows.flat(), area: u.areas.join(" + "), reason: bad.reason });
+    if (out.length >= (opts.max ?? 1)) break;
+  }
+  return out;
 }
 
 export function planBuilds(
@@ -307,7 +353,8 @@ export function planBuilds(
       (r) => r.partySize >= LARGE_PARTY && toMinutes(r.time) >= start && toMinutes(r.time) <= end,
     )
     .sort((a, b) => toMinutes(a.time) - toMinutes(b.time) || b.partySize - a.partySize);
-  const units = buildUnits(room);
+  const clearance = opts.clearance === undefined ? clearanceFor(room) : opts.clearance;
+  const units = buildUnits(room).filter((u) => aisleOk(room, clearance, u));
   const privateOnly = new Set(opts.privateOnly ?? []);
   const isPrivate = (u: Unit) => u.areas.every((a) => areaByName(room, a)?.kind === "private");
   const pools = large.map((r) =>
@@ -371,12 +418,21 @@ export function planBuilds(
     const c = best?.picks[i] ?? null;
     if (c) builds.push(describe(r, c));
   });
+  const unplacedCount = large.filter((_, i) => !best?.picks[i]).length;
   large.forEach((r, i) => {
     if (best?.picks[i]) return;
     unplaced.push({
       reservationId: r.id,
       partySize: r.partySize,
-      reason: diagnose(room, r, units, pools[i] as Unit[], builds),
+      reason: diagnose(
+        room,
+        r,
+        privateOnly.has(r.id) ? units.filter(isPrivate) : units,
+        pools[i] as Unit[],
+        builds,
+        // the earliest-free search is cheap for a few can't-fits; skip it for a night that is mostly unplaceable
+        unplacedCount <= MAX_NEXT_FIT ? end : -1,
+      ),
     });
   });
   const shortfalls = unplaced.length
@@ -432,17 +488,72 @@ function describe(r: Reservation, c: Choice): Build {
   };
 }
 
-/** Plain-language reason a party could not be placed: size, needs, timing or storage. */
+/** Busy windows for the builds already in a plan (used to place one more party into what is left). */
+function busyFrom(room: Room, builds: readonly Build[]): Busy[] {
+  return builds.map((b) => {
+    const areas = b.area.split(" + ");
+    const spareByArea: Record<string, number> = {};
+    let left = b.spareTables;
+    for (const a of areas) {
+      const k = Math.min(left, areaByName(room, a)?.spareSlots ?? 0);
+      if (k) spareByArea[a] = k;
+      left -= k;
+    }
+    return {
+      ids: b.tables,
+      from: toMinutes(b.time) - BUILD_LEAD_MIN,
+      to: toMinutes(b.time) + TURN_MIN,
+      rooms: areas.filter((a) => areaByName(room, a)?.kind === "private"),
+      spareByArea,
+    };
+  });
+}
+
+/** Can't-fits per plan that get an "earliest free" time. */
+export const MAX_NEXT_FIT = 5;
+
+/** Latest arrival tried when looking for a later time a party could fit. */
+export const LATEST_ARRIVAL = "22:00";
+
+/** Earliest later arrival (15-minute steps) at which the party fits around this plan, or null. */
+function earliestFree(
+  room: Room,
+  units: readonly Unit[],
+  r: Reservation,
+  builds: readonly Build[],
+  latest: number,
+): string | null {
+  const busy = busyFrom(room, builds);
+  const spare4 = room.inventory.spareTables
+    .filter((t) => t.seats >= 4)
+    .reduce((n, t) => n + t.count, 0);
+  const stock: Stock = {
+    extenders: room.inventory.extenders - builds.reduce((n, b) => n + b.extenders, 0),
+    chairs: room.inventory.spareChairs - builds.reduce((n, b) => n + b.extraChairs, 0),
+    spare4: spare4 - builds.reduce((n, b) => n + b.spareTables, 0),
+  };
+  for (let m = toMinutes(r.time) + 15; m <= Math.max(latest, toMinutes(LATEST_ARRIVAL)); m += 15) {
+    const at = { ...r, time: toHHMM(m) };
+    if (choicesFor(room, poolFor(room, units, at), at, busy, stock).length) return at.time;
+  }
+  return null;
+}
+
+const listIds = (ids: string[]) =>
+  ids.length > 3 ? `${ids.slice(0, 3).join(", ")} +${ids.length - 3}` : ids.join(", ");
+
+/** One-line reason a party could not be placed (size, needs, timing or storage) and when it could. */
 function diagnose(
   room: Room,
   r: Reservation,
   units: readonly Unit[],
   pool: readonly Unit[],
   builds: readonly Build[],
+  latest: number,
 ): string {
   const who = `Party of ${r.partySize} at ${r.time}`;
   const where = r.area ? ` in ${r.area}` : "";
-  const needs = r.needs.length ? ` that are ${r.needs.join(" and ")}` : "";
+  const needs = r.needs.length ? ` (${r.needs.join(", ")})` : "";
   const candidates = units.filter(
     (u) =>
       !u.tables.some((t) => t.status === "blocked") &&
@@ -452,12 +563,15 @@ function diagnose(
   if (!candidates.length) return `${who}: no open tables${where}${needs} tonight.`;
   const largest = Math.max(...candidates.map(maxSeats));
   if (largest < r.partySize)
-    return `${who}: the largest set of tables${where}${needs} seats at most ${largest}, even with storage.`;
+    return `${who}: the largest table set${where}${needs} seats ${largest}, even with storage.`;
+  const next = latest >= 0 ? earliestFree(room, units, r, builds, latest) : null;
+  const then =
+    latest < 0 ? "" : next ? ` — earliest free ${next}` : " — nothing frees up later tonight";
   const usable = candidates.filter(
     (u) => maxSeats(u) >= r.partySize && u.tables.every((t) => usableFor(room, t, r)),
   );
   if (!usable.length)
-    return `${who}: the tables${where}${needs} that could seat them are still seated or held for other parties at that time.`;
+    return `${who}: the tables${where}${needs} that seat them are still in use or held${then}.`;
   const t0 = toMinutes(r.time);
   const overlaps = builds.filter(
     (b) =>
@@ -471,18 +585,17 @@ function diagnose(
         b.tables.some((id) => u.tables.some((t) => t.id === id)) ||
         privateRooms(room, u).some((a) => b.area.split(" + ").includes(a)),
     );
-    clash.forEach((b) => blockedBy.add(`${b.reservationId} (${b.partySize})`));
+    clash.forEach((b) => blockedBy.add(b.reservationId));
     return clash.length === 0;
   });
   if (!free.length && blockedBy.size)
-    return `${who}: every table set${where}${needs} that seats them is already built for ${[...blockedBy].join(", ")} at that time.`;
+    return `${who}: every table set${where}${needs} that seats them is built for ${listIds([...blockedBy])}${then}.`;
   const inv = room.inventory;
-  const spare = inv.spareTables.filter((x) => x.seats >= 4).reduce((n, x) => n + x.count, 0);
-  const used = builds.reduce(
-    (a, b) => ({ e: a.e + b.extenders, c: a.c + b.extraChairs, s: a.s + b.spareTables }),
-    { e: 0, c: 0, s: 0 },
-  );
-  return `${who}: tables are free but storage runs out — earlier builds use ${used.e}/${inv.extenders} extenders, ${used.c}/${inv.spareChairs} chairs and ${used.s}/${spare} spare tables.`;
+  const used = builds.reduce((a, b) => ({ e: a.e + b.extenders, c: a.c + b.extraChairs }), {
+    e: 0,
+    c: 0,
+  });
+  return `${who}: storage runs out (${used.e}/${inv.extenders} extenders, ${used.c}/${inv.spareChairs} chairs already in use; storage is held all night).`;
 }
 
 export type TableSetCheck =
@@ -541,6 +654,10 @@ export function checkTableSet(room: Room, ids: readonly string[]): TableSetCheck
     if (orders.some((o, i) => i > 0 && o !== (orders[i - 1] as number) + 1))
       return { ok: false, reason: "the rooms are not next to each other" };
   }
+  // the aisle rule applies to every legality check, not just the planner
+  const clearance = clearanceFor(room);
+  const badJoin = clearance && checkRows(clearance, room, rows).find((j) => !j.ok);
+  if (badJoin) return { ok: false, reason: badJoin.reason as string };
   const unit = makeUnit(room, rows);
   return {
     ok: true,
@@ -560,6 +677,9 @@ export interface FitOptions {
   /** Latest arrival time to try when the requested time does not fit (default 22:00). */
   latest?: string;
 }
+
+/** Later arrivals a request's fit check tries (15-minute steps). */
+export const MAX_FIT_STEPS = 12;
 
 export type RequestFit =
   | { ok: true; build: Build; plan: BuildPlan }
@@ -601,8 +721,10 @@ export function fitRequest(
   const build = plan?.builds.find((b) => b.reservationId === r.id);
   if (plan && build) return { ok: true, build, plan };
 
+  // At most MAX_FIT_STEPS more plans (each tens of ms on a 95-table night) — bounded for the client.
   let nextFit: string | null = null;
-  for (let m = toMinutes(r.time) + 15; m <= toMinutes(latest); m += 15) {
+  const stop = Math.min(toMinutes(latest), toMinutes(r.time) + 15 * MAX_FIT_STEPS);
+  for (let m = toMinutes(r.time) + 15; m <= stop; m += 15) {
     if (attempt(toHHMM(m))) {
       nextFit = toHHMM(m);
       break;

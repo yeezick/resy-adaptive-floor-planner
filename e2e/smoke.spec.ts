@@ -158,8 +158,13 @@ test("request inbox: triage, fit check, accept opens that night's plan", async (
   // the 22-top fits: Accept opens Friday's plan with the party in focus
   await rail.locator(".row-request .row-btn").nth(1).click();
   await expect(page.getByText("Fits", { exact: true })).toBeVisible();
+  const cost = page.locator(".request-sheet .fit-card");
+  await expect(cost).toContainText("covers lost");
+  await expect(cost).toContainText("spans two servers' sections");
+  await expect(cost).toContainText("joins clear");
   await page.getByRole("button", { name: /Accept/ }).click();
   await expect(page.locator(".room-select select")).toHaveValue("book-fri");
   await expect(page.locator(".proposal")).toBeVisible();
   await expect(page.locator(".card.is-focus")).toContainText("Q2");
+  await expect(page.locator(".fit-card.is-focus")).toContainText("Q2");
 });

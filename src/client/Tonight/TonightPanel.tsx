@@ -8,6 +8,7 @@ import {
 } from "../../domain";
 import { dividersForTables } from "../FloorPlan/geometry";
 import { openedDividers } from "../FloorPlan/ChangeOverlay";
+import { PartyFitCard } from "../Fit/PartyFitCard";
 import type { HighlightControls } from "../highlight";
 import type { LayoutsApi } from "../layouts/useLayouts";
 
@@ -143,7 +144,53 @@ function Proposal({
           value={`${s.placed}/${s.largeParties}`}
           warn={s.placed < s.largeParties}
         />
+        <Tile
+          label="Covers lost to holds"
+          value={`~${s.coversLostToHolds}`}
+          hint="seats × time held ÷ one 90-min turn"
+        />
       </div>
+
+      <section aria-label="Fit and cost by party">
+        <h3 className="section-title">Large parties · fit + cost · {p.parties.length}</h3>
+        <p className="muted small">
+          Holds, sections and aisle checks come from the planner. Hover a party to see it on the
+          floor.
+        </p>
+        <ul className="fit-list">
+          {[...p.parties]
+            .sort(
+              (a, b) => Number(b.reservationId === focusId) - Number(a.reservationId === focusId),
+            )
+            .map((f) => {
+              const h = {
+                key: `fit-${f.reservationId}`,
+                ids: f.tables,
+                label: `${f.reservationId} · party of ${f.partySize}`,
+              };
+              return (
+                <PartyFitCard
+                  key={f.reservationId}
+                  f={f}
+                  focus={f.reservationId === focusId}
+                  onHover={(on) => highlight.onHover(on ? h : null)}
+                />
+              );
+            })}
+        </ul>
+      </section>
+      {p.infeasible.length > 0 && (
+        <section aria-label="Can't fit">
+          <h3 className="section-title">Can't fit · {p.infeasible.length}</h3>
+          <p className="muted small">The rest of the plan still stands.</p>
+          {p.infeasible.map((x) => (
+            <div key={x.reservationId} className="cant-fit">
+              <strong>{x.reservationId}</strong> <span className="small">{x.reason}</span>
+            </div>
+          ))}
+        </section>
+      )}
+
       <table className="data compact" aria-label="Storage used versus in stock">
         <tbody>
           <StockRow
@@ -168,21 +215,6 @@ function Proposal({
           Apply to tonight
         </button>
       </div>
-
-      {p.infeasible.length > 0 && (
-        <section aria-label="Can't fit">
-          <h3 className="section-title">Can't fit · {p.infeasible.length}</h3>
-          <p className="muted small">The rest of the plan still stands.</p>
-          {p.infeasible.map((x) => (
-            <div key={x.reservationId} className="cant-fit">
-              <strong>
-                {x.reservationId} · party of {x.partySize}
-              </strong>
-              <div className="small">{x.reason}</div>
-            </div>
-          ))}
-        </section>
-      )}
 
       <section aria-label="Changes by party">
         <h3 className="section-title">Changes by party · {parties.length}</h3>

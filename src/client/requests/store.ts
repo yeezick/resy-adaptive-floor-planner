@@ -6,7 +6,7 @@ import type { GuestRequest, RequestBook } from "../../domain/requests";
 import { toReservation } from "../../domain/requests";
 import type { Reservation } from "../../domain";
 import type { TriageResult } from "../../shared/api";
-import { fetchRequests, postTriage, type ClientError } from "../api";
+import { fetchRequests, postDecision, postTriage, type ClientError } from "../api";
 
 export type DeclineReason = "fit" | "policy" | "other";
 
@@ -83,6 +83,7 @@ export const requestsActions = {
     void triage(r);
   },
   accept(r: GuestRequest, tables: string[]) {
+    void postDecision(r.id, { kind: "accepted" });
     const list = (state.accepted[r.bookRoomId] ?? []).filter((x) => x.id !== r.id);
     set({
       decisions: { ...state.decisions, [r.id]: { kind: "accepted", at: stamp(), tables } },
@@ -91,13 +92,16 @@ export const requestsActions = {
     });
   },
   decline(r: GuestRequest, reason: DeclineReason) {
+    void postDecision(r.id, { kind: "declined", reason });
     set({ decisions: { ...state.decisions, [r.id]: { kind: "declined", at: stamp(), reason } } });
   },
   reply(r: GuestRequest, edited: boolean) {
+    void postDecision(r.id, { kind: "replied", edited });
     set({ decisions: { ...state.decisions, [r.id]: { kind: "replied", at: stamp(), edited } } });
   },
   /** Undo a decision (back to pending); an accepted party leaves that night's book. */
   reopen(r: GuestRequest) {
+    void postDecision(r.id, { kind: "reopened" });
     const { [r.id]: _gone, ...decisions } = state.decisions;
     set({
       decisions,

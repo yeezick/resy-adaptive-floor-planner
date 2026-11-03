@@ -110,3 +110,12 @@ export const TriageResult = z
   })
   .strict();
 export type TriageResult = z.infer<typeof TriageResult>;
+
+export const RequestDecision = z
+  .object({
+    kind: z.enum(["accepted", "declined", "replied", "reopened"]),
+    reason: z.enum(["fit", "policy", "other"]).optional(),
+    edited: z.boolean().optional(),
+  })
+  .strict();
+export type RequestDecision = z.infer<typeof RequestDecision>;

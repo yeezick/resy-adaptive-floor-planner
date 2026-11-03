@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { checkTableSet, type Table } from "../../domain";
+import { checkTableSet, clearanceFor, type Table } from "../../domain";
+import { nextDay } from "../../domain/__fixtures__/build";
 import type { Recommendation } from "../../shared/api";
 import { TEST_ROOM as room } from "../testRoom";
 import {
@@ -39,6 +40,14 @@ describe("validateRecommendations", () => {
     expect(
       msgs(validateRecommendations(room, [rec({ tables: ["T12", "T22"], seats: 6 })])),
     ).toMatch(/illegal combine/);
+  });
+
+  it("rejects a join that fails the aisle check on the Juniper & Pine room", () => {
+    const jp = nextDay();
+    expect(clearanceFor(jp)).not.toBeNull();
+    expect(
+      msgs(validateRecommendations(jp, [rec({ tables: ["T43", "T44"], seats: 8 })], fit(8))),
+    ).toMatch(/T43 \+ T44 leaves 32 in of aisle \(needs 36 in\)/);
   });
 
   it("fit answers may add header chairs only (capped by spare chairs)", () => {

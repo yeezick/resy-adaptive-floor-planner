@@ -2723,3 +2723,46 @@ button.primary:disabled {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Fit + cost per large party */
+.fit-list {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fit-card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  background: var(--surface);
+}
+.fit-card.is-focus {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+.fit-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 8px;
+  align-items: baseline;
+  margin-bottom: 4px;
+}
+.fit-grid {
+  display: grid;
+  grid-template-columns: 62px 1fr;
+  gap: 3px 8px;
+  margin: 0;
+}
+.fit-grid dt {
+  color: var(--muted);
+  font-weight: 600;
+}
+.fit-grid dd {
+  margin: 0;
+}
+.fit-reject {
+  color: var(--warn);
+  margin-top: 2px;
+}

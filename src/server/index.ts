@@ -5,7 +5,7 @@ import { isIP } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Room } from "../domain";
-import { AgentRequest, type ApiError } from "../shared/api";
+import { AgentRequest, RequestDecision, type ApiError } from "../shared/api";
 import {
   AgentError,
   agentConfigFromEnv,
@@ -20,7 +20,13 @@ import { RateLimiter } from "./guards/rateLimit";
 import { hashText, logEvent } from "./log";
 import { requestBook } from "./requests";
 import { getRoom, roomSummaries } from "./rooms";
-import { TriageError, triageConfigFromEnv, triageRequest, type TriageConfig } from "./triage";
+import {
+  loadTriagePrompt,
+  TriageError,
+  triageConfigFromEnv,
+  triageRequest,
+  type TriageConfig,
+} from "./triage";
 import type { TriageResult } from "../shared/api";
 
 export interface AppOptions {
@@ -176,13 +182,15 @@ export function createApp(opts: AppOptions = {}) {
   });
 
   // One triage per request per prompt version; later views are served from this cache (no new spend).
+  // Escalated results (refusal, two validator rejects) are not cached, so a one-off can be retried.
   const triaged = new Map<string, TriageResult>();
   const triaging = new Map<string, Promise<TriageResult>>();
   app.post("/api/requests/:id/triage", async (req, res) => {
     const book = requestBook();
     const r = book.requests.find((x) => x.id === req.params.id);
     if (!r) return sendError(res, 404, "bad_request", "unknown request");
-    const hit = triaged.get(r.id);
+    const key = `${r.id}:${loadTriagePrompt().version}`;
+    const hit = triaged.get(key);
     if (hit) return res.json({ ...hit, cached: true });
     if (!limiter.hit(req.ip ?? "unknown"))
       return sendError(res, 429, "rate_limited", "Too many requests — try again in a minute.");
@@ -210,7 +218,7 @@ export function createApp(opts: AppOptions = {}) {
     }
     try {
       const result = await pending;
-      triaged.set(r.id, result);
+      if (!result.escalated) triaged.set(key, result);
       logEvent("triage_response", {
         traceId: result.traceId,
         requestId: r.id,
@@ -237,6 +245,25 @@ export function createApp(opts: AppOptions = {}) {
     } finally {
       triaging.delete(r.id);
     }
+  });
+
+  // The manager's decision on a request: logged so decline reasons can be counted (the sprint's key
+  // metric). Ids and enums only — no guest text.
+  app.post("/api/requests/:id/decision", (req, res) => {
+    const r = requestBook().requests.find((x) => x.id === req.params.id);
+    if (!r) return sendError(res, 404, "bad_request", "unknown request");
+    if (!limiter.hit(req.ip ?? "unknown"))
+      return sendError(res, 429, "rate_limited", "Too many requests — try again in a minute.");
+    const body = RequestDecision.safeParse(req.body);
+    if (!body.success)
+      return sendError(
+        res,
+        400,
+        "bad_request",
+        body.error.issues[0]?.message ?? "invalid decision",
+      );
+    logEvent("request_decision", { requestId: r.id, partySize: r.partySize, ...body.data });
+    res.json({ ok: true });
   });
 
   app.use("/api", (_req, res) => sendError(res, 404, "bad_request", "unknown API route"));

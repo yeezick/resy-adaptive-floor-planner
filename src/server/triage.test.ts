@@ -46,11 +46,21 @@ describe("triageProblems", () => {
     expect(triageProblems(out({ reason: "The Rivera group wants dinner." }), req)).toHaveLength(1);
     expect(triageProblems(out({ reason: "Alexandra-style dinner." }), req)).toEqual([]);
     expect(
-      triageProblems(out({ reason: "Demands free dinner for posts." }), {
+      triageProblems(out({ reason: "Demands free food for posts." }), {
         ...req,
         contact: "free dinner",
       }),
     ).toEqual([]);
+    // the contact field repeated verbatim is still the contact, whatever its case
+    expect(
+      triageProblems(out({ reason: "Demands free dinner for posts." }), {
+        ...req,
+        contact: "free dinner",
+      }),
+    ).toHaveLength(1);
+    expect(
+      triageProblems(out({ reason: "Dana Lee wants dinner." }), { ...req, contact: "dana lee" }),
+    ).toHaveLength(1);
     expect(
       triageProblems(out({ reason: "Plans a party for a client." }), {
         ...req,
