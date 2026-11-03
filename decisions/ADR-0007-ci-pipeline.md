@@ -32,8 +32,8 @@ Trade-offs, stated plainly:
 
 - `audit` gates production dependencies at **high** but dev dependencies only at **critical**: a high advisory in
   a build or test tool is reported, not blocking, because it never ships to the server.
-- `evals-live` on PRs runs per push only when that push touches the AI surface, each run capped at
-  `EVAL_RUN_BUDGET_USD`. There is no per-PR total cap; many AI-surface pushes cost many runs. The kill switch is
+- `evals-live` on PRs re-runs on every push to a PR whose files touch the AI surface (judged on the whole PR, so a
+  newer push that cancels an older run still measures the change), each run capped at `EVAL_RUN_BUDGET_USD`. There is no per-PR total cap; many AI-surface pushes cost many runs. The kill switch is
   removing the `ANTHROPIC_API_KEY` secret or disabling the workflow.
 - When a changed-file list can't be read, the reviewer picks Opus and live evals run: both fail toward more scrutiny.
 

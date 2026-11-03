@@ -33,9 +33,10 @@ jobs:
             [ -z "$branch" ] && continue
             # Delete only when the branch tip is exactly the head of a PR from this repo that merged.
             # Catches same-named fork PRs and branches that got new commits after their merge.
-            tip=$(gh api "repos/$REPO/branches/$branch" -q '.commit.sha')
+            tip=$(gh api "repos/$REPO/branches/$branch" -q '.commit.sha') || { echo "skip  $branch (lookup failed)"; continue; }
             prs=$(gh pr list --repo "$REPO" --head "$branch" --state all --json state,headRefOid,headRepositoryOwner \
-              -q ".[] | select(.headRepositoryOwner.login == \"$OWNER\") | \"\(.state) \(.headRefOid)\"")
+              -q ".[] | select(.headRepositoryOwner.login == \"$OWNER\") | \"\(.state) \(.headRefOid)\"") \
+              || { echo "skip  $branch (PR lookup failed)"; continue; }
             if printf '%s\n' "$prs" | grep -q '^OPEN '; then
               echo "keep  $branch (open PR)"; kept_open=$((kept_open + 1)); continue
             fi
