@@ -477,9 +477,7 @@ describe("unplaced diagnosis", () => {
       tables: [table("T1", { seats: 8, joinable: false })],
       reservations: [res("R1", "19:00", 8, { needs: ["view", "quiet"] })],
     });
-    expect(plan(r)).toEqual([
-      "Party of 8 at 19:00: no open tables that are view and quiet tonight.",
-    ]);
+    expect(plan(r)).toEqual(["Party of 8 at 19:00: no open tables (view, quiet) tonight."]);
   });
 
   it("the largest set is too small even with storage", () => {
@@ -490,7 +488,7 @@ describe("unplaced diagnosis", () => {
       reservations: [res("R1", "19:00", 20, { area: "Main" })],
     });
     expect(plan(r)).toEqual([
-      "Party of 20 at 19:00: the largest set of tables in Main seats at most 10, even with storage.",
+      "Party of 20 at 19:00: the largest table set in Main seats 10, even with storage.",
     ]);
   });
 
@@ -502,7 +500,7 @@ describe("unplaced diagnosis", () => {
       reservations: [res("R1", "19:00", 8), res("R2", "19:00", 7)],
     });
     expect(plan(r)).toEqual([
-      "Party of 7 at 19:00: every table set that seats them is already built for R1 (8) at that time.",
+      "Party of 7 at 19:00: every table set that seats them is built for R1 — earliest free 21:00.",
     ]);
   });
 
@@ -517,7 +515,7 @@ describe("unplaced diagnosis", () => {
       reservations: [res("R1", "19:00", 8), res("R2", "19:00", 8)],
     });
     expect(plan(r)).toEqual([
-      "Party of 8 at 19:00: tables are free but storage runs out — earlier builds use 1/1 extenders, 2/20 chairs and 0/0 spare tables.",
+      "Party of 8 at 19:00: storage runs out (1/1 extenders, 2/20 chairs already in use; storage is held all night).",
     ]);
   });
 

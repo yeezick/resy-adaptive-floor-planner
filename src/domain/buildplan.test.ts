@@ -335,7 +335,7 @@ describe("planBuilds storage: header chairs → extenders → spare tables", () 
     const fourteen = planBuilds(row2({ extenders: 4, spareChairs: 20 }, 14), "18:00", "20:00");
     expect(fourteen.builds).toEqual([]);
     expect(fourteen.unplaced[0]?.reason).toBe(
-      "Party of 14 at 19:00: the largest set of tables seats at most 12, even with storage.",
+      "Party of 14 at 19:00: the largest table set seats 12, even with storage.",
     );
   });
 
@@ -559,12 +559,8 @@ describe("planBuilds scheduling", () => {
     assertSound(r, p);
     expect(p.builds.map((b) => [b.reservationId, b.area])).toEqual([["R1", "Patio"]]);
     const r2 = p.unplaced.find((u) => u.reservationId === "R2");
-    expect(r2?.reason).toBe(
-      "Party of 7 at 19:00: no open tables in Back room that are quiet tonight.",
-    );
-    expect(p.unplaced.find((u) => u.reservationId === "R3")?.reason).toContain(
-      "that are accessible",
-    );
+    expect(r2?.reason).toBe("Party of 7 at 19:00: no open tables in Back room (quiet) tonight.");
+    expect(p.unplaced.find((u) => u.reservationId === "R3")?.reason).toContain("(accessible)");
     expect(p.shortfalls).toEqual(["2 large parties could not be placed"]);
   });
 
