@@ -8,6 +8,7 @@ import {
   RoomSummary,
   TriageResult,
   type AgentRequest,
+  type RequestDecision,
 } from "../shared/api";
 import { EvalResults } from "../shared/evals";
 
@@ -94,4 +95,12 @@ export function postTriage(id: string): Promise<Result<TriageResult>> {
   return call(`/api/requests/${encodeURIComponent(id)}/triage`, schemaParser(TriageResult), {
     method: "POST",
   });
+}
+
+export function postDecision(id: string, d: RequestDecision): Promise<Result<{ ok: boolean }>> {
+  return call(
+    `/api/requests/${encodeURIComponent(id)}/decision`,
+    schemaParser(z.object({ ok: z.boolean() })),
+    { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(d) },
+  );
 }

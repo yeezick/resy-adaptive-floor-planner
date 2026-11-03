@@ -674,6 +674,9 @@ export interface FitOptions {
   latest?: string;
 }
 
+/** Later arrivals a request's fit check tries (15-minute steps). */
+export const MAX_FIT_STEPS = 12;
+
 export type RequestFit =
   | { ok: true; build: Build; plan: BuildPlan }
   | {
@@ -714,8 +717,10 @@ export function fitRequest(
   const build = plan?.builds.find((b) => b.reservationId === r.id);
   if (plan && build) return { ok: true, build, plan };
 
+  // At most MAX_FIT_STEPS more plans (each tens of ms on a 95-table night) — bounded for the client.
   let nextFit: string | null = null;
-  for (let m = toMinutes(r.time) + 15; m <= toMinutes(latest); m += 15) {
+  const stop = Math.min(toMinutes(latest), toMinutes(r.time) + 15 * MAX_FIT_STEPS);
+  for (let m = toMinutes(r.time) + 15; m <= stop; m += 15) {
     if (attempt(toHHMM(m))) {
       nextFit = toHHMM(m);
       break;

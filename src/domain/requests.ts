@@ -73,9 +73,9 @@ export function draftReply(r: GuestRequest, fit: RequestFit): string {
   const first = r.contact.split(" ")[0] ?? r.contact;
   const when = `${r.day} at ${r.time}`;
   if (fit.ok)
-    return `Hi ${first}, thanks for asking about a party of ${r.partySize} on ${when}. We can host you${
+    return `Hi ${first}, thanks for asking about a party of ${r.partySize} on ${when}. We may be able to host you${
       r.privateRoom ? " in a private room" : ""
-    }. Could you confirm the final headcount and any dietary needs? Once you confirm, we'll hold it and send the details.`;
+    }. Could you confirm the final headcount and any dietary needs? We'll check the details and come back to you.`;
   if (fit.nextFit)
     return `Hi ${first}, thanks for asking about a party of ${r.partySize} on ${when}. We're full for a group that size at ${r.time}, but we could host you from ${fit.nextFit}. Would that work?`;
   return `Hi ${first}, thanks for asking about a party of ${r.partySize} on ${when}. Unfortunately we can't fit a group that size that night. Could another night work?`;

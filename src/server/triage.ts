@@ -66,14 +66,11 @@ export function triageProblems(out: TriageOutput, r: GuestRequest): string[] {
     problems.push("repeats a link, email or phone number");
   const name = r.contact.trim();
   const lower = text.toLowerCase();
-  // Only capitalised words count as name tokens, matched case-sensitively, so a contact like "free dinner"
-  // does not reject ordinary prose. A contact with no name-like word is not checked at all.
+  // The full contact string is always checked (any case). Single words count only when capitalised and
+  // matched case-sensitively, so a contact like "free dinner" does not reject ordinary prose.
   const tokens = name.split(/\s+/).filter((t) => /^\p{Lu}\p{L}{2,}$/u.test(t));
   const hasToken = (t: string) => new RegExp(`(^|[^\\p{L}])${t}($|[^\\p{L}])`, "u").test(text);
-  if (
-    tokens.length > 0 &&
-    ((name.length > 2 && lower.includes(name.toLowerCase())) || tokens.some((t) => hasToken(t)))
-  )
+  if ((name.length > 2 && lower.includes(name.toLowerCase())) || tokens.some((t) => hasToken(t)))
     problems.push("repeats the guest's name");
   return problems;
 }
