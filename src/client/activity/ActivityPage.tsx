@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import {
   activityCounts,
   filterActivity,
@@ -10,7 +10,15 @@ import {
 import { duration, usd } from "../lib/format";
 import { ProposedTag } from "../requests/RequestSheet";
 import { startRequests } from "../requests/store";
-import { useActivity } from "./store";
+import {
+  DEMO_MANAGER,
+  feedbackOf,
+  filterByFeedback,
+  type FeedbackFilter,
+  type FeedbackRecord,
+  type Rating,
+} from "../../domain/feedback";
+import { activityActions, useActivity, useFeedback } from "./store";
 import { SOURCE_LABEL as REQUEST_SOURCE } from "../../domain/requests";
 
 const KIND_LABEL: Record<ActivityKind, string> = {
@@ -78,7 +86,14 @@ export function ActivityPage() {
   const rows = useActivity();
   const [filter, setFilter] = useState<ActivityFilter>({});
   const [open, setOpen] = useState<string | null>(null);
-  const shown = useMemo(() => filterActivity(rows, filter), [rows, filter]);
+  const feedback = useFeedback();
+  const [fbFilter, setFbFilter] = useState<FeedbackFilter | undefined>(undefined);
+  // The row whose optional note box is open (after a thumb click).
+  const [noteFor, setNoteFor] = useState<string | null>(null);
+  const shown = useMemo(
+    () => filterByFeedback(filterActivity(rows, filter), feedback, DEMO_MANAGER, fbFilter),
+    [rows, filter, feedback, fbFilter],
+  );
   const counts = activityCounts(rows);
   const selected = rows.find((r) => r.id === open) ?? null;
   const total = rows.reduce((n, r) => n + r.costUsd, 0);
@@ -162,6 +177,20 @@ export function ActivityPage() {
             <option value="other">Other</option>
           </select>
         </label>
+        <label className="field-inline">
+          <span>Feedback</span>
+          <select
+            value={fbFilter ?? ""}
+            onChange={(e) =>
+              setFbFilter((e.target.value || undefined) as FeedbackFilter | undefined)
+            }
+          >
+            <option value="">Any</option>
+            <option value="up">👍 Helpful</option>
+            <option value="down">👎 Not helpful</option>
+            <option value="unrated">Unrated</option>
+          </select>
+        </label>
         <span className="muted small">
           {shown.length} of {rows.length} rows · AI spend {usd(total)}
         </span>
@@ -176,6 +205,7 @@ export function ActivityPage() {
               <th scope="col">Party · date</th>
               <th scope="col">What the AI Planner did</th>
               <th scope="col">Manager decision</th>
+              <th scope="col">Feedback</th>
               <th scope="col" className="num">
                 Cost · latency
               </th>
@@ -183,45 +213,59 @@ export function ActivityPage() {
           </thead>
           <tbody>
             {shown.map((r) => (
-              <tr
-                key={r.id}
-                className={open === r.id ? "is-open" : undefined}
-                onClick={() => setOpen(r.id)}
-              >
-                <td className="mono">{fmtAt(r.at)}</td>
-                <td>{SOURCE_LABEL[r.source]}</td>
-                <td>
-                  {r.partySize ? `${r.partySize}` : "—"}
-                  {r.when ? ` · ${r.when}` : ""}
-                </td>
-                <td>
-                  <button
-                    type="button"
-                    className="link-btn row-what"
-                    aria-expanded={open === r.id}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpen(r.id);
-                    }}
-                  >
-                    <span className={`kind kind-${r.kind}`}>{KIND_LABEL[r.kind]}</span>{" "}
-                    {r.flags.includes("validator-reject") && (
-                      <span className="kind kind-reject">validator reject</span>
-                    )}{" "}
-                    {r.what}
-                  </button>
-                </td>
-                <td>
-                  <DecisionChip d={r.decision} />
-                </td>
-                <td className="num mono">
-                  {usd(r.costUsd)} · {r.latencyMs ? duration(r.latencyMs) : "—"}
-                </td>
-              </tr>
+              <Fragment key={r.id}>
+                <tr className={open === r.id ? "is-open" : undefined} onClick={() => setOpen(r.id)}>
+                  <td className="mono">{fmtAt(r.at)}</td>
+                  <td>{SOURCE_LABEL[r.source]}</td>
+                  <td>
+                    {r.partySize ? `${r.partySize}` : "—"}
+                    {r.when ? ` · ${r.when}` : ""}
+                  </td>
+                  <td>
+                    <button
+                      type="button"
+                      className="link-btn row-what"
+                      aria-expanded={open === r.id}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpen(r.id);
+                      }}
+                    >
+                      <span className={`kind kind-${r.kind}`}>{KIND_LABEL[r.kind]}</span>{" "}
+                      {r.flags.includes("validator-reject") && (
+                        <span className="kind kind-reject">validator reject</span>
+                      )}{" "}
+                      {r.what}
+                    </button>
+                  </td>
+                  <td>
+                    <DecisionChip d={r.decision} />
+                  </td>
+                  <td>
+                    <FeedbackCell
+                      fb={feedbackOf(feedback, r.id, DEMO_MANAGER)}
+                      onRate={(rating) => {
+                        activityActions.rate(r.id, rating);
+                        setNoteFor(r.id);
+                      }}
+                    />
+                  </td>
+                  <td className="num mono">
+                    {usd(r.costUsd)} · {r.latencyMs ? duration(r.latencyMs) : "—"}
+                  </td>
+                </tr>
+                {noteFor === r.id && (
+                  <tr className="fb-note-row">
+                    <td colSpan={7}>
+                      <NoteBox rowId={r.id} onDone={() => setNoteFor(null)} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             ))}
             {shown.length === 0 && (
               <tr>
-                <td colSpan={6} className="muted">
+                <td colSpan={7} className="muted">
                   Nothing matches these filters.
                 </td>
               </tr>
@@ -231,6 +275,76 @@ export function ActivityPage() {
         {selected && <RecordPanel r={selected} onClose={() => setOpen(null)} />}
       </div>
     </div>
+  );
+}
+
+function FeedbackCell({
+  fb,
+  onRate,
+}: {
+  fb: FeedbackRecord | undefined;
+  onRate: (r: Rating) => void;
+}) {
+  const thumb = (rating: Rating, icon: string, label: string) => (
+    <button
+      type="button"
+      className={`fb-thumb${fb?.rating === rating ? " is-on" : ""}`}
+      aria-pressed={fb?.rating === rating}
+      aria-label={label}
+      title={label}
+      onClick={(e) => {
+        e.stopPropagation();
+        onRate(rating);
+      }}
+    >
+      {icon}
+    </button>
+  );
+  return (
+    <span className="fb-cell">
+      {thumb("up", "👍", "Helpful")}
+      {thumb("down", "👎", "Not helpful")}
+      {fb && (
+        <span className="fb-rated small">
+          rated
+          {fb.notes.length ? ` · ${fb.notes.length} note${fb.notes.length === 1 ? "" : "s"}` : ""}
+        </span>
+      )}
+    </span>
+  );
+}
+
+/** Optional note after a thumb: appended to the same feedback entry, kept as a hash + length only. */
+function NoteBox({ rowId, onDone }: { rowId: string; onDone: () => void }) {
+  const [text, setText] = useState("");
+  return (
+    <form
+      className="fb-note"
+      onClick={(e) => e.stopPropagation()}
+      onSubmit={(e) => {
+        e.preventDefault();
+        void activityActions.note(rowId, text);
+        onDone();
+      }}
+    >
+      <label className="small" htmlFor={`fb-note-${rowId}`}>
+        Add a note (optional) — saved as a hash only, like guest text
+      </label>
+      <input
+        id={`fb-note-${rowId}`}
+        type="text"
+        maxLength={300}
+        value={text}
+        autoFocus
+        onChange={(e) => setText(e.target.value)}
+      />
+      <button type="submit" disabled={!text.trim()}>
+        Add note
+      </button>
+      <button type="button" className="link-btn" onClick={onDone}>
+        Skip
+      </button>
+    </form>
   );
 }
 

@@ -14,3 +14,4 @@ export * from "./wording";
 export * from "./requestChat";
 export * from "./readiness";
 export * from "./impacts";
+export * from "./feedback";

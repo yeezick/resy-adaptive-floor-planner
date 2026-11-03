@@ -1,14 +1,16 @@
 // Named demo states behind stable URLs (/?scenario=party-22-agent), so a reviewer lands on the exact case in one
 // click. Fixture-driven and deterministic: AI answers come from recordings in fixtures/scenarios/ (real model
 // output, captured once), so opening a scenario never calls a model. Fictional data only.
+import activityJson from "../../fixtures/scenarios/activity-log.json";
 import chatJson from "../../fixtures/scenarios/request-chat.json";
 import triageJson from "../../fixtures/scenarios/triage.json";
 import walkinJson from "../../fixtures/scenarios/walkin-8-peak.json";
 import { z } from "zod";
+import { FeedbackRecord } from "../domain/feedback";
 import { AgentResponse, RequestChatResult, TriageResult } from "../shared/api";
 
 export interface Scenario {
-  id: "party-22-agent" | "party-22-accepted" | "walkin-8-peak" | "request-chat";
+  id: "party-22-agent" | "party-22-accepted" | "walkin-8-peak" | "request-chat" | "activity-log";
   title: string;
   /** The night it opens on. */
   roomId: string;
@@ -16,6 +18,8 @@ export interface Scenario {
   request?: { id: string; view: "request" | "plan"; accept?: boolean; chat?: boolean };
   /** The side panel it opens (when no request). */
   panel?: "assistant";
+  /** The page it opens on, when not the floor. */
+  path?: "/activity";
 }
 
 export const SCENARIOS: readonly Scenario[] = [
@@ -42,6 +46,13 @@ export const SCENARIOS: readonly Scenario[] = [
     title: "In-request chat · “tables 30–50”",
     roomId: "book-fri",
     request: { id: "Q2", view: "request", chat: true },
+  },
+  {
+    id: "activity-log",
+    title: "Activity log · rated rows + a request-chat turn",
+    roomId: "book-fri",
+    request: { id: "Q2", view: "request", chat: true },
+    path: "/activity",
   },
 ];
 
@@ -81,3 +92,7 @@ export const RECORDED_CHAT = z
     result: RequestChatResult,
   })
   .parse(chatJson);
+
+export const RECORDED_FEEDBACK: FeedbackRecord[] = z
+  .object({ note: z.string(), feedback: z.array(FeedbackRecord) })
+  .parse(activityJson).feedback;

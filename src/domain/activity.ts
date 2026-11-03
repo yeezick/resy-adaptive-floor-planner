@@ -293,7 +293,7 @@ function chatRow(e: RequestChatEvent, actions: readonly ManagerAction[]): Activi
     ? `AI Planner chat failed (${e.failed}) — manager uses the controls`
     : e.clarify
       ? `AI Planner asked back: ${e.clarify}`
-      : `AI Planner (request chat): ${e.changed.length ? `${e.changed.join(", ")} → ` : ""}${e.outcome}`;
+      : `${e.changed.length ? `${e.changed.join(", ")} → ` : ""}${e.outcome}`;
   return {
     id: `row-${e.traceId}`,
     refId: e.refId,

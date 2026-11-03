@@ -1,0 +1,28 @@
+{
+  "note": "Fictional manager feedback for /?scenario=activity-log. Notes are stored as hash + length only (the note text is never kept).",
+  "feedback": [
+    {
+      "id": "fb-manager-demo-row-seed-a1",
+      "rowId": "row-seed-a1",
+      "manager": "manager-demo",
+      "rating": "up",
+      "notes": [
+        {
+          "sha256": "48403e893e4076dff06607250349db0f6a077a0316661e49b1b3794c4a19bc41",
+          "length": 49
+        }
+      ],
+      "at": "2026-11-02T23:10:00.000Z",
+      "updatedAt": "2026-11-02T23:11:00.000Z"
+    },
+    {
+      "id": "fb-manager-demo-row-seed-p4",
+      "rowId": "row-seed-p4",
+      "manager": "manager-demo",
+      "rating": "down",
+      "notes": [],
+      "at": "2026-11-02T04:02:00.000Z",
+      "updatedAt": "2026-11-02T04:02:00.000Z"
+    }
+  ]
+}

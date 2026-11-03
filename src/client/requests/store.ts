@@ -7,7 +7,13 @@ import { checkRequest, toReservation, walkInRequest } from "../../domain/request
 import { activeScenario, RECORDED_CHAT, RECORDED_TRIAGE } from "../scenarios";
 import type { Reservation } from "../../domain";
 import type { RequestChatResult, TriageResult } from "../../shared/api";
-import { baseConstraints, mergeTurn, type ChatConstraints } from "../../domain/requestChat";
+import {
+  baseConstraints,
+  changeDelta,
+  checkAdjusted,
+  mergeTurn,
+  type ChatConstraints,
+} from "../../domain/requestChat";
 import {
   fetchRequests,
   fetchRoom,
@@ -179,6 +185,20 @@ async function applyScenario(book: RequestBook): Promise<void> {
         ],
       },
     });
+    // Off the floor (the activity log), no sheet re-runs the planner: record its answer here so the turn has a row.
+    if (sc.path) {
+      const room = await fetchRoom(r.bookRoomId);
+      if (room.ok) {
+        const c = mergeTurn(baseConstraints(r), output);
+        const a = checkAdjusted(room.data, r, c);
+        requestsActions.noteTurn(
+          r.id,
+          "turn-scenario-1",
+          a.line,
+          changeDelta(r, baseConstraints(r), c),
+        );
+      }
+    }
   }
   set({ openPlan: { roomId: r.bookRoomId, requestId: r.id, seq: ++seq, view: sc.request.view } });
 }
