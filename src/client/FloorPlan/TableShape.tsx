@@ -1,5 +1,5 @@
 import { useContext, type KeyboardEvent, type PointerEvent } from "react";
-import type { Table } from "../../domain";
+import { ELAPSED_EST_MIN, type Table } from "../../domain";
 import { PHASE_ABBR } from "../lib/service";
 import { AlwaysShowIds, usePpu, usePx } from "./scale";
 import { tableColors } from "./colors";
@@ -122,6 +122,7 @@ export function TableShape({ table: t, selected, lit, dim, dragging, ...handlers
     >
       <HitArea table={t} />
       {(selected || lit) && ring}
+      <Chairs table={t} />
       {body}
       {t.shape === "booth" && (
         <rect
@@ -135,7 +136,61 @@ export function TableShape({ table: t, selected, lit, dim, dragging, ...handlers
         />
       )}
       <TableLabels table={t} color={c.text} />
+      {t.status === "occupied" && <Elapsed table={t} />}
     </g>
+  );
+}
+
+/** One dot per seat, just outside the table edge (booths are benches: none). */
+function Chairs({ table: t }: { table: Table }) {
+  if (t.shape === "booth") return null;
+  const n = t.seats;
+  const cx = t.x + t.w / 2;
+  const cy = t.y + t.h / 2;
+  const off = 0.42;
+  const r = 0.2;
+  const dots: [number, number][] = [];
+  if (t.shape === "round" || t.shape === "diamond") {
+    const rx = t.w / 2 + off;
+    const ry = t.h / 2 + off;
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * 2 * Math.PI - Math.PI / 2 + (t.shape === "diamond" ? Math.PI / n : 0);
+      dots.push([cx + rx * Math.cos(a), cy + ry * Math.sin(a)]);
+    }
+  } else {
+    // seats along the two long sides; a 2-top faces across the short axis
+    const horizontal = t.w >= t.h;
+    const perSide = Math.max(1, Math.ceil(n / 2));
+    const len = horizontal ? t.w : t.h;
+    for (let side = 0; side < 2; side++) {
+      const k = side === 0 ? perSide : n - perSide;
+      for (let i = 0; i < k; i++) {
+        const along = ((i + 0.5) / k) * len;
+        if (horizontal) dots.push([t.x + along, side === 0 ? t.y - off : t.y + t.h + off]);
+        else dots.push([side === 0 ? t.x - off : t.x + t.w + off, t.y + along]);
+      }
+    }
+  }
+  return (
+    <g className="chairs" aria-hidden="true">
+      {dots.map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r={r} />
+      ))}
+    </g>
+  );
+}
+
+/** Estimated time since the party sat (from meal phase), as a small tag at the table's top-right. */
+function Elapsed({ table: t }: { table: Table }) {
+  const px = usePx();
+  const m = ELAPSED_EST_MIN[t.phase ?? "seated"];
+  const font = Math.max(px(10), 0.62);
+  const x = t.x + t.w + 0.1;
+  const y = t.y - 0.75;
+  return (
+    <text className="t-elapsed" x={x} y={y} fontSize={font}>
+      <title>{`about ${m} min since seated (estimated from meal phase)`}</title>~{m}m
+    </text>
   );
 }
 

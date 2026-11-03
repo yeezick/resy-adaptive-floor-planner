@@ -10,6 +10,16 @@ export const REMAINING_MIN: Record<Phase, number> = {
   check: 6,
 };
 
+/** Rough minutes since the party sat, by phase (synthetic; the planner reads phase, not a seat clock). */
+export const ELAPSED_EST_MIN: Record<Phase, number> = {
+  seated: 3,
+  drinks: 12,
+  appetizers: 25,
+  entrees: 45,
+  dessert: 70,
+  check: 79,
+};
+
 /** Minutes to bus and reset a table after the party leaves. */
 export const RESET_MIN = 5;
 

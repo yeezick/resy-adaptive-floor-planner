@@ -32,6 +32,8 @@ export interface PlanCheck {
 }
 
 const WINDOW = { from: "17:00", to: "22:00" };
+/** The default demo night must show at most one honest can't-fit, with its best partial option. */
+export const DEMO_NIGHT = "demo-night";
 
 function checkParty(room: Room, f: PartyFit, label: string, serviceFrom: string): PlanCheck[] {
   const out: PlanCheck[] = [];
@@ -108,6 +110,13 @@ export function runPlanChecks(rooms: Map<string, Room>, requests: RequestBook): 
       ok: bad.length === 0,
       detail: bad.length ? bad.map((j) => j.join("+")).join(", ") : undefined,
     });
+    if (id === DEMO_NIGHT)
+      out.push({
+        check: "cant-fit",
+        case: `${id}/at-most-one`,
+        ok: p.infeasible.length <= 1 && p.infeasible.every((x) => !!x.partial),
+        detail: `${p.infeasible.length} can't-fit; partial: ${p.infeasible.map((x) => x.partial ?? "none").join("; ")}`,
+      });
     for (const x of p.infeasible) {
       const time = room.reservations.find((r) => r.id === x.reservationId)?.time ?? "";
       out.push({

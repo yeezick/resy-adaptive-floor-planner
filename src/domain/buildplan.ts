@@ -38,7 +38,13 @@ export interface BuildPlan {
   builds: Build[];
   totals: { extenders: number; extraChairs: number; spareTables: number; tablesUsed: number };
   shortfalls: string[];
-  unplaced: { reservationId: string; partySize: number; reason: string }[];
+  unplaced: {
+    reservationId: string;
+    partySize: number;
+    reason: string;
+    /** The best the room can still do at that time: the largest free set, e.g. "Atrium seats 30 of 36". */
+    partial?: string;
+  }[];
 }
 
 interface Stock {
@@ -433,6 +439,15 @@ export function planBuilds(
         // the earliest-free search is cheap for a few can't-fits; skip it for a night that is mostly unplaceable
         unplacedCount <= MAX_NEXT_FIT ? end : -1,
       ),
+      partial:
+        unplacedCount <= MAX_NEXT_FIT
+          ? (bestPartial(
+              room,
+              privateOnly.has(r.id) ? units.filter(isPrivate) : units,
+              r,
+              builds,
+            ) ?? undefined)
+          : undefined,
     });
   });
   const shortfalls = unplaced.length
@@ -535,6 +550,30 @@ function earliestFree(
   for (let m = toMinutes(r.time) + 15; m <= Math.max(latest, toMinutes(LATEST_ARRIVAL)); m += 15) {
     const at = { ...r, time: toHHMM(m) };
     if (choicesFor(room, poolFor(room, units, at), at, busy, stock).length) return at.time;
+  }
+  return null;
+}
+
+/** Largest party (down to LARGE_PARTY) that fits at the party's time around this plan, and where. */
+function bestPartial(
+  room: Room,
+  units: readonly Unit[],
+  r: Reservation,
+  builds: readonly Build[],
+): string | null {
+  const busy = busyFrom(room, builds);
+  const spare4 = room.inventory.spareTables
+    .filter((t) => t.seats >= 4)
+    .reduce((n, t) => n + t.count, 0);
+  const stock: Stock = {
+    extenders: room.inventory.extenders - builds.reduce((n, b) => n + b.extenders, 0),
+    chairs: room.inventory.spareChairs - builds.reduce((n, b) => n + b.extraChairs, 0),
+    spare4: spare4 - builds.reduce((n, b) => n + b.spareTables, 0),
+  };
+  for (let n = r.partySize - 1; n >= LARGE_PARTY; n--) {
+    const at = { ...r, partySize: n };
+    const c = choicesFor(room, poolFor(room, units, at), at, busy, stock)[0];
+    if (c) return `${c.unit.areas.join(" + ")} seats ${c.seats} of ${r.partySize} at ${r.time}`;
   }
   return null;
 }

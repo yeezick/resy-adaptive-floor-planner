@@ -79,6 +79,8 @@
   --floor-grid-major: #323235;
   --floor-join: #7a7a7f;
   --floor-ghost: #9a9aa0;
+  --floor-chair: #5a5a5f;
+  --floor-section-tint: rgb(255 255 255 / 0.025);
   --select-ring: #ffffff;
   --hatch-bg: #2a2a2c;
   --hatch-line: #4a4a4d;
@@ -181,6 +183,8 @@
   --floor-grid-major: #ddd8cf;
   --floor-join: #9aa0a6;
   --floor-ghost: #6b6f75;
+  --floor-chair: #b9b4ab;
+  --floor-section-tint: rgb(0 0 0 / 0.025);
   --select-ring: #1d2327;
   --hatch-bg: #eceae6;
   --hatch-line: #c9c6c0;
@@ -2302,9 +2306,13 @@ button.primary:disabled {
 .sugg-head {
   align-items: baseline;
   flex-wrap: wrap;
+  justify-content: flex-start;
+  text-align: left;
 }
 .sugg-head .eta {
-  margin-left: auto;
+  margin-left: 0;
+  flex-basis: 100%;
+  text-align: left;
 }
 
 /* Rail: every list header stays on screen; long lists scroll inside */
@@ -2974,4 +2982,93 @@ h2 .proposed-tag {
   background: transparent;
   color: var(--text);
   box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
+/* Floor realism: chairs, elapsed time, section tints */
+.floor .chairs circle {
+  fill: var(--floor-chair);
+}
+.floor .t-elapsed {
+  fill: var(--muted);
+  opacity: 0.85;
+  font-weight: 600;
+  text-anchor: end;
+  dominant-baseline: auto;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+.floor .section rect {
+  fill: var(--floor-section-tint);
+}
+
+/* Type + motion: tabular numerals for times and counts; 150 ms transitions unless reduced motion */
+body {
+  font-variant-numeric: tabular-nums;
+}
+button,
+.row,
+.card,
+.fit-card,
+.rail-section,
+.side-col {
+  transition:
+    background-color 150ms ease,
+    border-color 150ms ease,
+    box-shadow 150ms ease,
+    transform 150ms ease,
+    opacity 150ms ease;
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+    animation: none !important;
+  }
+}
+
+/* iPad landscape (primary): the floor takes the width; the right panel is a slide-over sheet on demand */
+@media (max-width: 1280px) {
+  .console-body {
+    grid-template-columns: 220px minmax(0, 1fr);
+    position: relative;
+  }
+  .side-col {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: min(400px, 44vw);
+    z-index: 20;
+    box-shadow: -12px 0 32px rgb(0 0 0 / 0.45);
+    transform: translateX(0);
+  }
+  .console:not(.has-sheet) .side-col {
+    transform: translateX(calc(100% + 24px));
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+  }
+  .topbar-sub {
+    display: none;
+  }
+}
+/* Numbered crew build list (step order = time order) */
+.crew {
+  counter-reset: crew;
+}
+.crew > li {
+  counter-increment: crew;
+}
+.crew .crew-head::before {
+  content: counter(crew);
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--surface-3);
+  color: var(--text);
+  font-size: 12px;
+  font-weight: 700;
 }

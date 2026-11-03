@@ -229,7 +229,7 @@ export function Planner({
   };
 
   return (
-    <div className="console">
+    <div className={`console${mode !== "details" || selected.length ? " has-sheet" : ""}`}>
       <ConsoleBar
         room={room}
         roomSelect={roomSelect}
@@ -296,8 +296,12 @@ export function Planner({
             <h2 id="panel-title">
               {PANEL_TITLE[mode]} {(mode === "assistant" || mode === "shift") && <ProposedTag />}
             </h2>
-            {mode !== "details" && (
-              <button type="button" className="link-btn" onClick={() => setMode("details")}>
+            {(mode !== "details" || selected.length > 0) && (
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => (mode !== "details" ? setMode("details") : setSelected([]))}
+              >
                 Close
               </button>
             )}

@@ -191,6 +191,7 @@ function Proposal({
           {p.infeasible.map((x) => (
             <div key={x.reservationId} className="cant-fit">
               <strong>{x.reservationId}</strong> <span className="small">{x.reason}</span>
+              {x.partial && <div className="small muted">Best partial option: {x.partial}</div>}
             </div>
           ))}
         </section>
