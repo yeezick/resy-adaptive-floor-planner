@@ -41,7 +41,7 @@ env:
   REPO: ${{ github.repository }}
   MAX_FIX_ROUNDS: "2"
   # Files the fixer may never change (checked twice: in the fix job and again in the push job).
-  PROTECTED: '^(\.github/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.pre-commit-config\.yaml$|CLAUDE\.md$|src/domain/types\.ts$|src/server/agent/schemas\.ts$|evals/rubric\.md$|evals/labels\.jsonl$|(.*/)?\.env(\..*)?$)'
+  PROTECTED: '^(\.github/|package\.json$|pnpm-lock\.yaml$|pnpm-workspace\.yaml$|\.pre-commit-config\.yaml$|CLAUDE\.md$|vitest\.config\.ts$|vite\.config\.ts$|playwright\.config\.ts$|eslint\.config\.js$|tsconfig[^/]*\.json$|\.nvmrc$|\.prettierrc[^/]*$|src/domain/types\.ts$|src/server/agent/schemas\.ts$|evals/rubric\.md$|evals/labels\.jsonl$|(.*/)?\.env(\..*)?$)'
 
 jobs:
   hold:
@@ -206,11 +206,13 @@ jobs:
         run: |
           set -euo pipefail
           needs_human() {
+            echo "Needs human: $1" | tee -a "$GITHUB_STEP_SUMMARY"
+            # One comment per stop: if the PR is already labelled, the earlier comment stands.
+            if gh pr view "$PR" --repo "$REPO" --json labels --jq '.labels[].name' | grep -qx "ai-fix/needs-human"; then return; fi
             gh label create "ai-fix/needs-human" --repo "$REPO" --color B60205 \
               --description "AI fix loop stopped; a person should look" 2>/dev/null || true
             gh pr edit "$PR" --repo "$REPO" --add-label "ai-fix/needs-human"
             gh pr comment "$PR" --repo "$REPO" --body "**AI fix loop stopped:** $1. Auto-merge stays off until a person pushes a fix that reviews clean, or merges by hand."
-            echo "Needs human: $1" | tee -a "$GITHUB_STEP_SUMMARY"
           }
           enable_auto() {
             if [ "$AUTO" != "true" ]; then echo "Clean review; AUTO_MERGE_ENABLED is not true, so auto-merge stays off." | tee -a "$GITHUB_STEP_SUMMARY"; return; fi
@@ -305,7 +307,8 @@ jobs:
 
             Rules:
             - Never edit anything under .github/, package.json, pnpm-lock.yaml, pnpm-workspace.yaml,
-              .pre-commit-config.yaml, CLAUDE.md, src/domain/types.ts, src/server/agent/schemas.ts,
+              .pre-commit-config.yaml, CLAUDE.md, the tool configs (vitest/vite/playwright/eslint/prettier
+              configs, tsconfig*.json, .nvmrc), src/domain/types.ts, src/server/agent/schemas.ts,
               evals/rubric.md, evals/labels.jsonl or any .env file. The workflow rejects any change to them.
               If a ❌ can only be fixed there, leave it and say so.
             - Smallest change that fixes the defect. No refactors, no new dependencies.
@@ -328,7 +331,8 @@ jobs:
           if tr '\0' '\n' < "$RUNNER_TEMP/changed.z" | grep -qE "$PROTECTED"; then
             echo "reason=the fixer touched a protected file" >> "$GITHUB_OUTPUT"; exit 0
           fi
-          xargs -0 pnpm exec prettier --write --ignore-unknown < "$RUNNER_TEMP/changed.z"
+          git diff --cached --name-only --no-renames --diff-filter=d -z \
+            | xargs -0 -r pnpm exec prettier --write --ignore-unknown
           git add -A
           if ! pnpm verify; then echo "reason=\`pnpm verify\` failed after the fix" >> "$GITHUB_OUTPUT"; exit 0; fi
           git diff --cached --binary --no-renames > "$RUNNER_TEMP/fix.patch"
@@ -396,8 +400,18 @@ jobs:
           AI-Fix-Round: $ROUND
           Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
           EOF
-          sha=$(git rev-parse --short HEAD)
-          gh pr comment "$PR" --repo "$REPO" --body "**AI fix round $ROUND** → \`$sha\` ($n file(s)). CI and a fresh review run on it next."
           # A PAT push starts CI and the next review; a GITHUB_TOKEN push would not. Not forced: if the
           # branch moved since the review, this is rejected as non-fast-forward.
           git -c core.hooksPath=/dev/null push "https://x-access-token:${PAT}@github.com/${REPO}.git" "HEAD:refs/heads/${HEAD_REF}"
+          sha=$(git rev-parse --short HEAD)
+          gh pr comment "$PR" --repo "$REPO" --body "**AI fix round $ROUND** → \`$sha\` ($n file(s)). CI and a fresh review run on it next."
+
+      - name: Report a failed push
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create "ai-fix/needs-human" --repo "$REPO" --color B60205 \
+            --description "AI fix loop stopped; a person should look" 2>/dev/null || true
+          gh pr edit "$PR" --repo "$REPO" --add-label "ai-fix/needs-human"
+          gh pr comment "$PR" --repo "$REPO" --body "**AI fix round $ROUND not pushed:** the push failed (the branch may have moved since the review). Auto-merge stays off."

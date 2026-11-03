@@ -21,7 +21,7 @@ We want the loop closed without letting a model merge its own work or loop on it
      auto-merge stays off.
 4. **fix** (Opus 5.5) edits a checkout of the reviewed commit. It has no git write access and no push token.
    The workflow rejects any change to protected files (all of `.github/`, `package.json`, the lockfile,
-   `CLAUDE.md`, the human-tier files, `.env*`), runs `pnpm verify`, and uploads the change as a patch.
+   `CLAUDE.md`, the lint/type/test/format configs, the human-tier files, `.env*`), runs `pnpm verify`, and uploads the change as a patch.
 5. **push** runs on a clean runner that never installs dependencies or runs repo code. It applies the patch,
    re-checks protected files, commits with an `AI-Fix-Round: N` trailer and pushes with `AUTOMATION_PAT`
    (not forced: a branch that moved since the review rejects it). That push starts CI and a fresh review.
@@ -33,10 +33,15 @@ Why the split: code the fixer edits (tests, configs) runs during `pnpm verify`. 
 push token, a prompt injection could make it steal the token. Keeping the token in a job that runs only git
 means edited code never shares a machine with it.
 
+Accepted residual risk: while it works, the fixer runs the tests it edits inside the Claude step, whose
+environment holds `ANTHROPIC_API_KEY` and a `GITHUB_TOKEN` limited to PR comments and labels. Only same-repo PRs
+(collaborators) reach the fixer, the key has a spending limit, and the token can't push. Removing the fixer's
+ability to run tests would make its fixes much worse.
+
 ## Consequences
 
 - The model never decides a merge: required checks do. The review only decides whether auto-merge is on.
-- The fixer can't change CI, its own round limit, dependencies or the human-tier files: `.github/` and the
+- The fixer can't change CI, its own round limit, dependencies, the lint/type/test configs or the human-tier files: `.github/` and the
   other protected files are rejected twice, before and after the patch crosses jobs. Findings in those files
   always go to a person.
 - The verdict is still model-written text. A forged "clean" only switches auto-merge on; the required checks
