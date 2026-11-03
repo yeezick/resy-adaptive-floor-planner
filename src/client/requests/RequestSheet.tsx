@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { partyFits, type Room } from "../../domain";
 import { PartyFitCard } from "../Fit/PartyFitCard";
 import {
@@ -71,6 +71,25 @@ export function RequestSheet({ request: r }: { request: GuestRequest }) {
     );
   }, [room, fit, r]);
   const [reply, setReply] = useState<string | null>(null);
+  useEffect(() => {
+    if (!fit) return;
+    requestsActions.noteFit(
+      r.id,
+      fit.ok
+        ? [
+            `Fits: ${fit.build.tables.join(" + ")} · ${fit.build.area} · seats ${fit.build.seats}, build by ${fit.build.buildBy}`,
+            ...(cost
+              ? [
+                  `Hold from ${cost.hold.from} · ~${cost.hold.coversLost} covers lost`,
+                  `Section ${cost.sections.join(" + ")}${cost.spansSections ? " (spans two)" : ""}`,
+                  `Aisle: ${cost.aisle.checked.length} joins ${cost.aisle.ok ? "clear" : "fail"}`,
+                  ...cost.aisle.rejected.map((x) => `Rejected ${x.reason}`),
+                ]
+              : []),
+          ]
+        : [`Can't fit: ${fit.reason}`],
+    );
+  }, [fit, cost, r.id]);
   const junk = t?.status === "ok" && t.result.verdict === "junk" && !t.result.escalated;
 
   return (
@@ -187,7 +206,7 @@ export function RequestSheet({ request: r }: { request: GuestRequest }) {
               type="button"
               aria-expanded={mode === "decline"}
               onClick={() => {
-                setReason(fit && !fit.ok ? "fit" : junk ? "policy" : "fit");
+                setReason(junk ? "policy" : "fit");
                 setMode(mode === "decline" ? "none" : "decline");
               }}
             >

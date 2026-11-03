@@ -9,7 +9,7 @@ import type { GuestRequest } from "../domain/requests";
 import type { CallMetrics, TriageResult } from "../shared/api";
 import { checkModel } from "./config";
 import type { SpendGate } from "./guards/budget";
-import { logCall } from "./log";
+import { hashText, logCall } from "./log";
 import { callMetrics } from "./metrics";
 import { reservationUsd } from "./pricing";
 import { parsePrompt, type LoadedPrompt } from "./agent/prompt";
@@ -181,6 +181,7 @@ export async function triageRequest(
       summary: out?.summary ?? ["Needs a person to read it.", "AI triage gave no usable answer."],
       escalated: out === null || out.verdict === "unsure",
       validatorRejects: rejects,
+      input: hashText(r.message),
       metrics: {
         costUsd: calls.reduce((n, c) => n + c.costUsd, 0),
         latencyMs: Date.now() - started,

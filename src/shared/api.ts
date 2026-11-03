@@ -102,6 +102,8 @@ export const TriageResult = z
     /** True when a person must read it: the model was unsure, refused, or failed validation twice. */
     escalated: z.boolean(),
     validatorRejects: z.number().int(),
+    /** The guest's text as sha256 + length (the text itself is never logged). */
+    input: z.object({ sha256: z.string(), length: z.number().int() }).strict(),
     /** True when served from the server's cache (no new model call). */
     cached: z.boolean().optional(),
     metrics: z

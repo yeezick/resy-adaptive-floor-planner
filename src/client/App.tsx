@@ -1,3 +1,4 @@
+import { ActivityPage } from "./activity/ActivityPage";
 import { Banner } from "./Banner";
 import { EvalsPage } from "./EvalsPage/EvalsPage";
 import { Link } from "./Link";
@@ -15,11 +16,20 @@ export function App() {
         <span className="topbar-sub">concept prototype</span>
         <nav aria-label="Main">
           <Link href="/">Floor</Link>
+          <Link href="/activity">Activity</Link>
           <Link href="/evals">Evals</Link>
         </nav>
         <ThemeToggle />
       </header>
-      <main>{path === "/evals" ? <EvalsPage /> : <PlannerPage />}</main>
+      <main>
+        {path === "/evals" ? (
+          <EvalsPage />
+        ) : path === "/activity" ? (
+          <ActivityPage />
+        ) : (
+          <PlannerPage />
+        )}
+      </main>
     </>
   );
 }

@@ -12,6 +12,7 @@ import type { HighlightControls } from "../highlight";
 import { partyFromMessage } from "../lib/service";
 import { friendlyError } from "./errors";
 import { Metrics } from "./Metrics";
+import { activityActions } from "../activity/store";
 import { RecommendationCard } from "./RecommendationCard";
 
 export type Turn =
@@ -98,6 +99,7 @@ export function AgentPanel({ room, highlight, ...actions }: Props) {
     setInput("");
     setPending(true);
     const result = await postAgent({ roomId: room.id, room, message, history });
+    void activityActions.recordAssistant(room.id, message, result);
     const id = nextId.current++;
     setTurns((t) => [
       ...t,
@@ -244,7 +246,23 @@ function AssistantTurn({ turnId, res, room, highlight, actions, partyHint }: Ass
               hlKey={`rec-${turnId}-${r.rank}`}
               room={room}
               highlight={highlight}
-              actions={actions}
+              actions={{
+                ...actions,
+                onApplyRows: (rows) => {
+                  activityActions.recordApplied(
+                    res.traceId,
+                    `Combined ${rows.map((x) => x.join(" + ")).join("; ")} by the host`,
+                  );
+                  actions.onApplyRows(rows);
+                },
+                onSelectTables: (ids, size) => {
+                  activityActions.recordApplied(
+                    res.traceId,
+                    `Host opened seating for ${size} at ${ids.join(" + ")}`,
+                  );
+                  actions.onSelectTables(ids, size);
+                },
+              }}
               partySize={partyHint ?? r.seats}
             />
           ))}

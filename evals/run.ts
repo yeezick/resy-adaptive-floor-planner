@@ -25,6 +25,7 @@ import { validateEnv } from "../src/server/config";
 import { SpendBudget } from "../src/server/guards/budget";
 import { loadRequestBook } from "../src/server/requests";
 import { loadRooms } from "../src/server/rooms";
+import { runActivityChecks } from "./activity-checks";
 import { runPlanChecks } from "./plan-checks";
 import type { CallMetrics } from "../src/shared/api";
 import { loadGolden, type GoldenScenario } from "./golden.schema";
@@ -221,8 +222,10 @@ function replay(write: boolean): void {
       wroteResults: write,
     }),
   );
-  const plan = runPlanChecks(loadRooms(), loadRequestBook());
-  const planFails = plan.filter((c) => !c.ok);
+  const requests = loadRequestBook();
+  const plan = runPlanChecks(loadRooms(), requests);
+  const activity = runActivityChecks(requests);
+  const planFails = [...plan, ...activity].filter((c) => !c.ok);
   const byCheck = (k: string) => plan.filter((c) => c.check === k);
   console.log(
     JSON.stringify({
@@ -232,6 +235,7 @@ function replay(write: boolean): void {
           `${byCheck(k).filter((c) => c.ok).length}/${byCheck(k).length}`,
         ]),
       ),
+      activityChecks: `${activity.filter((c) => c.ok).length}/${activity.length}`,
     }),
   );
   for (const f of planFails)

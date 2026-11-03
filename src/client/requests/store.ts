@@ -12,14 +12,14 @@ export type DeclineReason = "fit" | "policy" | "other";
 
 export type Decision =
   | { kind: "pending" }
-  | { kind: "accepted"; at: string; tables: string[] }
-  | { kind: "declined"; at: string; reason: DeclineReason }
-  | { kind: "replied"; at: string; edited: boolean };
+  | { kind: "accepted"; at: string; iso: string; tables: string[] }
+  | { kind: "declined"; at: string; iso: string; reason: DeclineReason }
+  | { kind: "replied"; at: string; iso: string; edited: boolean };
 
 export type TriageState =
   | { status: "loading" }
-  | { status: "ok"; result: TriageResult }
-  | { status: "error"; error: ClientError };
+  | { status: "ok"; result: TriageResult; at: string }
+  | { status: "error"; error: ClientError; at: string };
 
 export interface RequestsState {
   book: RequestBook | null;
@@ -28,6 +28,8 @@ export interface RequestsState {
   decisions: Record<string, Decision>;
   /** Accepted parties by the room fixture that holds their night's book. */
   accepted: Record<string, Reservation[]>;
+  /** The solver's fit check per request, as shown to the manager (for the activity log). */
+  fits: Record<string, string[]>;
   /** Set by Accept: the planner opens this night and shows the party's plan. */
   openPlan: { roomId: string; requestId: string; seq: number } | null;
 }
@@ -38,6 +40,7 @@ let state: RequestsState = {
   triage: {},
   decisions: {},
   accepted: {},
+  fits: {},
   openPlan: null,
 };
 const listeners = new Set<() => void>();
@@ -62,7 +65,9 @@ async function triage(r: GuestRequest): Promise<void> {
   set({
     triage: {
       ...state.triage,
-      [r.id]: res.ok ? { status: "ok", result: res.data } : { status: "error", error: res.error },
+      [r.id]: res.ok
+        ? { status: "ok", result: res.data, at: new Date().toISOString() }
+        : { status: "error", error: res.error, at: new Date().toISOString() },
     },
   });
 }
@@ -86,18 +91,31 @@ export const requestsActions = {
     void postDecision(r.id, { kind: "accepted" });
     const list = (state.accepted[r.bookRoomId] ?? []).filter((x) => x.id !== r.id);
     set({
-      decisions: { ...state.decisions, [r.id]: { kind: "accepted", at: stamp(), tables } },
+      decisions: {
+        ...state.decisions,
+        [r.id]: { kind: "accepted", at: stamp(), iso: new Date().toISOString(), tables },
+      },
       accepted: { ...state.accepted, [r.bookRoomId]: [...list, toReservation(r)] },
       openPlan: { roomId: r.bookRoomId, requestId: r.id, seq: ++seq },
     });
   },
   decline(r: GuestRequest, reason: DeclineReason) {
     void postDecision(r.id, { kind: "declined", reason });
-    set({ decisions: { ...state.decisions, [r.id]: { kind: "declined", at: stamp(), reason } } });
+    set({
+      decisions: {
+        ...state.decisions,
+        [r.id]: { kind: "declined", at: stamp(), iso: new Date().toISOString(), reason },
+      },
+    });
   },
   reply(r: GuestRequest, edited: boolean) {
     void postDecision(r.id, { kind: "replied", edited });
-    set({ decisions: { ...state.decisions, [r.id]: { kind: "replied", at: stamp(), edited } } });
+    set({
+      decisions: {
+        ...state.decisions,
+        [r.id]: { kind: "replied", at: stamp(), iso: new Date().toISOString(), edited },
+      },
+    });
   },
   /** Undo a decision (back to pending); an accepted party leaves that night's book. */
   reopen(r: GuestRequest) {
@@ -110,6 +128,10 @@ export const requestsActions = {
         [r.bookRoomId]: (state.accepted[r.bookRoomId] ?? []).filter((x) => x.id !== r.id),
       },
     });
+  },
+  noteFit(id: string, lines: string[]) {
+    if ((state.fits[id] ?? []).join("\n") === lines.join("\n")) return;
+    set({ fits: { ...state.fits, [id]: lines } });
   },
   consumeOpenPlan() {
     if (state.openPlan) set({ openPlan: null });
@@ -141,5 +163,13 @@ export function getRequestsState(): RequestsState {
 /** Tests only. */
 export function resetRequestsStore(): void {
   started = false;
-  state = { book: null, error: null, triage: {}, decisions: {}, accepted: {}, openPlan: null };
+  state = {
+    book: null,
+    error: null,
+    triage: {},
+    decisions: {},
+    accepted: {},
+    fits: {},
+    openPlan: null,
+  };
 }

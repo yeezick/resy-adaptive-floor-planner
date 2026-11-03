@@ -137,6 +137,7 @@ test("request inbox: triage, fit check, accept opens that night's plan", async (
         summary: [`Stub line one for ${id}.`, "Stub line two."],
         escalated: false,
         validatorRejects: 0,
+        input: { sha256: "e2e0000000000000", length: 10 },
         metrics: { costUsd: 0, latencyMs: 1, calls: [] },
       }),
     });
@@ -167,4 +168,22 @@ test("request inbox: triage, fit check, accept opens that night's plan", async (
   await expect(page.locator(".proposal")).toBeVisible();
   await expect(page.locator(".card.is-focus")).toContainText("Q2");
   await expect(page.locator(".fit-card.is-focus")).toContainText("Q2");
+});
+
+test("activity log lists AI actions with decisions, never the guest's words", async ({ page }) => {
+  await openFloor(page);
+  await page.getByRole("link", { name: "Activity" }).click();
+  await expect(page.getByRole("heading", { name: /AI activity/ })).toBeVisible();
+  await expect(page.locator(".activity")).toContainText("Proposed feature");
+  const table = page.locator(".activity-table");
+  await expect(table).toContainText("Refusal");
+  await expect(table).toContainText("Declined · fit");
+  await expect(table).toContainText("Declined · policy");
+  await expect(page.locator(".activity")).not.toContainText("surprise 40th for my partner");
+  await page.getByRole("combobox", { name: "Type" }).selectOption("refusal");
+  await expect(table.locator("tbody tr")).toHaveCount(1);
+  await table.locator("tbody tr").first().click();
+  await expect(page.getByRole("complementary", { name: "Full record" })).toContainText(
+    "Nothing. The AI never books or seats",
+  );
 });
