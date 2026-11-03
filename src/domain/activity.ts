@@ -3,7 +3,8 @@
 // actions); read-only. Free text never appears: guest and host text are kept as sha256 + length, and a row
 // shows the AI's own summary. A row can show "accepted" only when a manager action says so.
 import { z } from "zod";
-import { SOURCES, type RequestSource } from "./requests";
+import { SOURCE_LABEL, SOURCES, type RequestSource } from "./requests";
+import { tablesPhrase } from "./wording";
 
 export const TextHash = z.object({ sha256: z.string().min(8), length: z.number().int() }).strict();
 export type TextHash = z.infer<typeof TextHash>;
@@ -67,6 +68,33 @@ export const AssistantEvent = z
   .strict();
 export type AssistantEvent = z.infer<typeof AssistantEvent>;
 
+/** One in-request chat turn: the manager's message (hashed) → constraints → the planner's new answer. */
+export const RequestChatEvent = z
+  .object({
+    type: z.literal("request-chat"),
+    /** The request the chat is about. */
+    refId: z.string(),
+    traceId: z.string(),
+    at: z.string(),
+    partySize: z.number().int().positive(),
+    when: z.string(),
+    input: TextHash,
+    /** What the turn changed, as structured labels ("tables 30–50", "party of 26"). */
+    changed: z.array(z.string()),
+    /** The planner's one-line answer after the turn (solver output, never model text). */
+    outcome: z.string(),
+    clarify: z.string().nullable(),
+    validatorRejects: z.number().int(),
+    failed: z.string().optional(),
+    model: z.string(),
+    costUsd: z.number(),
+    latencyMs: z.number(),
+  })
+  .strict();
+export type RequestChatEvent = z.infer<typeof RequestChatEvent>;
+
+export type ActivityEvent = TriageEvent | AssistantEvent | RequestChatEvent;
+
 export const ManagerAction = z
   .object({
     refId: z.string(),
@@ -83,7 +111,7 @@ export type ManagerAction = z.infer<typeof ManagerAction>;
 export const ActivitySeed = z
   .object({
     note: z.string(),
-    events: z.array(z.discriminatedUnion("type", [TriageEvent, AssistantEvent])),
+    events: z.array(z.discriminatedUnion("type", [TriageEvent, AssistantEvent, RequestChatEvent])),
     actions: z.array(ManagerAction),
   })
   .strict();
@@ -95,7 +123,8 @@ export type ActivityKind =
   | "assistant-question"
   | "recommendation"
   | "assistant-answer"
-  | "refusal";
+  | "refusal"
+  | "request-chat";
 
 export type RowDecision =
   | { kind: "accepted"; at: string; applied?: string }
@@ -133,14 +162,18 @@ export interface ActivityRow {
 const hashLabel = (h: TextHash) => `sha256 ${h.sha256.slice(0, 12)}… · ${h.length} chars`;
 
 function decisionFor(
-  e: TriageEvent | AssistantEvent,
+  e: ActivityEvent,
   kind: ActivityKind,
   actions: readonly ManagerAction[],
 ): RowDecision {
   const mine = actions.filter((a) => a.refId === e.refId && a.at >= e.at);
   const last = mine.sort((a, b) => a.at.localeCompare(b.at))[mine.length - 1];
   if (!last)
-    return kind === "refusal" || kind === "assistant-question"
+    return kind === "refusal" ||
+      kind === "assistant-question" ||
+      (kind === "request-chat" &&
+        e.type === "request-chat" &&
+        (e.failed !== undefined || e.clarify !== null))
       ? { kind: "none" }
       : { kind: "pending" };
   switch (last.kind) {
@@ -185,7 +218,7 @@ function triageRow(e: TriageEvent, actions: readonly ManagerAction[]): ActivityR
     record: {
       inputs: [
         ["Request", e.refId],
-        ["Source", e.source === "ai-agent" ? "AI agent" : "Guest web form"],
+        ["Source", SOURCE_LABEL[e.source]],
         ["Party", `${e.partySize} · ${e.when}`],
         ["Guest text", hashLabel(e.message)],
       ],
@@ -220,7 +253,7 @@ function assistantRow(e: AssistantEvent, actions: readonly ManagerAction[]): Act
         : kind === "assistant-question"
           ? `Asked back: ${e.clarifyingQuestion}`
           : kind === "recommendation" && top
-            ? `Recommended ${top.tables.join(" + ")} (~${top.waitMin} min)${
+            ? `Recommended ${tablesPhrase(top.tables)} (~${top.waitMin} min)${
                 e.recommendations.length > 1 ? ` + ${e.recommendations.length - 1} more` : ""
               }`
             : "Answered: nothing fits";
@@ -247,16 +280,54 @@ function assistantRow(e: AssistantEvent, actions: readonly ManagerAction[]): Act
       ],
       aiOutput: [e.answer, ...(e.clarifyingQuestion ? [`Question: ${e.clarifyingQuestion}`] : [])],
       solverOptions: e.recommendations.map(
-        (r) => `#${r.rank} ${r.tables.join(" + ")} · seats ${r.seats} · ~${r.waitMin} min`,
+        (r) => `#${r.rank} ${tablesPhrase(r.tables)} · seats ${r.seats} · ~${r.waitMin} min`,
       ),
       applied: decision.kind === "accepted" ? (decision.applied ?? "Applied") : null,
     },
   };
 }
 
+function chatRow(e: RequestChatEvent, actions: readonly ManagerAction[]): ActivityRow {
+  const decision = decisionFor(e, "request-chat", actions);
+  const what = e.failed
+    ? `Request chat failed (${e.failed}) — manager uses the controls`
+    : e.clarify
+      ? `Request chat asked back: ${e.clarify}`
+      : `Request chat: ${e.changed.length ? `${e.changed.join(", ")} → ` : ""}${e.outcome}`;
+  return {
+    id: `row-${e.traceId}`,
+    refId: e.refId,
+    traceId: e.traceId,
+    at: e.at,
+    kind: "request-chat",
+    flags: e.validatorRejects ? ["validator-reject"] : [],
+    source: "host",
+    partySize: e.partySize,
+    when: e.when,
+    what,
+    decision,
+    costUsd: e.costUsd,
+    latencyMs: e.latencyMs,
+    model: e.model,
+    record: {
+      inputs: [
+        ["Request", e.refId],
+        ["Manager's message", hashLabel(e.input)],
+      ],
+      aiOutput: [
+        e.changed.length ? `Constraints: ${e.changed.join(", ")}` : "Constraints: no change",
+        ...(e.clarify ? [`Question: ${e.clarify}`] : []),
+        ...(e.validatorRejects ? [`Validator rejected ${e.validatorRejects} answer(s) first`] : []),
+      ],
+      solverOptions: [e.outcome],
+      applied: decision.kind === "accepted" ? (decision.applied ?? "Accepted") : null,
+    },
+  };
+}
+
 /** Newest first. Exactly one row per AI action (keyed by trace id). */
 export function buildActivity(
-  events: readonly (TriageEvent | AssistantEvent)[],
+  events: readonly ActivityEvent[],
   actions: readonly ManagerAction[],
 ): ActivityRow[] {
   const seen = new Set<string>();
@@ -264,7 +335,13 @@ export function buildActivity(
   for (const e of events) {
     if (seen.has(e.traceId)) continue;
     seen.add(e.traceId);
-    rows.push(e.type === "triage" ? triageRow(e, actions) : assistantRow(e, actions));
+    rows.push(
+      e.type === "triage"
+        ? triageRow(e, actions)
+        : e.type === "assistant"
+          ? assistantRow(e, actions)
+          : chatRow(e, actions),
+    );
   }
   return rows.sort((a, b) => b.at.localeCompare(a.at) || a.id.localeCompare(b.id));
 }

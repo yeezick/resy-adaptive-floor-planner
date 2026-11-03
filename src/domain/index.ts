@@ -11,3 +11,4 @@ export * from "./fit";
 export * from "./requests";
 export * from "./activity";
 export * from "./wording";
+export * from "./requestChat";

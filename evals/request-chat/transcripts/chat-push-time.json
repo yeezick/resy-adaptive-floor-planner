@@ -1,0 +1,17 @@
+{
+  "id": "chat-push-time",
+  "promptVersion": "request-chat.v1.0",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "tableRange": null,
+    "partySize": null,
+    "time": "19:00",
+    "addNeeds": [],
+    "removeNeeds": [],
+    "notes": [],
+    "clarify": null
+  },
+  "validatorRejects": 0,
+  "costUsd": 0.000166,
+  "latencyMs": 1045
+}

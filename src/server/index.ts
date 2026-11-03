@@ -5,7 +5,7 @@ import { isIP } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Room } from "../domain";
-import { AgentRequest, RequestDecision, type ApiError } from "../shared/api";
+import { AgentRequest, RequestChatBody, RequestDecision, type ApiError } from "../shared/api";
 import {
   AgentError,
   agentConfigFromEnv,
@@ -27,6 +27,12 @@ import {
   triageRequest,
   type TriageConfig,
 } from "./triage";
+import {
+  RequestChatError,
+  requestChatConfigFromEnv,
+  requestChatTurn,
+  type RequestChatConfig,
+} from "./requestChat";
 import type { TriageResult } from "../shared/api";
 
 export interface AppOptions {
@@ -40,6 +46,8 @@ export interface AppOptions {
   agent?: Partial<Pick<AgentConfig, "maxTokens" | "timeoutMs" | "model" | "effort">>;
   /** Overrides on the env-derived triage config (tests). */
   triage?: Partial<Pick<TriageConfig, "maxTokens" | "timeoutMs" | "model">>;
+  /** Overrides on the env-derived request-chat config (tests). */
+  requestChat?: Partial<Pick<RequestChatConfig, "maxTokens" | "timeoutMs" | "model">>;
 }
 
 function sendError(res: Response, status: number, code: ApiError["code"], error: string) {
@@ -251,6 +259,65 @@ export function createApp(opts: AppOptions = {}) {
       return sendError(res, status, code, e instanceof Error ? e.message : "triage failed");
     } finally {
       triaging.delete(r.id);
+    }
+  });
+
+  // In-request chat: the manager's message → constraints for ONE request (the client re-runs the planner).
+  // Request facts come in the body so host-stand walk-ins (created in the browser) work too; the id is only
+  // a label. The message is logged as sha256 + length.
+  app.post("/api/requests/:id/chat", async (req, res) => {
+    if (!/^Q\d{1,4}$/.test(req.params.id))
+      return sendError(res, 404, "bad_request", "unknown request");
+    const body = RequestChatBody.safeParse(req.body);
+    if (!body.success)
+      return sendError(res, 400, "bad_request", body.error.issues[0]?.message ?? "invalid message");
+    if (!limiter.hit(req.ip ?? "unknown"))
+      return sendError(res, 429, "rate_limited", "Too many requests — try again in a minute.");
+    const call = create();
+    if (!call)
+      return sendError(
+        res,
+        503,
+        "no_key",
+        "The request chat is not configured on this server (no API key). Use the controls on the card.",
+      );
+    if (budget.exhausted())
+      return sendError(
+        res,
+        429,
+        "budget",
+        "The demo budget reached its daily limit — try again tomorrow.",
+      );
+    const traceId = randomUUID();
+    try {
+      const cfg: RequestChatConfig = {
+        ...requestChatConfigFromEnv(call),
+        ...opts.requestChat,
+        budget,
+      };
+      const result = await requestChatTurn(req.params.id, body.data, traceId, cfg);
+      logEvent("request_chat_response", {
+        traceId,
+        requestId: req.params.id,
+        message: result.input,
+        promptVersion: result.promptVersion,
+        model: result.model,
+        escalated: result.escalated,
+        validatorRejects: result.validatorRejects,
+        costUsd: result.metrics.costUsd,
+        latencyMs: result.metrics.latencyMs,
+      });
+      res.json(result);
+    } catch (e) {
+      const code = e instanceof RequestChatError ? e.code : "upstream";
+      logEvent("request_chat_error", {
+        requestId: req.params.id,
+        message: hashText(body.data.message),
+        code,
+        costUsd: e instanceof RequestChatError ? e.calls.reduce((n, c) => n + c.costUsd, 0) : null,
+      });
+      const status = code === "timeout" ? 504 : code === "budget" ? 429 : 502;
+      return sendError(res, status, code, e instanceof Error ? e.message : "chat failed");
     }
   });
 

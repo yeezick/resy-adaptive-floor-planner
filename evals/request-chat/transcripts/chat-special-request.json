@@ -1,0 +1,17 @@
+{
+  "id": "chat-special-request",
+  "promptVersion": "request-chat.v1.0",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "tableRange": null,
+    "partySize": null,
+    "time": null,
+    "addNeeds": ["quiet"],
+    "removeNeeds": [],
+    "notes": ["high chair"],
+    "clarify": null
+  },
+  "validatorRejects": 0,
+  "costUsd": 0.000169,
+  "latencyMs": 1196
+}

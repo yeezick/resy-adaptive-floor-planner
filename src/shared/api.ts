@@ -1,6 +1,8 @@
 // Contract between the client and the server. Change both sides together.
 import { z } from "zod";
 import { Room } from "../domain/types";
+import { ChatConstraints, ChatTurnOutput } from "../domain/requestChat";
+import { NEEDS } from "../domain/requests";
 
 export const MAX_MESSAGE_CHARS = 500;
 /** Total characters of prior turns a client may send back (keeps injected "assistant" text and spend small). */
@@ -43,7 +45,7 @@ export type Recommendation = z.infer<typeof Recommendation>;
 export const CallMetrics = z
   .object({
     traceId: z.string(),
-    role: z.enum(["agent", "judge", "triage"]),
+    role: z.enum(["agent", "judge", "triage", "request-chat"]),
     model: z.string(),
     promptVersion: z.string(),
     inputTokens: z.number().int(),
@@ -121,3 +123,41 @@ export const RequestDecision = z
   })
   .strict();
 export type RequestDecision = z.infer<typeof RequestDecision>;
+
+/** One in-request chat turn: the manager's message about ONE request, plus where the card stands now. */
+export const RequestChatBody = z
+  .object({
+    message: z.string().trim().min(1).max(300),
+    request: z
+      .object({
+        partySize: z.number().int().positive().max(500),
+        day: z.enum(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]),
+        time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+        needs: z.array(z.enum(NEEDS)).max(4),
+      })
+      .strict(),
+    constraints: ChatConstraints,
+  })
+  .strict();
+export type RequestChatBody = z.infer<typeof RequestChatBody>;
+
+export const RequestChatResult = z
+  .object({
+    requestId: z.string(),
+    traceId: z.string(),
+    promptVersion: z.string(),
+    model: z.string(),
+    /** The validated constraints for this turn; null when the AI couldn't produce usable ones. */
+    output: ChatTurnOutput.nullable(),
+    escalated: z.boolean(),
+    /** Why there is no output (refusal, two rejects), in one line. */
+    note: z.string().nullable(),
+    validatorRejects: z.number().int(),
+    /** The manager's message as sha256 + length (the text itself is never logged). */
+    input: z.object({ sha256: z.string(), length: z.number().int() }).strict(),
+    metrics: z
+      .object({ costUsd: z.number(), latencyMs: z.number(), calls: z.array(CallMetrics) })
+      .strict(),
+  })
+  .strict();
+export type RequestChatResult = z.infer<typeof RequestChatResult>;

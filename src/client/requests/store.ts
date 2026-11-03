@@ -5,8 +5,9 @@ import { useSyncExternalStore } from "react";
 import type { GuestRequest, RequestBook } from "../../domain/requests";
 import { toReservation, walkInRequest } from "../../domain/requests";
 import type { Reservation } from "../../domain";
-import type { TriageResult } from "../../shared/api";
-import { fetchRequests, postDecision, postTriage, type ClientError } from "../api";
+import type { RequestChatResult, TriageResult } from "../../shared/api";
+import { baseConstraints, mergeTurn, type ChatConstraints } from "../../domain/requestChat";
+import { fetchRequests, postDecision, postRequestChat, postTriage, type ClientError } from "../api";
 
 export type DeclineReason = "fit" | "policy" | "other";
 
@@ -23,6 +24,21 @@ export type TriageState =
   | { status: "ok"; result: TriageResult; at: string }
   | { status: "error"; error: ClientError; at: string };
 
+/** One in-request chat turn. The manager's text stays in this browser session; the log keeps a hash. */
+export interface ChatTurn {
+  id: string;
+  /** ISO time the manager sent it. */
+  at: string;
+  message: string;
+  status: "loading" | "ok" | "error";
+  result?: RequestChatResult;
+  error?: ClientError;
+  /** The planner's answer after this turn, one line (set by the sheet once it re-runs). */
+  outcome?: string;
+  /** What the turn changed ("tables 30–50", "party of 26"). */
+  changed?: string[];
+}
+
 export interface RequestsState {
   book: RequestBook | null;
   error: ClientError | null;
@@ -34,6 +50,9 @@ export interface RequestsState {
   fits: Record<string, string[]>;
   /** Tables the fit check would use, per request (outlined on that night's floor). */
   fitTables: Record<string, string[]>;
+  /** The manager's changes to a request (chat or manual controls); absent = as the guest asked. */
+  adjust: Record<string, ChatConstraints>;
+  chat: Record<string, ChatTurn[]>;
   /** Set by Accept: the planner opens this night and shows the party's plan. */
   openPlan: { roomId: string; requestId: string; seq: number; view: "plan" | "request" } | null;
 }
@@ -46,6 +65,8 @@ let state: RequestsState = {
   accepted: {},
   fits: {},
   fitTables: {},
+  adjust: {},
+  chat: {},
   openPlan: null,
 };
 const listeners = new Set<() => void>();
@@ -158,6 +179,52 @@ export const requestsActions = {
       },
     });
   },
+  /** Manual controls: set this request's constraints directly (same fields the chat sets). */
+  setConstraints(id: string, c: ChatConstraints) {
+    set({ adjust: { ...state.adjust, [id]: c } });
+  },
+  resetConstraints(id: string) {
+    const { [id]: _gone, ...adjust } = state.adjust;
+    set({ adjust });
+  },
+  /** Send one chat message about this request; a valid answer updates its constraints. */
+  async sendChat(r: GuestRequest, message: string) {
+    const id = `turn-${++seq}`;
+    const current = state.adjust[r.id] ?? baseConstraints(r);
+    const turn: ChatTurn = { id, at: new Date().toISOString(), message, status: "loading" };
+    const put = (t: ChatTurn) =>
+      set({
+        chat: {
+          ...state.chat,
+          [r.id]: [...(state.chat[r.id] ?? []).filter((x) => x.id !== id), t],
+        },
+      });
+    put(turn);
+    const res = await postRequestChat(r.id, {
+      message,
+      request: { partySize: r.partySize, day: r.day, time: r.time, needs: r.needs },
+      constraints: current,
+    });
+    if (!res.ok)
+      return put({ ...turn, status: "error", error: res.error, outcome: res.error.message });
+    put({ ...turn, status: "ok", result: res.data });
+    if (res.data.output) {
+      const latest = state.adjust[r.id] ?? baseConstraints(r);
+      set({ adjust: { ...state.adjust, [r.id]: mergeTurn(latest, res.data.output) } });
+    } else put({ ...turn, status: "ok", result: res.data, outcome: res.data.note ?? undefined });
+  },
+  /** The sheet records what the planner answered after a turn (for the chat log and the activity log). */
+  noteTurn(requestId: string, turnId: string, outcome: string, changed: string[]) {
+    const list = state.chat[requestId] ?? [];
+    const t = list.find((x) => x.id === turnId);
+    if (!t || t.outcome === outcome) return;
+    set({
+      chat: {
+        ...state.chat,
+        [requestId]: list.map((x) => (x.id === turnId ? { ...x, outcome, changed } : x)),
+      },
+    });
+  },
   noteFit(id: string, lines: string[], tables: string[]) {
     if (
       (state.fits[id] ?? []).join("\n") === lines.join("\n") &&
@@ -213,6 +280,8 @@ export function resetRequestsStore(): void {
     accepted: {},
     fits: {},
     fitTables: {},
+    adjust: {},
+    chat: {},
     openPlan: null,
   };
 }
