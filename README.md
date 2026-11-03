@@ -72,6 +72,7 @@ fixtures, with AI answers replayed from recordings in `fixtures/scenarios/`, so 
 | `/?scenario=party-22-accepted` | the 22-top accepted: tonight's layout and crew build list     |
 | `/?scenario=walkin-8-peak`     | walk-in of 8 at 19:10, AI Planner open with ranked options    |
 | `/?scenario=request-chat`      | the in-request chat mid-conversation ("between tables 30–50") |
+| `/?scenario=activity-log`      | the activity log with rated rows and a request-chat turn      |
 
 ## In-request chat
 
@@ -83,6 +84,14 @@ sheet, and every turn is logged in the activity log (the message as a hash). Eva
 `evals/request-chat/golden.jsonl` (recorded answers replayed in CI, including two cases where a headcount
 must not move the time: "make it 20 people" and "a table for 8"); `pnpm evals:request-chat:live` re-records
 (`-- --only <id,id>` for just those).
+
+## Feedback on the AI Planner
+
+Every activity-log row has 👍 / 👎. A click saves at once, as one entry per row per manager; clicking the other thumb
+updates that same entry. Either thumb opens an optional note box, and a note is appended to the same entry. Notes are
+kept as a hash + length only, the same rule as guest text. A **Feedback** filter shows any, 👍, 👎 or unrated rows.
+Each record links to its activity-log row id (`src/domain/feedback.ts`). In the public demo it is saved in the
+browser. This is the data a later tuning loop would read; nothing in the prototype trains on it.
 
 ## What's inside
 
