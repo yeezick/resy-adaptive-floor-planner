@@ -143,7 +143,8 @@ describe("draftReply", () => {
       expect(text).not.toMatch(/\b(confirmed|booked)\b/i);
       expect(text).toMatch(new RegExp(`party of ${r.partySize}`));
     }
-  });
+    // six capacity fits, each up to 13 plans of a 95-table night; slow under coverage in CI
+  }, 20_000);
 
   it("offers the earliest time when the request can't fit as asked", () => {
     const r = byId("Q3");
