@@ -10,7 +10,6 @@ import { NEEDS, SERVICE, type GuestRequest } from "../../domain/requests";
 import { listAnd } from "../../domain/wording";
 import { clock12, times12, toHHMM, toMinutes } from "../../domain/time";
 import { requestsActions, useRequests } from "./store";
-import { ProposedTag } from "./RequestSheet";
 
 const SLOTS = (() => {
   const out: string[] = [];
@@ -68,8 +67,7 @@ export function RequestChat({
   return (
     <section className="req-block req-chat" aria-label="Adjust this request">
       <div className="req-block-head">
-        <h3 className="section-title">AI Planner · adjust this request</h3>
-        <ProposedTag />
+        <h3 className="section-title">Discuss this request</h3>
       </div>
       <p className="muted small">
         Changes apply to this request only. The AI Planner turns a message into the same settings as

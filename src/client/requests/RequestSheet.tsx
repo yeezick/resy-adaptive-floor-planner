@@ -11,6 +11,8 @@ import {
   readinessPill,
   tableNo,
   tablesPhrase,
+  partyName,
+  planBuilds,
   type Room,
 } from "../../domain";
 import { ImpactsCard } from "../Fit/ImpactsCard";
@@ -148,6 +150,13 @@ export function RequestSheet({
     [room, fit, readyAt],
   );
   const [reply, setReply] = useState<string | null>(null);
+  // The chat about this request: closed until Discuss (or until it has turns, e.g. a reopened request).
+  const [chatOpen, setChatOpen] = useState(() => (s.chat[r0.id]?.length ?? 0) > 0);
+  // Large parties already planned for the night whose tables change, named, with from → to tables.
+  const movedDetail = useMemo(
+    () => (room && fit?.ok && fit.moved.length ? movedLines(room, r, fit.plan, fit.moved) : []),
+    [room, r, fit],
+  );
   useEffect(() => {
     if (!fit) return;
     requestsActions.noteFit(
@@ -174,97 +183,45 @@ export function RequestSheet({
   const junk = verdict === "junk";
   const overview = t?.status === "ok" ? t.result.summary : [needsOverview(r)];
 
+  const discuss = () => {
+    setChatOpen(true);
+    // wait for the chat to mount, then focus it without moving the window
+    requestAnimationFrame(() => {
+      const box = document.getElementById(`chat-${r0.id}`);
+      box?.scrollIntoView({ block: "nearest" });
+      box?.focus({ preventScroll: true });
+    });
+  };
+  const holdFrom = cost?.hold.tables.length ? cost.hold.from : null;
+
   return (
-    <div className="request-sheet">
+    <div className="request-sheet decision">
       <div className="req-head">
-        <div>
-          <h2 className="req-title">
-            {r.contact}, party of {r.partySize} · {requestWhen(r, now, elapsed)}
-          </h2>
-          <ul className="req-overview" aria-label="What the party needs">
-            {overview.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-          <div className="muted small">
-            <span className={`source-label source-${r.source}`}>{SOURCE_LABEL[r.source]}</span> ·
-            received {times12(r.receivedAt)}
-          </div>
+        <h2 className="req-title">
+          {r.contact} · party of {r.partySize} · {requestWhen(r, now, elapsed)}
+        </h2>
+        <div className="muted small">
+          <span className={`source-label source-${r.source}`}>{SOURCE_LABEL[r.source]}</span> ·
+          received {times12(r.receivedAt)}
         </div>
-        <ProposedTag />
       </div>
 
-      <section className="req-block" aria-label="AI triage">
+      <section className="req-block ai-card" aria-label="AI triage">
         <div className="req-block-head">
-          <h3 className="section-title">AI triage</h3>
+          <h3 className="section-title ai-label">
+            <span aria-hidden="true">✦</span> AI triage
+          </h3>
           <VerdictChip t={t} override={override} />
         </div>
+        <ul className="req-overview" aria-label="What the party needs">
+          {overview.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
         {t?.status === "host" && (
           <p className="muted small">
             Taken at the host stand, so no AI triage: the host is talking to the guest.
           </p>
-        )}
-        {t?.status === "ok" && (
-          <>
-            <p className="small">
-              <span className="muted">Why: </span>
-              {t.result.reason}
-            </p>
-            {(verdict === "real" || verdict === "junk") && (
-              <p className="small override">
-                {override ? (
-                  <>
-                    <span className="muted">You marked this as {override.verdict}. </span>
-                    <button
-                      type="button"
-                      className="link-btn"
-                      onClick={() =>
-                        requestsActions.overrideTriage(
-                          r0.id,
-                          override.verdict === "junk" ? "real" : "junk",
-                        )
-                      }
-                    >
-                      Mark as {override.verdict === "junk" ? "real" : "junk"}
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <span className="muted">Wrong? </span>
-                    <button
-                      type="button"
-                      className="link-btn"
-                      onClick={() =>
-                        requestsActions.overrideTriage(r0.id, verdict === "junk" ? "real" : "junk")
-                      }
-                    >
-                      Mark as {verdict === "junk" ? "real" : "junk"}
-                    </button>
-                  </>
-                )}
-              </p>
-            )}
-            <details className="small how-made">
-              <summary>How this was made</summary>
-              {SOURCE_DETAIL[r.source] && (
-                <p className="muted">
-                  {SOURCE_LABEL[r.source]} {SOURCE_DETAIL[r.source]}
-                </p>
-              )}
-              <div className="metrics" aria-label="Triage cost and latency">
-                <span>
-                  {usd(t.result.metrics.costUsd)}
-                  {t.result.cached ? " (cached view, no new call)" : ""}
-                </span>
-                <span>{duration(t.result.metrics.latencyMs)}</span>
-                <span>{t.result.model}</span>
-                <span>{t.result.promptVersion}</span>
-                {t.result.validatorRejects > 0 && (
-                  <span>{t.result.validatorRejects} validator reject(s)</span>
-                )}
-              </div>
-            </details>
-          </>
         )}
         {t?.status === "error" && (
           <div className="small">
@@ -275,18 +232,68 @@ export function RequestSheet({
             </button>
           </div>
         )}
-        <details className="small req-message">
-          <summary>{r.source === "walk-in" ? "Host's note" : "Guest's message"}</summary>
-          <p>{r.message}</p>
-          <p className="muted">
-            Shown here only. The activity log keeps the AI's summary, never the guest's words.
-          </p>
-        </details>
+        <div className="triage-row small">
+          {(verdict === "real" || verdict === "junk") && (
+            <span className="override">
+              <span className="muted">
+                {override ? `You marked this as ${override.verdict}. ` : "Wrong? "}
+              </span>
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() =>
+                  requestsActions.overrideTriage(r0.id, verdict === "junk" ? "real" : "junk")
+                }
+              >
+                Mark as {verdict === "junk" ? "real" : "junk"}
+              </button>
+            </span>
+          )}
+          <details className="how-made">
+            <summary>Triage detail ▸</summary>
+            {t?.status === "ok" && (
+              <p>
+                <span className="muted">Why: </span>
+                {t.result.reason}
+              </p>
+            )}
+            <p className="muted">
+              {SOURCE_LABEL[r.source]}
+              {SOURCE_DETAIL[r.source] ? ` ${SOURCE_DETAIL[r.source]}` : ""}
+            </p>
+            <p className="req-message">
+              <span className="muted">
+                {r.source === "walk-in" ? "Host's note: " : "Guest's message: "}
+              </span>
+              {r.message}
+            </p>
+            <p className="muted">
+              Shown here only. The activity log keeps the AI's summary, never the guest's words.
+            </p>
+            {t?.status === "ok" && (
+              <details className="how-made">
+                <summary>How this was made</summary>
+                <div className="metrics" aria-label="Triage cost and latency">
+                  <span>
+                    {usd(t.result.metrics.costUsd)}
+                    {t.result.cached ? " (cached view, no new call)" : ""}
+                  </span>
+                  <span>{duration(t.result.metrics.latencyMs)}</span>
+                  <span>{t.result.model}</span>
+                  <span>{t.result.promptVersion}</span>
+                  {t.result.validatorRejects > 0 && (
+                    <span>{t.result.validatorRejects} validator reject(s)</span>
+                  )}
+                </div>
+              </details>
+            )}
+          </details>
+        </div>
       </section>
 
       <section className="req-block" aria-label="Capacity fit">
         <div className="req-block-head">
-          <h3 className="section-title">Capacity fit · {r.day}</h3>
+          <h3 className="section-title">Capacity check · {r.day}</h3>
           {fit && (
             <span
               className={`verdict ${fit.ok ? "verdict-real" : "verdict-unsure"} fit-pill`}
@@ -296,12 +303,21 @@ export function RequestSheet({
                 ? readinessPill(ready)
                 : fit.ok
                   ? "capacity fit ✓"
-                  : "No capacity fit"}
+                  : "no capacity fit"}
             </span>
           )}
         </div>
         {!roomRes && <p className="muted small">Loading {r.day}'s book…</p>}
         {roomRes && !roomRes.ok && <p className="warn-text small">{roomRes.error.message}</p>}
+        {fit?.ok && (
+          <p className="fit-summary small">
+            {tablesPhrase(fit.build.tables)} · {fit.build.area} · seats {fit.build.seats} · build by{" "}
+            {clock12(fit.build.buildBy)}
+          </p>
+        )}
+        {fit && !fit.ok && (
+          <p className="small cant-fit-line">{times12(adj ? adj.line : fit.reason)}</p>
+        )}
         {fit?.ok && roomId !== r.bookRoomId && (
           <button
             type="button"
@@ -311,16 +327,24 @@ export function RequestSheet({
             Show on {r.day}'s floor →
           </button>
         )}
+        {fit?.ok && cost && room && (
+          <ImpactsCard
+            room={room}
+            f={cost}
+            build={fit.build}
+            needs={r.needs}
+            moved={fit.moved}
+            movedDetail={movedDetail}
+          />
+        )}
         {fit?.ok && (
-          <div className="small">
+          <details className="small more">
+            <summary>Build and tables ▸</summary>
             <p className="crew-note">
               {crewNote(fit.build)}
               {constraints?.notes.length ? ` Also: ${constraints.notes.join(", ")}.` : ""}
             </p>
-            <p className="muted">
-              {fit.build.area} · seats {fit.build.seats} for {fit.build.partySize}, build by{" "}
-              {clock12(fit.build.buildBy)}. Every booking already on {r.day} still has a table.
-            </p>
+            <p className="muted">Every booking already on {r.day} still has a table.</p>
             {ready && ready.tables.length > 0 && (
               <ul className="ready-list" aria-label="Tables in the join, and when each is free">
                 {ready.tables.map((t) => {
@@ -346,37 +370,103 @@ export function RequestSheet({
                 )}
               </ul>
             )}
-            {cost && room && (
-              <ImpactsCard
-                room={room}
-                f={cost}
-                build={fit.build}
-                needs={r.needs}
-                moved={fit.moved}
-              />
-            )}
-          </div>
+          </details>
         )}
-        {fit && !fit.ok && (
-          <p className="small cant-fit-line">{times12(adj ? adj.line : fit.reason)}</p>
+        {cost && cost.aisle.rejected.length > 0 && (
+          <details className="small more">
+            <summary>Other layouts considered ▸</summary>
+            <ul>
+              {cost.aisle.rejected.map((x) => (
+                <li key={x.tables.join()}>Not used: {times12(x.reason)}</li>
+              ))}
+            </ul>
+          </details>
         )}
         <p className="muted small">
           Tables come from Capacity check; the AI reads the request and can't pick or add tables.
         </p>
       </section>
 
+      {decision.kind === "pending" && fit?.ok && (
+        <p className="feedforward small">
+          Accept holds {tablesPhrase(fit.build.tables)}
+          {holdFrom ? ` from ${clock12(holdFrom)}` : ""} · no guest message is sent
+        </p>
+      )}
+
+      {decision.kind === "pending" && room && (
+        <details
+          className="req-chat-wrap"
+          open={chatOpen}
+          onToggle={(e) => setChatOpen((e.target as HTMLDetailsElement).open)}
+        >
+          <summary className="small">Discuss this request ▸</summary>
+          <RequestChat request={r0} result={adj} />
+        </details>
+      )}
+
+      {decision.kind === "pending" && mode === "decline" && (
+        <fieldset className="decline">
+          <legend className="small">Why decline?</legend>
+          {DECLINE.map((d) => (
+            <label key={d.id} className="radio">
+              <input
+                type="radio"
+                name={`decline-${r.id}`}
+                checked={reason === d.id}
+                onChange={() => setReason(d.id)}
+              />
+              <span>
+                <strong>{d.label}</strong> <span className="muted">— {d.hint}</span>
+              </span>
+            </label>
+          ))}
+          <button
+            type="button"
+            disabled={reason === null}
+            onClick={() => reason && requestsActions.decline(r, reason)}
+          >
+            {reason === null
+              ? "Pick a reason to decline"
+              : `Decline for ${reason === "fit" ? "capacity fit" : reason}`}
+          </button>
+        </fieldset>
+      )}
+      {decision.kind === "pending" && mode === "reply" && (
+        <div className="reply">
+          <label className="small" htmlFor={`reply-${r.id}`}>
+            Draft reply — edit before sending. Drafted from the capacity check; it never promises a
+            booking.
+          </label>
+          <textarea
+            id={`reply-${r.id}`}
+            rows={6}
+            value={reply ?? draft}
+            onChange={(e) => setReply(e.target.value)}
+          />
+          <button
+            type="button"
+            onClick={() => requestsActions.reply(r, reply !== null && reply !== draft)}
+          >
+            Mark as sent
+          </button>
+          <p className="muted small">Prototype: nothing is sent to anyone.</p>
+        </div>
+      )}
+
       {decision.kind === "pending" ? (
-        <div className="req-actions">
+        <div className="req-actions decision-footer">
+          <button
+            type="button"
+            className="ask-ai text-btn"
+            title="Discuss this request with the AI Planner"
+            disabled={!room}
+            onClick={discuss}
+          >
+            <Sparkle /> Discuss
+          </button>
           <div className="btn-row">
-            <button
-              type="button"
-              className="primary"
-              disabled={!fit?.ok || junk}
-              title={junk ? "Triaged as junk" : !fit?.ok ? "It doesn't fit that night" : undefined}
-              onClick={() => fit?.ok && requestsActions.accept(r, fit.build.tables)}
-            >
-              Accept
-            </button>
+            <span className="spacer" />
             <button
               type="button"
               aria-expanded={mode === "decline"}
@@ -397,71 +487,16 @@ export function RequestSheet({
             </button>
             <button
               type="button"
-              className="ask-ai"
-              title="Discuss this request with the AI Planner"
-              disabled={!room}
-              onClick={() => {
-                const box = document.getElementById(`chat-${r0.id}`);
-                box?.scrollIntoView({ block: "center", behavior: "smooth" });
-                box?.focus({ preventScroll: true });
-              }}
+              className="primary"
+              disabled={!fit?.ok || junk}
+              title={junk ? "Triaged as junk" : !fit?.ok ? "It doesn't fit that night" : undefined}
+              onClick={() => fit?.ok && requestsActions.accept(r, fit.build.tables)}
             >
-              <Sparkle /> Discuss
+              Accept
             </button>
           </div>
-          <p className="muted small">Accept opens {r.day}'s plan with the party in it.</p>
-          {mode === "decline" && (
-            <fieldset className="decline">
-              <legend className="small">Why decline?</legend>
-              {DECLINE.map((d) => (
-                <label key={d.id} className="radio">
-                  <input
-                    type="radio"
-                    name={`decline-${r.id}`}
-                    checked={reason === d.id}
-                    onChange={() => setReason(d.id)}
-                  />
-                  <span>
-                    <strong>{d.label}</strong> <span className="muted">— {d.hint}</span>
-                  </span>
-                </label>
-              ))}
-              <button
-                type="button"
-                disabled={reason === null}
-                onClick={() => reason && requestsActions.decline(r, reason)}
-              >
-                {reason === null
-                  ? "Pick a reason to decline"
-                  : `Decline for ${reason === "fit" ? "capacity fit" : reason}`}
-              </button>
-            </fieldset>
-          )}
-          {mode === "reply" && (
-            <div className="reply">
-              <label className="small" htmlFor={`reply-${r.id}`}>
-                Draft reply — edit before sending. Drafted from the capacity fit; it never promises
-                a booking.
-              </label>
-              <textarea
-                id={`reply-${r.id}`}
-                rows={6}
-                value={reply ?? draft}
-                onChange={(e) => setReply(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => requestsActions.reply(r, reply !== null && reply !== draft)}
-              >
-                Mark as sent
-              </button>
-              <p className="muted small">Prototype: nothing is sent to anyone.</p>
-            </div>
-          )}
         </div>
-      ) : null}
-      {decision.kind === "pending" && room && <RequestChat request={r0} result={adj} />}
-      {decision.kind !== "pending" && (
+      ) : (
         <div className="req-decided small" role="status">
           <strong>
             {decision.kind === "accepted"
@@ -477,6 +512,28 @@ export function RequestSheet({
       )}
     </div>
   );
+}
+
+/** "Moves Okafor (10) from tables 63–66 to tables 27–29" for each large party the fit moves. */
+function movedLines(
+  room: Room,
+  r: GuestRequest,
+  after: { builds: readonly { reservationId: string; partySize: number; tables: string[] }[] },
+  moved: readonly string[],
+): string[] {
+  const before = planBuilds(
+    { ...room, reservations: room.reservations.filter((x) => x.id !== r.id) },
+    SERVICE.from,
+    SERVICE.to,
+  );
+  return moved.map((id) => {
+    const a = before.builds.find((b) => b.reservationId === id);
+    const b = after.builds.find((x) => x.reservationId === id);
+    const who = `${partyName(id)} (${a?.partySize ?? b?.partySize ?? "?"})`;
+    return a && b
+      ? `Moves ${who} from ${tablesPhrase(a.tables)} to ${tablesPhrase(b.tables)}`
+      : `Moves ${who} to other tables`;
+  });
 }
 
 /** The AI affordance: a four-point sparkle in the accent colour (decorative; the button says "Discuss"). */

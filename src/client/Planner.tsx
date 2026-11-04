@@ -360,7 +360,8 @@ export function Planner({
         <aside className="side-col" aria-labelledby="panel-title">
           <div className="panel-head">
             <h2 id="panel-title">
-              {PANEL_TITLE[mode]} {(mode === "assistant" || mode === "shift") && <ProposedTag />}
+              {PANEL_TITLE[mode]}{" "}
+              {(mode === "assistant" || mode === "shift" || mode === "request") && <ProposedTag />}
             </h2>
             {(mode !== "details" || selected.length > 0) && (
               <button

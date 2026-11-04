@@ -5,6 +5,7 @@ import { pct } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
 import { CalibrationPanel } from "./CalibrationPanel";
 import { CostLatency } from "./CostLatency";
+import { ProposedTag } from "../requests/RequestSheet";
 import { ScenarioTable } from "./ScenarioTable";
 
 const loadResults = () => fetchEvalResults();
@@ -16,7 +17,9 @@ export function EvalsPage() {
   return (
     <div className="evals">
       <div className="evals-head">
-        <h1>Evals</h1>
+        <h1>
+          Evals <ProposedTag />
+        </h1>
         <p className="muted">
           How the seating agent scores on a fixed scenario set: deterministic assertions, an LLM
           judge checked against human labels, and what each recommendation costs.
