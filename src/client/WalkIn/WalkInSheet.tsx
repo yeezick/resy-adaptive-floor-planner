@@ -6,6 +6,8 @@ import { NEEDS as REQUEST_NEEDS, SERVICE } from "../../domain/requests";
 import { clock12, toHHMM, toMinutes } from "../../domain/time";
 import {
   checkTableSet,
+  comboOf,
+  estimateFreeTime,
   tableById,
   type FitResult,
   type Need,
@@ -33,6 +35,13 @@ interface Props {
   onSelect: (ids: string[]) => void;
   onSeat: (ids: string[], size: number) => void;
   onWaitlist: (quoteMin: number) => void;
+}
+
+/** The option's first trade-off, minus "needs a build" once its tables are already pushed together. */
+export function shownTradeoff(room: Room, o: { tables: string[]; tradeoffs: string[] }): string {
+  const c = comboOf(room, o.tables[0] ?? "");
+  const joined = !!c && o.tables.every((id) => c.includes(id));
+  return o.tradeoffs.find((t) => !(joined && /^needs a build/.test(t))) ?? "";
 }
 
 const SIZES = Array.from({ length: 12 }, (_, i) => i + 1);
@@ -141,7 +150,13 @@ export function WalkInSheet({
   const pickedOption = fit.options.find(
     (o) => o.tables.length === selected.length && o.tables.every((id) => selected.includes(id)),
   );
-  const pickWait = pickedOption ? Math.max(pickedOption.waitMin, 5) : quote;
+  // a hand-picked table waits as long as its own slowest table (a just-seated table is ~90 min, not the quote)
+  const ownWait = Math.max(0, ...busy.map((t) => estimateFreeTime(t).minutes ?? 0));
+  const pickWait = pickedOption
+    ? Math.max(pickedOption.waitMin, 5)
+    : busy.length
+      ? Math.max(ownWait, 5)
+      : quote;
   const problem = !selected.length
     ? "Tap a suggestion or tables on the floor"
     : check && !check.ok
@@ -244,7 +259,7 @@ export function WalkInSheet({
                       {o.seats !== size ? `${o.seats} seats · ` : ""}
                       {o.waitMin === 0 ? "" : `${etaText(room, o).split(" — ")[1] ?? ""} · `}
                       section {o.sections.join("/")}
-                      {o.tradeoffs[0] ? ` · ${o.tradeoffs[0]}` : ""}
+                      {shownTradeoff(room, o) ? ` · ${shownTradeoff(room, o)}` : ""}
                     </span>
                     {o.extraChairs > 0 && (
                       <span className="pill">

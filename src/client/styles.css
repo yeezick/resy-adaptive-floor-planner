@@ -42,6 +42,9 @@
   --fail-soft: #3b2224;
   --info: #8fd0e0;
   --info-soft: #1b3038;
+  --note-soft: #353014;
+  --note-ink: #f3e7a6;
+  --note-border: #5c5320;
 
   --banner-bg: #0a0a0a;
   --banner-text: #d9d9dc;
@@ -147,6 +150,9 @@
   --fail-soft: #f3e6e6;
   --info: #1f4e5f;
   --info-soft: #dcebee;
+  --note-soft: #fff8d6;
+  --note-ink: #4a3d00;
+  --note-border: #e6d27a;
 
   --banner-bg: #2b2f33;
   --banner-text: #ffffff;
@@ -2574,8 +2580,9 @@ button.primary:disabled {
   letter-spacing: 0.02em;
   padding: 1px 7px;
   border-radius: 999px;
-  border: 1px dashed var(--border-strong);
-  color: var(--muted);
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: var(--on-accent);
   white-space: nowrap;
 }
 .badge {

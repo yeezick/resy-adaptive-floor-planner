@@ -154,6 +154,9 @@ export interface WaitEntry {
   needs: Need[];
   quoteMin: number;
   addedAt: string;
+  /** The tables the party waits for (from an AI Planner option), when one was picked. */
+  tables?: string[];
+  name?: string;
 }
 
 export interface DoneEntry {

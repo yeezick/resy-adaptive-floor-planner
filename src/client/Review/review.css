@@ -1,0 +1,117 @@
+/* Review and confirm: one screen before anything commits */
+.review {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.review-guest {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-subtle);
+}
+.review-name input {
+  font-size: 17px;
+  font-weight: 650;
+  min-height: 44px;
+  width: 12em;
+}
+.review-party {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.review-party button {
+  min-width: 44px;
+  min-height: 44px;
+  font-size: 18px;
+  padding: 0;
+}
+.review-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 18px;
+  min-width: 3.2em;
+  justify-content: center;
+}
+.person-icon {
+  fill: currentColor;
+  color: var(--muted);
+}
+.review-time {
+  font-size: 14px;
+}
+.review-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.review-row p {
+  margin: 0;
+}
+.review-tables {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+}
+.review-row .chips button {
+  min-height: 44px;
+}
+.review-note {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.review-note input,
+.review-note textarea {
+  min-height: 44px;
+  width: 100%;
+}
+.review-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.review-diff {
+  padding: 8px 10px;
+  border-radius: 7px;
+  border: 1px solid var(--accent);
+  background: var(--accent-soft);
+}
+.review-diff ul {
+  margin: 0 0 4px;
+  padding-left: 18px;
+}
+.review-diff p {
+  margin: 0;
+}
+.review-foot {
+  position: sticky;
+  bottom: 0;
+  padding: 10px 0;
+  background: var(--surface);
+  border-top: 1px solid var(--border-subtle);
+  align-items: center;
+}
+.review-foot button {
+  min-height: 44px;
+}
+.review-back {
+  color: var(--accent);
+  font-weight: 600;
+  padding: 0 4px;
+}
+.review-foot .spacer {
+  flex: 1;
+}
+.review-foot .review-back,
+.side-col .back-to,
+.panel-head .new-chat {
+  color: var(--accent);
+  text-decoration: none;
+}
