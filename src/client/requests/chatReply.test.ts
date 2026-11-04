@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseRoom, partyFits } from "../../domain";
 import { checkRequest, parseRequestBook, SERVICE, toReservation } from "../../domain/requests";
-import { CANT_ACCEPT, localAnswer, notedLine, turnSentence } from "./chatReply";
+import { CANT_ACCEPT, localAnswer, notedLine, sweepTimes, turnSentence } from "./chatReply";
 
 const room = parseRoom(JSON.parse(readFileSync("fixtures/rooms/book-fri.json", "utf8")) as unknown);
 const book = parseRequestBook(
@@ -122,5 +122,22 @@ describe("request chat answers from the capacity check", () => {
     // not a move: a time or a range goes to the AI
     expect(localAnswer("move it to 7pm", ctx)).toBeNull();
     expect(localAnswer("find space in tables 30–50", ctx)).toBeNull();
+  });
+
+  it("latest / earliest time questions are answered by sweeping the capacity check", () => {
+    const a = localAnswer("What's the latest we could seat them and still use the Library?", ctx);
+    const hit = sweepTimes(room, q2, "latest", "Library");
+    expect(hit).not.toBeNull();
+    expect(a?.text).toMatch(
+      /^Latest seating that keeps the Library: \d{1,2}:\d\d [AP]M \(tables .+\)\. Asked for 6:30 PM\.$/,
+    );
+    // the swept time really fits, in that room
+    const at = hit?.time ?? "";
+    const f = checkRequest(room, { ...q2, time: at });
+    expect(f.ok && f.build.area.split(" + ")).toContain("Library");
+    expect(localAnswer("earliest time that keeps the Garden Room?", ctx)?.text).toMatch(
+      /^Earliest seating that keeps the Garden Room: /,
+    );
+    expect(localAnswer("how late can they arrive?", ctx)?.text).toMatch(/^Latest seating: /);
   });
 });
