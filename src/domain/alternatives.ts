@@ -100,11 +100,8 @@ export function oneRoomSentence(
  */
 export function storageSentence(
   stock: StorageStock,
-  usedBy: { spareTables: number; extenders: number; extraChairs: number } | number,
+  used: { spareTables: number; extenders: number; extraChairs: number },
 ): string {
-  // a bare number is spare tables only (older callers)
-  const used =
-    typeof usedBy === "number" ? { spareTables: usedBy, extenders: 0, extraChairs: 0 } : usedBy;
   const free = Math.max(0, stock.spareTables - used.spareTables);
   if (free === 0) return `No spare tables in storage tonight: 0 of ${stock.spareTables}.`;
   const ext = Math.max(0, stock.extenders - used.extenders);
