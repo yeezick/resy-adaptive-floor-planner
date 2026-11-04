@@ -3,6 +3,7 @@
 import { z } from "zod";
 import minutesJson from "../../fixtures/crew/build-minutes.json";
 import type { Build } from "./buildplan";
+import { clock12, toHHMM, toMinutes } from "./time";
 
 /** "T72" → "72". Ids without the prefix (spare tables, test ids) pass through. */
 export function tableNo(id: string): string {
@@ -102,6 +103,41 @@ export function crewNote(b: Build): string {
   return `${text.charAt(0).toUpperCase()}${text.slice(1)}.`;
 }
 
+const COUNT_WORD = ["one", "two", "three", "four", "five", "six"];
+
+/**
+ * The plan in one line for the request card: "Combine: tables 57–61, 63–66 into two long tables seating 22."
+ * Adds the rooms in a few words only when the plan spans them ("Garden Room + Library, divider open").
+ */
+export function planLine(
+  b: Pick<
+    Build,
+    | "rows"
+    | "tables"
+    | "seats"
+    | "area"
+    | "dividersOpened"
+    | "spareTables"
+    | "extenders"
+    | "extraChairs"
+  >,
+): string {
+  const rows = b.rows.length ? b.rows : [b.tables];
+  const storage = storagePhrase(b);
+  const extra = storage ? ` + ${storage} from storage` : "";
+  const rooms = b.area.includes(" + ")
+    ? ` (${b.area}${b.dividersOpened.length ? ", divider open" : ""})`
+    : "";
+  if (rows.length === 1 && (rows[0]?.length ?? 0) <= 1)
+    return `Set: ${tablesPhrase(b.tables)}${extra} as ${article(b.seats)} ${b.seats}-top${rooms}.`;
+  const what =
+    rows.length === 1
+      ? `one long table seating ${b.seats}`
+      : `${COUNT_WORD[rows.length - 1] ?? rows.length} long tables seating ${b.seats}`;
+  const ids = rows.map((r) => tableNumbers(r)).join(", ");
+  return `Combine: ${b.tables.length === 1 ? "table" : "tables"} ${ids}${extra} into ${what}${rooms}.`;
+}
+
 export const BuildMinutes = z
   .object({
     note: z.string(),
@@ -150,6 +186,17 @@ export function coverTrade(partySize: number, coversLost: number): CoverTrade {
 
 export function signed(n: number): string {
   return n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "0";
+}
+
+/** The crew footnote: "Crew build: ~32 min, starts ~5:28 PM" (est.: build-by minus the build minutes). */
+export function crewFootnote(
+  b: Pick<
+    Build,
+    "buildBy" | "tables" | "dividersOpened" | "spareTables" | "extenders" | "extraChairs"
+  >,
+): string {
+  const min = buildMinutes(b);
+  return `Crew build: ~${min} min, starts ~${clock12(toHHMM(toMinutes(b.buildBy) - min))}`;
 }
 
 export const DECLINE_LINE = "Decline: 0 · request leaves Resy";

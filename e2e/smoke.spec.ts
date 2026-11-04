@@ -208,10 +208,10 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
     "Sam Whitaker · party of 22 · Fri 6:30 PM (in 3h 30m)",
   );
   await expect(page.locator("svg.floor.lit-fit .ready-bubble.is-now").first()).toBeVisible();
-  await sheet.locator(".fit-more > summary").click();
-  await expect(sheet.locator(".crew-note")).toHaveText(/^(Open|Combine|Set) .*tables? \d/);
+  await sheet.getByRole("button", { name: "More ▸" }).click();
+  await expect(sheet.locator(".req-plan .field-value")).toHaveText(/^(Combine|Set): .*tables? \d/);
   await expect(sheet).not.toContainText(/\bT\d/);
-  const cost = page.locator(".request-sheet .impacts");
+  const cost = page.locator(".request-sheet .req-more");
   await expect(cost.getByRole("list", { name: "Pros" })).toContainText("+22 covers in one booking");
   await expect(cost.getByRole("list", { name: "Pros" })).toContainText(
     "Aisle clear for a wheelchair",
@@ -225,8 +225,7 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
   await expect(sheet.locator(".capacity-line")).toContainText(
     /^Booked \+22 \(guaranteed\) · Walk-in capacity held: up to ~\d+ \(only if every held seat would turn\) · Reservations moved \d+ · cancelled 0$/,
   );
-  await expect(cost).toContainText("Decline: 0 · request leaves Resy");
-  await expect(cost).toContainText(/Crew: build time ~\d+ min \(est\.\)/);
+  await expect(cost).toContainText(/Crew build: ~\d+ min, starts ~\d{1,2}:\d\d [AP]M/);
   await expect(cost).toContainText("walk-in covers over one turn (est.)");
   await expect(sheet).not.toContainText("covers lost");
   await expect(cost).toContainText("spans two servers");
@@ -272,9 +271,9 @@ test("a large walk-in at the host stand gets the same capacity fit and cost", as
   await expect(sheet.locator(".req-title")).toHaveText(
     "Kim Lee · party of 14 · Sat 9:00 PM (in 6h)",
   );
-  await expect(sheet).toContainText("Walk-in at the host stand");
+  await expect(sheet.locator(".req-via .field-value")).toHaveText("Staff · host stand");
   await expect(sheet).toContainText("At the stand");
-  await expect(sheet.getByRole("region", { name: "Capacity fit" })).toBeVisible();
+  await expect(sheet.getByRole("region", { name: "Request" })).toBeVisible();
 });
 
 test("during service, a proposed join shows each table's readiness (green now, red until free)", async ({
@@ -293,10 +292,6 @@ test("during service, a proposed join shows each table's readiness (green now, r
   await expect(sheet.locator(".fit-pill")).toHaveText(
     /^capacity fit ✓ · ready to set up in ~\d+ min$/,
   );
-  await sheet.locator(".fit-more > summary").click();
-  const list = sheet.getByRole("list", { name: "Tables in the join, and when each is free" });
-  await expect(list.locator(".ready-chip.is-wait").first()).toHaveText(/^~\d+m$/);
-  await expect(list).toContainText("until free (est.)");
   await expect(page.locator("svg.floor.lit-fit .ready-bubble.is-wait").first()).toBeVisible();
   await expect(page.locator("svg.floor.lit-fit .is-lit").first()).toBeVisible();
 });
@@ -317,11 +312,11 @@ test("a later request on a live floor is projected to its hold start, not live m
   await expect(sheet.locator(".fit-pill")).toHaveText(
     /^capacity fit ✓ · (Ready|ready to set up at ~\d{1,2}:\d\d [AP]M)$/,
   );
-  await sheet.locator(".fit-more > summary").click();
-  const list = sheet.getByRole("list", { name: "Tables in the join, and when each is free" });
-  for (const chip of await list.locator(".ready-chip").allTextContents())
-    expect(chip).toMatch(/^(free by \d{1,2}:\d\d [AP]M|busy until ~\d{1,2}:\d\d [AP]M \(est\.\))$/);
-  await expect(list.locator(".ready-chip", { hasText: /^~\d+m$/ })).toHaveCount(0);
+  // the floor shows each table's readiness; no live "~Nm" for a later request
+  await expect(page.locator("svg.floor.lit-fit .ready-bubble").first()).toBeVisible();
+  await expect(page.locator("svg.floor.lit-fit .ready-bubble", { hasText: /^~\d+m$/ })).toHaveCount(
+    0,
+  );
 });
 
 test("in-request chat: a message becomes constraints, the planner re-runs, manual controls match", async ({
@@ -377,10 +372,11 @@ test("in-request chat: a message becomes constraints, the planner re-runs, manua
   await diff.getByRole("button", { name: "Apply" }).click();
   await expect(sheet.locator(".req-title")).toContainText("party of 26");
   await expect(sheet.locator(".changed-line")).toContainText("Changed in chat");
-  await expect(sheet.locator(".original-fit")).toHaveText("Original request: capacity fit ✓");
+  await expect(sheet.locator(".original-fit .field-value")).toHaveText("capacity fit ✓");
+  await sheet.getByRole("button", { name: "More ▸" }).click();
   await expect(sheet.locator(".net-hero")).toContainText("+26 booked");
-  await sheet.locator(".fit-more > summary").click();
-  await expect(sheet.locator(".crew-note")).toContainText("Also: high chair.");
+  await expect(sheet.locator(".req-more")).toContainText("Crew notes");
+  await expect(sheet.locator(".req-more")).toContainText("high chair");
   // manual parity: the same table range on the review screen, no chat needed
   await sheet.getByRole("button", { name: "Accept", exact: true }).click();
   const review = page.locator(".review");
@@ -508,6 +504,7 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     );
     await expect(sheet).toContainText("AI agent");
     await expect(sheet.locator(".req-overview")).toContainText("Family reunion");
+    await sheet.getByRole("button", { name: "More ▸" }).click();
     // the one-pager's numbers: +22 booked, up to ~24 walk-in covers held, Oduya moved, nothing cancelled
     await expect(sheet.locator(".net-hero")).toHaveText(
       "+22 booked vs up to ~24 possible walk-ins",
@@ -515,14 +512,11 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     await expect(sheet.locator(".capacity-line")).toHaveText(
       "Booked +22 (guaranteed) · Walk-in capacity held: up to ~24 (only if every held seat would turn) · Reservations moved 1 · cancelled 0",
     );
-    await expect(sheet.locator(".take-it")).toHaveText(
+    await expect(sheet.locator(".take-it .take-it-text")).toHaveText(
       "Take it: a booked 22 beats uncertain walk-ins",
     );
     // a future request: readiness is projected to the hold start (5:00 PM), not live minutes
     await expect(sheet.locator(".fit-pill")).toHaveText("capacity fit ✓ · Ready");
-    await sheet.locator(".fit-more > summary").click();
-    const list = sheet.getByRole("list", { name: "Tables in the join, and when each is free" });
-    await expect(list.locator(".ready-chip").first()).toHaveText("free by 5:00 PM");
     await expect(page.locator("svg.floor .ready-bubble.is-now").first()).toHaveText("free");
     await expect(page.locator(".room-select select")).toHaveValue("book-fri");
   });
@@ -575,7 +569,7 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     await diff.getByRole("button", { name: "Apply" }).click();
     await expect(sheet.locator(".changed-line")).toContainText("tables 30–50");
     await expect(sheet.locator(".fit-pill")).toHaveText("no capacity fit");
-    await expect(sheet.locator(".original-fit")).toHaveText("Original request: capacity fit ✓");
+    await expect(sheet.locator(".original-fit .field-value")).toHaveText("capacity fit ✓");
     await sheet.locator(".changed-line").getByRole("button", { name: "Revert" }).click();
     await expect(sheet.locator(".fit-pill")).toContainText("capacity fit ✓");
   });
@@ -687,7 +681,7 @@ test.describe("manager copy carries no fixture ids", () => {
     const sheet = page.locator(".request-sheet");
     await expect(sheet.locator(".verdict").first()).toHaveText("Looks real");
     await expect(sheet.locator(".how-made .metrics")).toBeHidden();
-    await sheet.locator(".ai-card").getByText("More ▸").click();
+    await sheet.getByRole("button", { name: "More ▸" }).click();
     await sheet.getByText("How this was made").click();
     await expect(sheet.locator(".how-made .metrics")).toContainText("triage.v");
     await sheet.getByRole("button", { name: "Mark as junk" }).click();
@@ -740,17 +734,16 @@ test.describe("decision card", () => {
       for (const l of [
         sheet.locator(".req-title"),
         sheet.locator(".fit-pill"),
-        sheet.locator(".net-hero"),
+        sheet.locator(".take-it"),
         sheet.getByRole("button", { name: "Accept" }),
       ])
         await expect(l).toBeInViewport({ ratio: 1 });
       // and not hidden under the sticky action footer
       const footerTop = (await sheet.locator(".decision-footer").boundingBox())?.y ?? 0;
-      const net = await sheet.locator(".net-hero").boundingBox();
-      expect(net && net.y + net.height).toBeLessThanOrEqual(footerTop);
-      // nothing in the solver's card is styled as AI output
+      const take = await sheet.locator(".take-it").boundingBox();
+      expect(take && take.y + take.height).toBeLessThanOrEqual(footerTop);
+      // one request card (the triage and the capacity check are merged)
       await expect(page.locator(".req-block.ai-card")).toHaveCount(1);
-      await expect(page.locator(".req-block.ai-card")).toContainText("AI triage");
     });
   }
 });
@@ -1132,7 +1125,7 @@ test.describe("request flow: one state, demo clock, decisions stay open", () => 
     await rail.locator(".row-request .row-btn", { hasText: "At host stand" }).click();
     const sheet = page.locator(".request-sheet");
     await expect(sheet).toContainText("received Fri 2:40 PM");
-    await sheet.locator(".ai-card").getByText("More ▸").click();
+    await expect(sheet.locator(".req-message .field-label")).toHaveText("Host's note");
     await expect(sheet.locator(".req-message")).toContainText("tomorrow");
   });
 
@@ -1265,15 +1258,15 @@ test.describe("host polish (P1)", () => {
     const rail = page.getByRole("region", { name: /Requests/ });
     await rail.locator(".row-request .row-btn", { hasText: "14" }).first().click();
     const sheet = page.locator(".request-sheet");
-    await sheet.locator(".fit-more > summary").click();
-    await expect(sheet.locator(".fit-summary")).toBeVisible();
-    const head = await sheet.locator(".fit-summary").innerText();
+    await sheet.getByRole("button", { name: "More ▸" }).click();
+    await expect(sheet.locator(".req-plan")).toBeVisible();
+    const head = await sheet.locator(".req-plan .field-value").innerText();
     const cons = await sheet.getByRole("list", { name: "Cons" }).innerText();
     for (const line of cons.split("\n")) {
       const m = /from (tables? [\d–, and]+) to (tables? [\d–, and]+)/.exec(line);
       if (m) expect(m[2]?.startsWith(m[1] ?? "")).toBe(false);
     }
-    expect(head).toMatch(/seats \d+/);
+    expect(head).toMatch(/seating \d+|-top/);
   });
 
   test("Shift setup labels the walk-in capacity held for the whole night", async ({ page }) => {

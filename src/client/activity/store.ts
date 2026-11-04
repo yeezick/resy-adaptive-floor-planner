@@ -1,7 +1,7 @@
 // Activity log inputs for this session, from what is already logged: triage results and manager decisions (the
 // requests store), assistant responses and what the host applied from them (recorded here), plus a fictional
 // seed for earlier this week. Read-only to the Activity screen.
-import { DEMO_WEEK_ISO } from "../../domain/requests";
+import { DEMO_WEEK_ISO, requestVia } from "../../domain/requests";
 import { useMemo, useSyncExternalStore } from "react";
 import weekJson from "../../../fixtures/activity/week.json";
 import {
@@ -225,6 +225,7 @@ export function liveEvents(s: RequestsState): {
       refId: r.id,
       at,
       source: r.source,
+      ...(r.via ? { via: requestVia(r) } : {}),
       partySize: r.partySize,
       when: `${r.day} ${r.time}`,
       solver: s.fits[r.id] ?? [],

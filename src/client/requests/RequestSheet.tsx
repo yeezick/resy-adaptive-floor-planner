@@ -1,29 +1,26 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   clock12,
-  crewNote,
   times12,
+  impactsOf,
   joinReadiness,
   partyFits,
-  readinessChip,
   readinessTarget,
-  tableReady,
   readinessPill,
-  tableNo,
   tablesPhrase,
   planBuilds,
   toHHMM,
   toMinutes,
   type Room,
 } from "../../domain";
-import { CoversSummary, ImpactsCard } from "../Fit/ImpactsCard";
+import { CoversSummary } from "../Fit/ImpactsCard";
 import {
   checkRequest,
   draftReply,
   needsOverview,
+  requestVia,
   requestWhen,
   SERVICE,
-  SOURCE_LABEL,
   toReservation,
   type GuestRequest,
 } from "../../domain/requests";
@@ -37,7 +34,14 @@ import {
   type AdjustedFit,
   type ChatConstraints,
 } from "../../domain/requestChat";
-import { bookedVsWalkIns, coverTrade, listAnd, storagePhrase } from "../../domain/wording";
+import {
+  bookedVsWalkIns,
+  coverTrade,
+  crewFootnote,
+  listAnd,
+  planLine,
+  takeItLine,
+} from "../../domain/wording";
 import { RequestChat } from "./RequestChat";
 import { SourceFeedback } from "../activity/SourceFeedback";
 import { RequestReview } from "../Review/RequestReview";
@@ -97,11 +101,6 @@ export function VerdictChip({
 }
 
 const loadRoom = (id: string) => fetchRoom(id);
-
-/** Where an AI-agent request came from, in full (shown in the expanded triage detail). */
-const SOURCE_DETAIL: Partial<Record<GuestRequest["source"], string>> = {
-  "ai-agent": "via a chat app or MCP",
-};
 
 const DECLINE: { id: DeclineReason; label: string; hint: string }[] = [
   { id: "fit", label: "No capacity fit", hint: "we can't seat them that night" },
@@ -249,6 +248,43 @@ export function RequestSheet({
       ? "Pick a reason to decline"
       : `Decline: ${reason === "fit" ? "no capacity fit" : reason}`;
 
+  // the one request card: summary, needs, the rule's recommendation; Plan, pros/cons and covers behind More
+  const [more, setMore] = useState(false);
+  // opening More brings its first lines into view (the card sits above the footer)
+  useEffect(() => {
+    if (more) document.getElementById(`more-${r0.id}`)?.scrollIntoView({ block: "nearest" });
+  }, [more, r0.id]);
+  const summary = overview[0] ?? needsOverview(r);
+  const needsText = t?.status === "ok" ? (t.result.summary[1] ?? null) : null;
+  const hasNeeds = r.needs.length > 0;
+  const access = r.needs.includes("accessible") || r.needs.includes("stroller");
+  const takeIt =
+    fit?.ok && cost
+      ? takeItLine(coverTrade(cost.partySize, cost.hold.coversLost), { fit: true, cancelled: 0 })
+      : null;
+  const impacts = useMemo(
+    () =>
+      room && cost && fit?.ok
+        ? impactsOf(room, {
+            fit: cost,
+            needs: r.needs,
+            // a party the re-plan left on the same tables didn't move
+            moved: movedDetail.length ? fit.moved : [],
+            movedDetail,
+          })
+        : null,
+    [room, cost, fit, r.needs, movedDetail],
+  );
+
+  const fitPill = fit ? (
+    <span
+      className={`verdict ${fit.ok ? "verdict-real" : "verdict-unsure"} fit-pill`}
+      title={fit.ok ? "Ready time is estimated from each table's meal phase" : undefined}
+    >
+      {fit.ok && ready ? readinessPill(ready) : fit.ok ? "capacity fit ✓" : "no capacity fit"}
+    </span>
+  ) : null;
+
   if (reviewing && room && decision.kind === "pending")
     return (
       <div className="request-sheet decision">
@@ -270,23 +306,19 @@ export function RequestSheet({
         <h2 className="req-title">
           {r.contact} · party of {r.partySize} · {requestWhen(r, now)}
         </h2>
-        <div className="muted small">
-          <span className={`source-label source-${r.source}`}>{SOURCE_LABEL[r.source]}</span> ·
-          received {times12(r.receivedAt)}
-        </div>
+        <div className="muted small">received {times12(r.receivedAt)}</div>
       </div>
 
-      <section className="req-block ai-card" aria-label="AI triage">
-        <div className="req-block-head">
-          <h3 className="section-title ai-label">
-            <span aria-hidden="true">✦</span> AI triage
-          </h3>
+      <section className="req-block req-card ai-card" aria-label="Request">
+        <div className="req-card-top">
+          <div className="field req-via small">
+            <span className="field-label muted">Request</span>
+            <span className="field-value">{requestVia(r)}</span>
+          </div>
           <VerdictChip t={t} override={override} />
         </div>
         <ul className="req-overview" aria-label="What the party needs">
-          {overview.slice(0, 1).map((line, i) => (
-            <li key={`${i}-${line}`}>{normalTimes(line)}</li>
-          ))}
+          <li>{normalTimes(summary)}</li>
         </ul>
         {t?.status === "host" && (
           <p className="muted small">
@@ -302,94 +334,38 @@ export function RequestSheet({
             </button>
           </div>
         )}
-        <div className="triage-row small">
-          {/* feedback stays at the source, on the same row as More ▸ */}
-          {t?.status === "ok" && !override && (
-            <SourceFeedback rowId={`row-${t.result.traceId}`} what="AI triage" compact />
-          )}
-          <details className="how-made triage-more">
-            <summary>More ▸</summary>
-            {overview.length > 1 && (
-              <ul className="req-overview-rest" aria-label="More about the party">
-                {overview.slice(1).map((line, i) => (
-                  <li key={`${i}-${line}`}>{normalTimes(line)}</li>
-                ))}
-              </ul>
-            )}
-            {(verdict === "real" || verdict === "junk") && (
-              <span className="override">
-                <span className="muted">
-                  {override ? `You marked this as ${override.verdict}. ` : "Wrong? "}
-                </span>
-                <button
-                  type="button"
-                  className="link-btn"
-                  onClick={() =>
-                    requestsActions.overrideTriage(r0.id, verdict === "junk" ? "real" : "junk")
-                  }
-                >
-                  Mark as {verdict === "junk" ? "real" : "junk"}
-                </button>
-              </span>
-            )}
-            <div className="triage-detail">
-              {t?.status === "ok" && (
-                <p>
-                  <span className="muted">Why: </span>
-                  {t.result.reason}
-                </p>
-              )}
-              <p className="muted">
-                {SOURCE_LABEL[r.source]}
-                {SOURCE_DETAIL[r.source] ? ` ${SOURCE_DETAIL[r.source]}` : ""}
-              </p>
-              <p className="req-message">
-                <span className="muted">
-                  {r.source === "walk-in" ? "Host's note: " : "Guest's message: "}
-                </span>
-                {r.message}
-              </p>
-              <p className="muted">
-                Shown here only. The activity log keeps the AI's summary, never the guest's words.
-              </p>
-              {t?.status === "ok" && (
-                <details className="how-made">
-                  <summary>How this was made</summary>
-                  <div className="metrics" aria-label="Triage cost and latency">
-                    <span>
-                      {usd(t.result.metrics.costUsd)}
-                      {t.result.cached ? " (cached view, no new call)" : ""}
-                    </span>
-                    <span>{duration(t.result.metrics.latencyMs)}</span>
-                    <span>{t.result.model}</span>
-                    <span>{t.result.promptVersion}</span>
-                    {t.result.validatorRejects > 0 && (
-                      <span>{t.result.validatorRejects} validator reject(s)</span>
-                    )}
-                  </div>
-                </details>
-              )}
-            </div>
-          </details>
-        </div>
-      </section>
-
-      <section className="req-block" aria-label="Capacity fit">
-        <div className="req-block-head">
-          <h3 className="section-title">Capacity check</h3>
-          {fit && (
-            <span
-              className={`verdict ${fit.ok ? "verdict-real" : "verdict-unsure"} fit-pill`}
-              title={fit.ok ? "Ready time is estimated from each table's meal phase" : undefined}
-            >
-              {fit.ok && ready
-                ? readinessPill(ready)
-                : fit.ok
-                  ? "capacity fit ✓"
-                  : "no capacity fit"}
+        {needsText && (
+          <div className="field req-needs">
+            <span className="field-label muted">{hasNeeds ? "Needs" : "Notes"}</span>
+            <span className="field-value">
+              {access && <AccessIcon />}
+              {normalTimes(needsText)}
             </span>
+          </div>
+        )}
+        <div className="field req-message">
+          <span className="field-label muted">
+            {r.source === "walk-in" ? "Host's note" : "Guest message"}
+          </span>
+          <q className="field-value">{r.message}</q>
+        </div>
+
+        <div className="req-decision">
+          {/* the rule's recommendation, with the one capacity-fit pill beside it (inline, so it wraps with the text) */}
+          {takeIt ? (
+            <p className="take-it" role="note">
+              <span className="take-it-text">{takeIt}</span> {fitPill}
+            </p>
+          ) : fit && !fit.ok ? (
+            <p className="small cant-fit-line">
+              {times12(adj ? adj.line : fit.reason)} {fitPill}
+            </p>
+          ) : (
+            fitPill
           )}
         </div>
+        {!roomRes && <p className="muted small">Loading {r.day}'s book…</p>}
+        {roomRes && !roomRes.ok && <p className="warn-text small">{roomRes.error.message}</p>}
         {proposal && proposedAdj && fit && (
           <ChatDiff
             request={r0}
@@ -406,29 +382,29 @@ export function RequestSheet({
           />
         )}
         {constraints && changeList(r0, constraints).length > 0 && (
-          <p className="changed-line small" role="status">
-            <span>
-              {changedBy === "chat" ? "Changed in chat" : "Changed by hand"}:{" "}
-              {listAnd(changeList(r0, constraints).map((x) => times12(x)))}
+          <div className="field changed-line small" role="status">
+            <span className="field-label muted">
+              {changedBy === "chat" ? "Changed in chat" : "Changed by hand"}
             </span>
-            <button
-              type="button"
-              className="link-btn"
-              onClick={() => requestsActions.resetConstraints(r0.id)}
-            >
-              Revert
-            </button>
-          </p>
+            <span className="field-value">
+              {listAnd(changeList(r0, constraints).map((x) => times12(x)))}{" "}
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() => requestsActions.resetConstraints(r0.id)}
+              >
+                Revert
+              </button>
+            </span>
+          </div>
         )}
         {constraints && changeList(r0, constraints).length > 0 && original && (
-          <p className="original-fit small">
-            Original request: {original.ok ? "capacity fit ✓" : "no capacity fit"}
-          </p>
-        )}
-        {!roomRes && <p className="muted small">Loading {r.day}'s book…</p>}
-        {roomRes && !roomRes.ok && <p className="warn-text small">{roomRes.error.message}</p>}
-        {fit && !fit.ok && (
-          <p className="small cant-fit-line">{times12(adj ? adj.line : fit.reason)}</p>
+          <div className="field original-fit small">
+            <span className="field-label muted">Original request</span>
+            <span className="field-value">
+              {original.ok ? "capacity fit ✓" : "no capacity fit"}
+            </span>
+          </div>
         )}
         {fit?.ok && roomId !== r.bookRoomId && (
           <button
@@ -439,80 +415,120 @@ export function RequestSheet({
             Show on {r.day}'s floor →
           </button>
         )}
-        {fit?.ok && cost && (
-          <CoversSummary f={cost} moved={movedDetail.length ? fit.moved.length : 0} />
-        )}
-        <details className="small more fit-more">
-          <summary>More ▸</summary>
-          {fit?.ok && (
-            <p className="fit-summary small">
-              {tablesPhrase(fit.build.tables)}
-              {storagePhrase(fit.build) ? ` + ${storagePhrase(fit.build)} from storage` : ""} ·{" "}
-              {fit.build.area} · seats {fit.build.seats} · build by {clock12(fit.build.buildBy)}
-            </p>
+
+        <div className="triage-row small">
+          {/* one row: rate the AI triage, open More, mark it as junk */}
+          {t?.status === "ok" && !override && (
+            <SourceFeedback rowId={`row-${t.result.traceId}`} what="AI triage" compact />
           )}
-          {fit?.ok && cost && room && (
-            <ImpactsCard
-              room={room}
-              f={cost}
-              build={fit.build}
-              needs={r.needs}
-              // a party the re-plan left on the same tables didn't move
-              moved={movedDetail.length ? fit.moved : []}
-              movedDetail={movedDetail}
-            />
+          <button
+            type="button"
+            className="link-btn more-toggle"
+            aria-expanded={more}
+            aria-controls={`more-${r0.id}`}
+            onClick={() => setMore((v) => !v)}
+          >
+            {more ? "Less ▾" : "More ▸"}
+          </button>
+          <span className="spacer" />
+          {(verdict === "real" || verdict === "junk") && (
+            <span className="override">
+              {override && <span className="muted">You marked this as {override.verdict}. </span>}
+              <button
+                type="button"
+                className="link-btn junk-btn"
+                onClick={() =>
+                  requestsActions.overrideTriage(r0.id, verdict === "junk" ? "real" : "junk")
+                }
+              >
+                Mark as {verdict === "junk" ? "real" : "junk"}
+              </button>
+            </span>
           )}
-          {fit?.ok && (
-            <div className="fit-build">
-              <h4 className="more-head">Build and tables</h4>
-              <p className="crew-note">
-                {crewNote(fit.build)}
-                {constraints?.notes.length ? ` Also: ${constraints.notes.join(", ")}.` : ""}
-              </p>
-              <p className="muted">Every booking already on {r.day} still has a table.</p>
-              {ready && ready.tables.length > 0 && (
-                <ul className="ready-list" aria-label="Tables in the join, and when each is free">
-                  {ready.tables.map((t) => {
-                    const b = readinessChip(t, ready);
-                    return (
-                      <li key={t.id}>
-                        <span className="ready-no">{tableNo(t.id)}</span>
-                        <span className="muted">
-                          {t.phase ?? (t.status === "reserved" ? "open, held later" : t.status)}
-                        </span>
-                        <span
-                          className={`ready-chip ${tableReady(t, ready) ? "is-now" : "is-wait"}`}
-                        >
-                          {b}
-                        </span>
-                      </li>
-                    );
-                  })}
-                  {!ready.ready && (
-                    <li className="muted ready-key">
-                      {ready.at === null
-                        ? "~Xm = until free (est.)"
-                        : `projected to the hold start, ${clock12(ready.at)}; est. from meal phase`}
-                    </li>
-                  )}
+        </div>
+
+        {more && (
+          <div className="req-more small" id={`more-${r0.id}`}>
+            {fit?.ok && (
+              <div className="field req-plan">
+                <span className="field-label muted">Plan</span>
+                <span className="field-value">{times12(planLine(fit.build))}</span>
+              </div>
+            )}
+            {impacts && (
+              <>
+                <div className="field req-pros">
+                  <span className="field-label is-pro">Pros</span>
+                  <ul className="field-value" aria-label="Pros">
+                    {impacts.pros.map((p) => (
+                      <li key={p}>{times12(p)}</li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="field req-cons">
+                  <span className="field-label is-con">Cons</span>
+                  <ul className="field-value" aria-label="Cons">
+                    {impacts.cons.length ? (
+                      impacts.cons.map((c) => <li key={c}>{times12(c)}</li>)
+                    ) : (
+                      <li className="muted">None</li>
+                    )}
+                  </ul>
+                </div>
+              </>
+            )}
+            {fit?.ok && cost && (
+              <div className="field req-covers">
+                <span className="field-label muted">Booked vs walk-ins</span>
+                <CoversSummary f={cost} moved={movedDetail.length ? fit.moved.length : 0} />
+              </div>
+            )}
+            {t?.status === "ok" && (
+              <div className="field">
+                <span className="field-label muted">Why</span>
+                <span className="field-value">{t.result.reason}</span>
+              </div>
+            )}
+            {cost && cost.aisle.rejected.length > 0 && (
+              <div className="field fit-other">
+                <span className="field-label muted">Other layouts considered</span>
+                <ul className="field-value">
+                  {cost.aisle.rejected.map((x) => (
+                    <li key={x.tables.join()}>Not used: {times12(x.reason)}</li>
+                  ))}
                 </ul>
-              )}
-            </div>
-          )}
-          {cost && cost.aisle.rejected.length > 0 && (
-            <div className="fit-other">
-              <h4 className="more-head">Other layouts considered</h4>
-              <ul>
-                {cost.aisle.rejected.map((x) => (
-                  <li key={x.tables.join()}>Not used: {times12(x.reason)}</li>
-                ))}
-              </ul>
-            </div>
-          )}
-          <p className="muted">
-            Tables come from Capacity check; the AI reads the request and can't pick or add tables.
-          </p>
-        </details>
+              </div>
+            )}
+            {constraints?.notes.length ? (
+              <div className="field">
+                <span className="field-label muted">Crew notes</span>
+                <span className="field-value">{constraints.notes.join(", ")}</span>
+              </div>
+            ) : null}
+            <p className="muted">
+              The guest's words are shown here only; the activity log keeps the AI's summary. Tables
+              come from the capacity check; the AI can't pick or add tables.
+            </p>
+            {t?.status === "ok" && (
+              <details className="how-made">
+                <summary>How this was made</summary>
+                <div className="metrics" aria-label="Triage cost and latency">
+                  <span>
+                    {usd(t.result.metrics.costUsd)}
+                    {t.result.cached ? " (cached view, no new call)" : ""}
+                  </span>
+                  <span>{duration(t.result.metrics.latencyMs)}</span>
+                  <span>{t.result.model}</span>
+                  <span>{t.result.promptVersion}</span>
+                  {t.result.validatorRejects > 0 && (
+                    <span>{t.result.validatorRejects} validator reject(s)</span>
+                  )}
+                </div>
+              </details>
+            )}
+            {fit?.ok && <p className="muted crew-foot">{times12(crewFootnote(fit.build))}</p>}
+          </div>
+        )}
       </section>
 
       {decision.kind === "pending" && room && (
@@ -837,6 +853,23 @@ function Sparkle() {
     <svg className="sparkle" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
       <path d="M8 1.5c.4 2.9 1.7 4.2 4.6 4.6-2.9.4-4.2 1.7-4.6 4.6-.4-2.9-1.7-4.2-4.6-4.6 2.9-.4 4.2-1.7 4.6-4.6Z" />
       <path d="M12.6 10.2c.2 1.3.8 1.9 2.1 2.1-1.3.2-1.9.8-2.1 2.1-.2-1.3-.8-1.9-2.1-2.1 1.3-.2 1.9-.8 2.1-2.1Z" />
+    </svg>
+  );
+}
+
+/** Accessibility needs (wheelchair, stroller): a small person-in-wheelchair mark beside the Needs line. */
+function AccessIcon() {
+  return (
+    <svg className="access-icon" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <circle cx="8.5" cy="2.5" r="1.5" fill="currentColor" />
+      <path
+        d="M8 5v4h3.5l1.5 4M8 7h3M6 7.2a4 4 0 1 0 5.6 5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }
