@@ -11,7 +11,7 @@
 // cost after, so a run passes the budget by at most one call's reservation. A scenario cut off mid-way is
 // recorded with error code "budget" and every later scenario is skipped.
 import Anthropic from "@anthropic-ai/sdk";
-import { existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import {
@@ -29,7 +29,67 @@ import { runActivityChecks } from "./activity-checks";
 import { runPlanChecks } from "./plan-checks";
 import type { CallMetrics } from "../src/shared/api";
 import { loadGolden, type GoldenScenario } from "./golden.schema";
-import { refreshResults, type Evaluated } from "./results";
+import { gitSha, refreshResults, type Evaluated } from "./results";
+import { DeterministicChecks } from "../src/shared/evals";
+
+const CHECKS_PATH = "public/evals/checks.json";
+
+const CHECK_TEXT: Record<string, { label: string; what: string }> = {
+  holds: {
+    label: "Holds",
+    what: "Each hold covers the party's tables, starts between service start and the build, ends at arrival, and its covers lost stay in bounds.",
+  },
+  section: {
+    label: "Server sections",
+    what: "Each placed party names the section(s) it lands in.",
+  },
+  aisle: {
+    label: "Aisle clearance",
+    what: "No join narrows an aisle below the venue minimum; rejected sets say why.",
+  },
+  "cant-fit": {
+    label: "Can't-fit answers",
+    what: "A party that can't be seated gets one line with the size, the time and the earliest option.",
+  },
+  activity: {
+    label: "Activity log",
+    what: "Every AI action and manager decision is logged; guest and host text only as a hash.",
+  },
+  "request-chat": {
+    label: "Request chat",
+    what: "Chat changes stay proposals until applied, and never name a table the solver didn't pick.",
+  },
+};
+
+/** The deterministic checks, for /evals: public/evals/checks.json. */
+function writeChecks(
+  plan: { check: string; ok: boolean }[],
+  activity: { ok: boolean }[],
+  chat: { ok: boolean }[],
+): void {
+  const group = (id: string, list: { ok: boolean }[]) => ({
+    id,
+    ...(CHECK_TEXT[id] ?? { label: id, what: "" }),
+    passed: list.filter((c) => c.ok).length,
+    total: list.length,
+  });
+  const out = DeterministicChecks.parse({
+    runAt: new Date().toISOString(),
+    gitSha: gitSha(),
+    groups: [
+      ...["holds", "section", "aisle", "cant-fit"].map((k) =>
+        group(
+          k,
+          plan.filter((c) => c.check === k),
+        ),
+      ),
+      group("activity", activity),
+      group("request-chat", chat),
+    ],
+  });
+  writeFileSync(CHECKS_PATH, `${JSON.stringify(out, null, 2)}\n`);
+  console.log(`wrote ${CHECKS_PATH}`);
+}
 import {
   GOLDEN_PATH,
   JUDGEMENTS_PATH,
@@ -241,6 +301,7 @@ function replay(write: boolean): void {
       requestChatChecks: `${chat.filter((c) => c.ok).length}/${chat.length}`,
     }),
   );
+  if (write) writeChecks(plan, activity, chat);
   for (const f of planFails)
     console.error(`FAIL plan check ${f.check} ${f.case}: ${f.detail ?? ""}`);
   if (!coverage.ok) {
