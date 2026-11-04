@@ -1,6 +1,6 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { namesIn, partyName, surname } from "./names";
+import { namesIn, partyName, seatedName, surname } from "./names";
 
 describe("party names", () => {
   it("a request shows its contact's surname", () => {
@@ -63,5 +63,12 @@ describe("party names", () => {
     expect(namesIn("R1 (10) → Main · one long table of 3")).toBe(
       `${partyName("R1")} (10) → Main · one long table of 3`,
     );
+  });
+});
+
+describe("seated party names", () => {
+  it("are stable per table", () => {
+    expect(seatedName("T41")).toMatch(/^[A-Z][A-Za-z']+, [A-Z]\.$/);
+    expect(seatedName("T41")).toBe(seatedName("T41"));
   });
 });

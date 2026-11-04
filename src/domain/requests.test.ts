@@ -144,6 +144,13 @@ describe("draftReply", () => {
     // six capacity fits, each up to 13 plans of a 95-table night; slow under coverage in CI
   }, 20_000);
 
+  it("promises only an answer time when it fits", () => {
+    const r = byId("Q2");
+    const text = draftReply(r, checkRequest(roomFor(r), r), "4:00 PM");
+    expect(text).toContain("will confirm by 4:00 PM");
+    expect(text).not.toMatch(/\b(confirmed|booked|reserved)\b/i);
+  });
+
   it("offers the earliest time when the request can't fit as asked", () => {
     const r = byId("Q3");
     expect(draftReply(r, checkRequest(roomFor(r), r))).toMatch(/from 20:30/);
