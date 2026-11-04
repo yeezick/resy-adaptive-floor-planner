@@ -188,16 +188,17 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
   const sheet = page.locator(".request-sheet");
   // another night on screen: weekday + date, no countdown
   await expect(sheet.locator(".req-title")).toHaveText(
-    "Sam Whitaker, party of 22 · Fri Nov 6 · 6:30 PM",
+    "Sam Whitaker · party of 22 · Fri Nov 6 · 6:30 PM",
   );
   await expect(sheet.locator(".req-overview")).toContainText("Stub line one for Q2.");
   await expect(sheet).toContainText("AI agent");
   await expect(sheet.locator(".fit-pill")).toHaveText("capacity fit ✓ · Ready");
   await sheet.getByRole("button", { name: "Show on Fri's floor →" }).click();
   await expect(sheet.locator(".req-title")).toHaveText(
-    "Sam Whitaker, party of 22 · Fri 6:30 PM (in 3h 30m)",
+    "Sam Whitaker · party of 22 · Fri 6:30 PM (in 3h 30m)",
   );
   await expect(page.locator("svg.floor.lit-fit .ready-bubble.is-now").first()).toBeVisible();
+  await sheet.getByText("Build and tables ▸").click();
   await expect(sheet.locator(".crew-note")).toHaveText(/^(Open|Combine|Set) .*tables? \d/);
   await expect(sheet).not.toContainText(/\bT\d/);
   const cost = page.locator(".request-sheet .impacts");
@@ -215,13 +216,18 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
   await expect(cost).toContainText(/Crew: build time ~\d+ min \(est\.\)/);
   await expect(cost).toContainText("covers lost over one turn (est.)");
   await expect(cost).toContainText("spans two servers");
-  // actions, in order
-  await expect(sheet.locator(".req-actions .btn-row button")).toHaveText([
-    "Accept",
+  // actions, in order: Discuss (text) leads; Accept is the one filled button, trailing
+  await expect(sheet.locator(".req-actions button")).toHaveText([
+    "Discuss",
     "Decline",
     "Message guest",
-    "Discuss",
+    "Accept",
   ]);
+  await expect(sheet.locator(".req-actions button.primary")).toHaveText(["Accept"]);
+  await expect(sheet).toContainText(
+    /Accept holds tables .* from \d{1,2}:\d\d PM · no guest message is sent/,
+  );
+  await expect(sheet.getByRole("textbox", { name: "Message about this request" })).toBeHidden();
   await expect(sheet.locator(".ask-ai svg.sparkle")).toBeVisible();
   await sheet.getByRole("button", { name: "Discuss" }).click();
   await expect(sheet.getByRole("textbox", { name: "Message about this request" })).toBeFocused();
@@ -245,7 +251,7 @@ test("a large walk-in at the host stand gets the same capacity fit and cost", as
   await stand.getByRole("button", { name: "Check capacity fit →" }).click();
   const sheet = page.locator(".request-sheet");
   await expect(sheet.locator(".req-title")).toHaveText(
-    "Kim Lee, party of 14 · Sat 9:00 PM (in 6h)",
+    "Kim Lee · party of 14 · Sat 9:00 PM (in 6h)",
   );
   await expect(sheet).toContainText("Walk-in at the host stand");
   await expect(sheet).toContainText("At the stand");
@@ -268,6 +274,7 @@ test("during service, a proposed join shows each table's readiness (green now, r
   await expect(sheet.locator(".fit-pill")).toHaveText(
     /^capacity fit ✓ · ready to set up in ~\d+ min$/,
   );
+  await sheet.getByText("Build and tables ▸").click();
   const list = sheet.getByRole("list", { name: "Tables in the join, and when each is free" });
   await expect(list.locator(".ready-chip.is-wait").first()).toHaveText(/^~\d+m$/);
   await expect(list).toContainText("until free (est.)");
@@ -291,6 +298,7 @@ test("a later request on a live floor is projected to its hold start, not live m
   await expect(sheet.locator(".fit-pill")).toHaveText(
     /^capacity fit ✓ · (Ready|ready to set up at ~\d{1,2}:\d\d [AP]M)$/,
   );
+  await sheet.getByText("Build and tables ▸").click();
   const list = sheet.getByRole("list", { name: "Tables in the join, and when each is free" });
   for (const chip of await list.locator(".ready-chip").allTextContents())
     expect(chip).toMatch(/^(free by \d{1,2}:\d\d [AP]M|busy until ~\d{1,2}:\d\d [AP]M \(est\.\))$/);
@@ -329,6 +337,7 @@ test("in-request chat: a message becomes constraints, the planner re-runs, manua
   await openFloor(page);
   const rail = page.getByRole("region", { name: /Requests/ });
   await rail.locator(".row-request .row-btn").nth(1).click();
+  await page.locator(".request-sheet").getByRole("button", { name: "Discuss" }).click();
   const chat = page.getByRole("region", { name: "Adjust this request" });
   await chat
     .getByRole("textbox", { name: "Message about this request" })
@@ -459,7 +468,7 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     await page.goto("/?scenario=party-22-agent");
     const sheet = page.locator(".request-sheet");
     await expect(sheet.locator(".req-title")).toHaveText(
-      "Sam Whitaker, party of 22 · Fri 6:30 PM (in 3h 30m)",
+      "Sam Whitaker · party of 22 · Fri 6:30 PM (in 3h 30m)",
     );
     await expect(sheet).toContainText("AI agent");
     await expect(sheet.locator(".req-overview")).toContainText("Family reunion");
@@ -467,6 +476,7 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     await expect(sheet.locator(".impacts")).toContainText("= net −2");
     // a future request: readiness is projected to the hold start (5:00 PM), not live minutes
     await expect(sheet.locator(".fit-pill")).toHaveText("capacity fit ✓ · Ready");
+    await sheet.getByText("Build and tables ▸").click();
     const list = sheet.getByRole("list", { name: "Tables in the join, and when each is free" });
     await expect(list.locator(".ready-chip").first()).toHaveText("free by 5:00 PM");
     await expect(page.locator("svg.floor .ready-bubble.is-now").first()).toHaveText("free");
@@ -593,6 +603,7 @@ test.describe("manager copy carries no fixture ids", () => {
     const sheet = page.locator(".request-sheet");
     await expect(sheet.locator(".verdict").first()).toHaveText("Looks real");
     await expect(sheet.locator(".how-made .metrics")).toBeHidden();
+    await sheet.getByText("Triage detail ▸").click();
     await sheet.getByText("How this was made").click();
     await expect(sheet.locator(".how-made .metrics")).toContainText("triage.v");
     await sheet.getByRole("button", { name: "Mark as junk" }).click();
@@ -626,4 +637,31 @@ test.describe("planner app shell", () => {
     const tabs = await page.locator(".room-tabs").boundingBox();
     expect(tabs && side && tabs.x + tabs.width <= side.x).toBe(true);
   });
+});
+
+test.describe("decision card", () => {
+  for (const vp of [
+    { width: 1180, height: 820 },
+    { width: 1440, height: 900 },
+  ]) {
+    test(`party-22-agent at ${vp.width}: guest, party, when, fit, net covers and Accept without scrolling`, async ({
+      page,
+    }) => {
+      await page.setViewportSize(vp);
+      await page.route("**/api/requests/*/triage", (route) => route.abort());
+      await page.goto("/?scenario=party-22-agent");
+      const sheet = page.locator(".request-sheet");
+      await expect(sheet.locator(".req-title")).toContainText("Sam Whitaker · party of 22 · Fri");
+      for (const l of [
+        sheet.locator(".req-title"),
+        sheet.locator(".fit-pill"),
+        sheet.locator(".net-hero"),
+        sheet.getByRole("button", { name: "Accept" }),
+      ])
+        await expect(l).toBeInViewport({ ratio: 1 });
+      // nothing in the solver's card is styled as AI output
+      await expect(page.locator(".req-block.ai-card")).toHaveCount(1);
+      await expect(page.locator(".req-block.ai-card")).toContainText("AI triage");
+    });
+  }
 });
