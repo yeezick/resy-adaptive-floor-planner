@@ -162,4 +162,8 @@ test("the decline note can go into the draft reply in one tap", async ({ page })
   await expect(reply).not.toContainText("Sunday");
   await sheet.getByRole("button", { name: "Insert note" }).click();
   await expect(reply).toHaveValue(/We could host 22 on Sunday instead\.$/);
+  // once in, it can't be added twice; the sheet says it went in as written
+  await expect(sheet.getByRole("button", { name: "Insert note" })).toBeDisabled();
+  await expect(sheet).toContainText("Your note is added as you wrote it.");
+  expect((await reply.inputValue()).split("Sunday").length).toBe(2);
 });
