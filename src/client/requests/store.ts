@@ -3,7 +3,7 @@
 // book in this browser session (fictional data; no guest is contacted).
 import { useSyncExternalStore } from "react";
 import type { GuestRequest, RequestBook } from "../../domain/requests";
-import { checkRequest, toReservation, walkInRequest } from "../../domain/requests";
+import { checkRequest, DEMO_WEEK_ISO, toReservation, walkInRequest } from "../../domain/requests";
 import { activeScenario, RECORDED_CHAT, RECORDED_TRIAGE } from "../scenarios";
 import type { Reservation } from "../../domain";
 import type { RequestChatResult, TriageResult } from "../../shared/api";
@@ -191,7 +191,8 @@ async function applyScenario(book: RequestBook): Promise<void> {
         [r.id]: [
           {
             id: "turn-scenario-1",
-            at,
+            // on the Friday book's planning clock, in the demo week
+            at: new Date(`${DEMO_WEEK_ISO.Fri}T15:00:00`).toISOString(),
             message: RECORDED_CHAT.message,
             status: "ok",
             before: baseConstraints(r),

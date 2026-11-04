@@ -3936,3 +3936,76 @@ button[aria-pressed="true"]:not(.primary):not(.fb-thumb) {
 .activity-counts .totals-note {
   grid-column: 1 / -1;
 }
+
+/* About to free = amber (attention), never red */
+.floor .ready-bubble.is-wait rect,
+.ready-chip.is-wait {
+  fill: var(--warn);
+  background: var(--warn);
+}
+/* Design review round 1: the chat diff is neutral (only its "Proposed in chat" label is AI-styled) */
+.chat-diff {
+  border-color: var(--border-strong);
+  background: var(--surface-2);
+}
+.chat-diff-check {
+  margin: 0;
+}
+.decision-footer .feedforward {
+  margin: 0 0 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  align-self: stretch;
+}
+.apply-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+  margin: 10px 0;
+}
+.apply-stack .apply-night {
+  white-space: normal;
+}
+.req-chat-wrap > .link-btn {
+  margin-top: 4px;
+}
+.decision-footer {
+  gap: 2px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+}
+.decision-footer .ask-ai {
+  min-height: 32px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+.request-sheet.decision {
+  gap: 8px;
+}
+.request-sheet.decision .req-block {
+  padding: 8px 10px;
+  gap: 4px;
+}
+.request-sheet.decision .impacts {
+  padding-top: 6px;
+}
+.request-sheet.decision .impacts-net {
+  margin: 0;
+}
+.request-sheet.decision .req-head .muted {
+  margin-top: 2px;
+}
+.request-sheet.decision .req-overview,
+.request-sheet.decision .fit-summary {
+  line-height: 1.35;
+}
+.request-sheet.decision .req-title {
+  line-height: 1.25;
+}
+html.planner-shell .console-body > .rail,
+html.planner-shell .console-body > .side-col {
+  top: 0;
+}

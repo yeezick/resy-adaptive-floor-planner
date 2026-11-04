@@ -176,9 +176,9 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
   await expect(page.getByRole("button", { name: /Accept/ })).toBeDisabled();
   await page.getByRole("button", { name: "Decline", exact: true }).click();
   await expect(page.getByRole("button", { name: "Pick a reason to decline" })).toBeDisabled();
-  await page.getByRole("radio", { name: /Capacity fit/ }).check();
-  await page.getByRole("button", { name: "Decline for capacity fit" }).click();
-  await expect(page.locator(".req-decided")).toContainText("Declined for capacity fit");
+  await page.getByRole("radio", { name: /No capacity fit/ }).check();
+  await page.getByRole("button", { name: "Decline: no capacity fit" }).click();
+  await expect(page.locator(".req-decided")).toContainText("Declined: no capacity fit");
 
   // the 22-top fits: Accept opens Friday's plan with the party in focus
   // (iPad: an open sheet collapses the rail to a strip; expand it to pick another request)
@@ -225,7 +225,7 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
   ]);
   await expect(sheet.locator(".req-actions button.primary")).toHaveText(["Accept"]);
   await expect(sheet).toContainText(
-    /Accept holds tables .* from \d{1,2}:\d\d PM · no guest message is sent/,
+    /Accept holds tables .* from \d{1,2}:\d\d PM .*· no guest message is sent/,
   );
   await expect(sheet.getByRole("textbox", { name: "Message about this request" })).toBeHidden();
   await expect(sheet.locator(".ask-ai svg.sparkle")).toBeVisible();
@@ -235,7 +235,7 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
   await expect(page.locator(".room-select select")).toHaveValue("book-fri");
   await expect(page.locator(".proposal")).toBeVisible();
   await expect(page.locator(".accepted-card")).toContainText(
-    "Whitaker · 22 · Fri 6:30 PM — Accepted",
+    "Whitaker · party of 22 · Fri 6:30 PM — Accepted",
   );
 });
 
@@ -362,8 +362,8 @@ test("in-request chat: a message becomes constraints, the planner re-runs, manua
   await sheet.getByText("Build and tables ▸").click();
   await expect(sheet.locator(".crew-note")).toContainText("Also: high chair.");
   // manual parity: the same table range from the controls, no chat needed
-  await chat.getByLabel("Table range: first").fill("30");
-  await chat.getByLabel("last", { exact: true }).fill("50");
+  await chat.getByLabel("First table").fill("30");
+  await chat.getByLabel("Last table").fill("50");
   await expect(sheet.locator(".cant-fit-line")).toContainText("No capacity fit in tables 30–50");
   await expect(sheet.locator(".cant-fit-line")).toContainText("Closest:");
   await expect(sheet).not.toContainText(/\bT\d/);
@@ -381,7 +381,7 @@ test("activity log lists AI actions with decisions, never the guest's words", as
   await expect(page.locator(".activity")).toContainText("Proposed feature");
   const table = page.locator(".activity-table");
   await expect(table).toContainText("Refusal");
-  await expect(table).toContainText("Declined · capacity fit");
+  await expect(table).toContainText("Declined · no capacity fit");
   await expect(table).toContainText("Declined · policy");
   await expect(page.locator(".activity")).not.toContainText("surprise 40th for my partner");
   await page.getByRole("combobox", { name: "Type" }).selectOption("refusal");
@@ -514,7 +514,7 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     await expect(page.locator(".proposal")).toBeVisible();
     await expect(page.locator('[aria-label="Crew build list"]')).toBeVisible();
     await expect(page.locator(".accepted-card")).toContainText(
-      "Whitaker · 22 · Fri 6:30 PM — Accepted",
+      "Whitaker · party of 22 · Fri 6:30 PM — Accepted",
     );
   });
 
@@ -540,7 +540,7 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     await expect(diff).toContainText("closest: tables 57–61 and 63–66");
     await expect(sheet.locator(".fit-pill")).toContainText("capacity fit ✓");
     await diff.getByRole("button", { name: "Apply" }).click();
-    await expect(chat.getByLabel("Table range: first")).toHaveValue("30");
+    await expect(chat.getByLabel("First table")).toHaveValue("30");
     await expect(sheet.locator(".fit-pill")).toHaveText("no capacity fit");
     await expect(sheet.locator(".original-fit")).toHaveText("Original request: capacity fit ✓");
     await sheet.locator(".changed-line").getByRole("button", { name: "Revert" }).click();
@@ -562,7 +562,7 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     await page.goto("/?scenario=request-chat");
     const sheet = page.locator(".request-sheet");
     await expect(sheet.getByRole("group", { name: "Change proposed in chat" })).toBeVisible();
-    await sheet.getByLabel("Table range: first").fill("70");
+    await sheet.getByLabel("First table").fill("70");
     await expect(sheet.getByRole("group", { name: "Change proposed in chat" })).toHaveCount(0);
     await expect(sheet.locator(".changed-line")).toContainText("Changed by hand");
   });
@@ -704,6 +704,10 @@ test.describe("decision card", () => {
         sheet.getByRole("button", { name: "Accept" }),
       ])
         await expect(l).toBeInViewport({ ratio: 1 });
+      // and not hidden under the sticky action footer
+      const footerTop = (await sheet.locator(".decision-footer").boundingBox())?.y ?? 0;
+      const net = await sheet.locator(".net-hero").boundingBox();
+      expect(net && net.y + net.height).toBeLessThanOrEqual(footerTop);
       // nothing in the solver's card is styled as AI output
       await expect(page.locator(".req-block.ai-card")).toHaveCount(1);
       await expect(page.locator(".req-block.ai-card")).toContainText("AI triage");
