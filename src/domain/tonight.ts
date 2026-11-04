@@ -6,7 +6,7 @@ import { buildMinutes, tableNo, tablesPhrase } from "./wording";
 export { buildMinutes };
 import { planBuilds, type Build } from "./buildplan";
 import { TURN_MIN } from "./capacity";
-import { partyFits, type PartyFit } from "./fit";
+import { holdConflicts, partyFits, type HoldConflict, type PartyFit } from "./fit";
 import { tableById } from "./room";
 import { toHHMM, toMinutes } from "./time";
 import type { Room, Table } from "./types";
@@ -47,6 +47,8 @@ export interface TonightProposal {
   infeasible: { reservationId: string; partySize: number; reason: string; partial?: string }[];
   /** Per placed large party: hold + covers lost, section(s), aisle check. In arrival order. */
   parties: PartyFit[];
+  /** A hold or setup that starts while an earlier party is still seated at the same table (should be none). */
+  conflicts: HoldConflict[];
   /** The planner's build per placed party (rows, storage), for crew notes and build time. */
   builds: Build[];
   summary: {
@@ -275,7 +277,13 @@ export function generateTonight(base: Room, from: string, to: string): TonightPr
     (r) => toMinutes(r.time) >= toMinutes(from) && toMinutes(r.time) <= toMinutes(to),
   );
   const parties = partyFits(base, plan.builds, from);
+  const setupStarts: Record<string, string> = {};
+  for (const c of crew)
+    if (!setupStarts[c.reservationId] || c.start < (setupStarts[c.reservationId] as string))
+      setupStarts[c.reservationId] = c.start;
+  const conflicts = holdConflicts(parties, setupStarts);
   return {
+    conflicts,
     window,
     variant,
     changes,

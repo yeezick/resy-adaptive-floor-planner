@@ -1,6 +1,6 @@
 // Which tables an accepted large-party plan holds on a night, and when — derived on the client from the
 // accepted requests and the solver's capacity fit. A held table is never given a "blocked" status.
-import { partyFits } from "../../domain";
+import { holdStartFor, partyFits } from "../../domain";
 import { checkRequest, SERVICE, toReservation } from "../../domain/requests";
 import type { Room } from "../../domain";
 import { decisionOf, type RequestsState } from "../requests/store";
@@ -36,7 +36,7 @@ export function planHolds(
       out.set(id, {
         name: surname(r.contact),
         partySize: r.partySize,
-        from: cost.hold.from,
+        from: holdStartFor(cost.hold, id) ?? cost.hold.from,
         until: cost.hold.until,
       });
   }
