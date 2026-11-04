@@ -103,7 +103,7 @@ export function ConsoleBar({
       <dl className="cb-stats">
         <Stat k="Covers seated" v={c.covers} />
         <Stat k="Tables seated" v={c.seatedTables} />
-        <Stat k="Open" v={`${c.open} of ${room.tables.length}`} />
+        <Stat k="Open tables" v={`${c.open} of ${room.tables.length}`} />
         <Stat k="Held" v={heldText} />
       </dl>
       <div className="cb-actions" role="group" aria-label="Host actions">

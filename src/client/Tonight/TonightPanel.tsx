@@ -307,7 +307,7 @@ function Proposal({
         <Tile label="Covers booked" value={String(s.coversBooked)} />
         <Tile label={`Peak · ${clock12(s.peakCovers.at)}`} value={String(s.peakCovers.covers)} />
         <Tile
-          label="Large parties placed"
+          label="Parties of 8+ placed"
           value={`${s.placed}/${s.largeParties}`}
           warn={s.placed < s.largeParties}
         />

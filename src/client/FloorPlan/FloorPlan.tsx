@@ -14,7 +14,7 @@ import { FloorAreas } from "./FloorAreas";
 import { defaultTab, intersects, roomTabs, viewBox, type Box, type ViewPreset } from "./geometry";
 import { OffscreenCue, useScrollView } from "./OffscreenCue";
 import { PhaseStrip } from "./Legend";
-import { PxPerUnit, useMeasuredPpu } from "./scale";
+import { PxPerUnit, useMeasuredPpu, usePx } from "./scale";
 import { TableShape } from "./TableShape";
 
 interface Props {
@@ -371,6 +371,24 @@ export function FloorPlan({
   );
 }
 
+const seats = (ts: Table[]) => ts.reduce((n, t) => n + t.seats, 0);
+
+/** "4+5 · 8": the joined tables and their seats, on the combo's top edge. */
+function ComboBadge({ x, y, text }: { x: number; y: number; text: string }) {
+  const px = usePx();
+  const font = px(10);
+  const h = font * 1.5;
+  const w = text.length * font * 0.6 + font;
+  return (
+    <g className="combo-badge">
+      <rect x={x + 0.4} y={y - h / 2} width={w} height={h} rx={h / 2} />
+      <text x={x + 0.4 + w / 2} y={y} fontSize={font}>
+        {text}
+      </text>
+    </g>
+  );
+}
+
 function Combo({ room, ids, byId }: { room: Room; ids: string[]; byId: Map<string, Table> }) {
   const ts = ids.map((id) => byId.get(id)).filter((t): t is Table => t !== undefined);
   if (!ts.length) return null;
@@ -384,6 +402,7 @@ function Combo({ room, ids, byId }: { room: Room; ids: string[]; byId: Map<strin
   return (
     <g className="combo" aria-hidden="true">
       <rect x={x} y={y} width={w} height={h} rx={0.8} />
+      <ComboBadge x={x} y={y} text={`${ts.map((t) => t.id.slice(1)).join("+")} · ${seats(ts)}`} />
       {links.map(([a, b]) => {
         const ta = byId.get(a);
         const tb = byId.get(b);

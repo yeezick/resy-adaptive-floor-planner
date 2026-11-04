@@ -15,6 +15,7 @@ import { SOURCE_LABEL, SOURCE_SHORT, VerdictChip } from "../requests/RequestShee
 import { ProposedTag } from "../ProposedTag";
 import { decisionOf, pendingCount, useRequests } from "../requests/store";
 import { tableNo, tablesPhrase } from "../../domain/wording";
+import { normalTimes } from "../lib/format";
 import { partyName } from "../lib/names";
 
 interface Props {
@@ -437,7 +438,7 @@ function RequestsSection({
                   </span>
                   {t?.status === "ok" && (
                     <span className="req-lines">
-                      <span>{times12(t.result.summary[0] ?? "")}</span>
+                      <span>{normalTimes(times12(t.result.summary[0] ?? ""))}</span>
                     </span>
                   )}
                   {d.kind !== "pending" && (
