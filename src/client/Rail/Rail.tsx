@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from "react";
 import {
   clock12,
   LARGE_PARTY,
+  partyName,
   planBuilds,
   times12,
   toHHMM,
@@ -248,7 +249,7 @@ export function Rail(p: Props) {
                   </span>
                   <span className="row-main">
                     <span className="row-sub">
-                      {r.id} · {r.area ? short(r.area) : "any area"}
+                      {partyName(r.id)} · {r.area ? short(r.area) : "any area"}
                     </span>
                     {(r.partySize >= LARGE_PARTY || r.needs.length > 0) && (
                       <span className="needs">
@@ -390,7 +391,7 @@ function RequestsSection({
       parties={list.length}
       covers={covers(list)}
       badge={badge}
-      countText={`${badge} waiting · ${list.length} this week`}
+      countText={`${badge} open ${badge === 1 ? "request" : "requests"}`}
     >
       {s.error && <p className="rail-empty">Requests unavailable: {s.error.message}</p>}
       {!s.error && !s.book && <p className="rail-empty">Loading requests…</p>}
@@ -417,11 +418,11 @@ function RequestsSection({
                   {clock12(r.time)}
                 </span>
                 <span className="row-party" aria-label={`party of ${r.partySize}`}>
-                  {r.partySize}
+                  {r.partySize} ppl
                 </span>
                 <span className="row-main">
                   <span className="row-sub">
-                    <VerdictChip t={t} />
+                    <VerdictChip t={t} override={s.overrides[r.id]} />
                     <span className="muted" title={SOURCE_LABEL[r.source]}>
                       {" "}
                       {SOURCE_SHORT[r.source]}

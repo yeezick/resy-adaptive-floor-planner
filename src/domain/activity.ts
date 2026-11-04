@@ -99,7 +99,9 @@ export const ManagerAction = z
   .object({
     refId: z.string(),
     at: z.string(),
-    kind: z.enum(["accepted", "declined", "replied", "applied"]),
+    kind: z.enum(["accepted", "declined", "replied", "applied", "overridden"]),
+    /** For "overridden": the verdict the manager set over the AI triage. */
+    verdict: z.enum(["real", "junk"]).optional(),
     reason: z.enum(["fit", "policy", "other"]).optional(),
     edited: z.boolean().optional(),
     /** What was applied / booked, e.g. "T57 + T58 … (Garden Room + Library)". */
@@ -166,7 +168,9 @@ function decisionFor(
   kind: ActivityKind,
   actions: readonly ManagerAction[],
 ): RowDecision {
-  const mine = actions.filter((a) => a.refId === e.refId && a.at >= e.at);
+  const mine = actions.filter(
+    (a) => a.refId === e.refId && a.at >= e.at && a.kind !== "overridden",
+  );
   const last = mine.sort((a, b) => a.at.localeCompare(b.at))[mine.length - 1];
   if (!last)
     return kind === "refusal" ||
@@ -184,6 +188,8 @@ function decisionFor(
       return { kind: "declined", at: last.at, reason: last.reason ?? "other" };
     case "replied":
       return last.edited ? { kind: "edited", at: last.at } : { kind: "replied", at: last.at };
+    default:
+      return { kind: "pending" };
   }
 }
 
@@ -197,6 +203,10 @@ function triageRow(e: TriageEvent, actions: readonly ManagerAction[]): ActivityR
         ? "Triaged as junk"
         : "Triaged as real";
   const decision = decisionFor(e, kind, actions);
+  const override = actions
+    .filter((a) => a.refId === e.refId && a.kind === "overridden" && a.at >= e.at)
+    .sort((a, b) => a.at.localeCompare(b.at))
+    .pop();
   return {
     id: `row-${e.traceId}`,
     refId: e.refId,
@@ -206,11 +216,14 @@ function triageRow(e: TriageEvent, actions: readonly ManagerAction[]): ActivityR
     flags: [
       ...(e.validatorRejects ? ["validator-reject"] : []),
       ...(e.verdict === "junk" && !e.escalated ? ["junk"] : []),
+      ...(override ? ["override"] : []),
     ],
     source: e.source,
     partySize: e.partySize,
     when: e.when,
-    what: `${verdict}${e.summary[0] ? `: ${e.summary[0]}` : ""}`,
+    what: `${verdict}${e.summary[0] ? `: ${e.summary[0]}` : ""}${
+      override ? ` · Manager override: marked as ${override.verdict}` : ""
+    }`,
     decision,
     costUsd: e.costUsd,
     latencyMs: e.latencyMs,
@@ -227,6 +240,7 @@ function triageRow(e: TriageEvent, actions: readonly ManagerAction[]): ActivityR
         `Why: ${e.reason}`,
         ...e.summary.map((s, i) => `Summary ${i + 1}: ${s}`),
         ...(e.validatorRejects ? [`Validator rejected ${e.validatorRejects} answer(s) first`] : []),
+        ...(override ? [`Manager override: marked as ${override.verdict}`] : []),
       ],
       solverOptions: e.solver,
       applied: decision.kind === "accepted" ? (decision.applied ?? "Accepted") : null,

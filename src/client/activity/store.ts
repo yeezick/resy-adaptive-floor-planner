@@ -257,6 +257,8 @@ export function liveEvents(s: RequestsState): {
       actions.push({ refId: r.id, at: d.iso, kind: "declined", reason: d.reason });
     else if (d.kind === "replied")
       actions.push({ refId: r.id, at: d.iso, kind: "replied", edited: d.edited });
+    const o = s.overrides[r.id];
+    if (o) actions.push({ refId: r.id, at: o.iso, kind: "overridden", verdict: o.verdict });
   }
   return { events, actions };
 }

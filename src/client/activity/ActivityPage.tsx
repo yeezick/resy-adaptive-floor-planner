@@ -9,7 +9,7 @@ import {
 } from "../../domain/activity";
 import { duration, usd } from "../lib/format";
 import { ProposedTag } from "../requests/RequestSheet";
-import { startRequests } from "../requests/store";
+import { startRequests, useRequests } from "../requests/store";
 import {
   DEMO_MANAGER,
   feedbackOf,
@@ -96,6 +96,10 @@ export function ActivityPage() {
     [rows, filter, feedback, fbFilter],
   );
   const counts = activityCounts(rows);
+  const inbox = new Set((useRequests().book?.requests ?? []).map((r) => r.id));
+  const pendingRows = rows.filter((r) => r.source !== "host" && r.decision.kind === "pending");
+  const openNow = new Set(pendingRows.filter((r) => inbox.has(r.refId)).map((r) => r.refId)).size;
+  const olderPending = pendingRows.filter((r) => !inbox.has(r.refId)).length;
   const selected = rows.find((r) => r.id === open) ?? null;
   const total = rows.reduce((n, r) => n + r.costUsd, 0);
 
@@ -113,12 +117,18 @@ export function ActivityPage() {
           </p>
         </div>
         <div className="totals activity-counts" aria-label="This week">
-          <Count label="Requests this week" value={counts.requests} />
+          <Count label="Requests logged this week" value={counts.requests} />
           <Count label="Accepted" value={counts.accepted} />
           <Count label="Declined · capacity fit" value={counts.declined.fit} />
           <Count label="Declined · policy" value={counts.declined.policy} />
           <Count label="Declined · other" value={counts.declined.other} />
           <Count label="Pending" value={counts.pending} />
+          {counts.pending > 0 && (
+            <p className="muted small totals-note">
+              Pending = {openNow} open in Requests
+              {olderPending > 0 ? ` + ${olderPending} from earlier this week` : ""}
+            </p>
+          )}
         </div>
       </div>
 

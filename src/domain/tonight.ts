@@ -8,6 +8,7 @@ import { planBuilds, type Build } from "./buildplan";
 import { TURN_MIN } from "./capacity";
 import { partyFits, type PartyFit } from "./fit";
 import { tableById } from "./room";
+import { partyName } from "./names";
 import { toHHMM, toMinutes } from "./time";
 import type { Room, Table } from "./types";
 
@@ -124,7 +125,7 @@ export function generateTonight(base: Room, from: string, to: string): TonightPr
     ];
     for (const p of prior)
       actions.push(
-        `Split ${p.reservationId}'s tables after ~${toHHMM(toMinutes(p.time) + TURN_MIN)}`,
+        `After ~${toHHMM(toMinutes(p.time) + TURN_MIN)}, split the tables ${partyName(p.reservationId)} used`,
       );
     for (const d of b.dividersOpened) {
       actions.push(`Open the divider ${d}`);
@@ -311,7 +312,7 @@ export function generateTonight(base: Room, from: string, to: string): TonightPr
 function reasonFor(room: Room, b: Build): string {
   const r = room.reservations.find((x) => x.id === b.reservationId);
   const parts: string[] = [];
-  parts.push(`${b.reservationId} (${b.partySize}) → ${b.area}`);
+  parts.push(`${partyName(b.reservationId)} (${b.partySize}) → ${b.area}`);
   if (b.dividersOpened.length)
     parts.push(
       `${b.rows.length} long tables across ${b.dividersOpened.length + 1} neighbouring rooms, dividers open`,

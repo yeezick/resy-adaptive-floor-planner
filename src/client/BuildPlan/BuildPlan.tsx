@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import {
+  partyName,
   clock12,
   LARGE_PARTY,
   planBuilds,
@@ -99,7 +100,7 @@ export function BuildPlan({ room, highlight }: Props) {
                 {plan.unplaced.map((u) => (
                   <li key={u.reservationId}>
                     <strong>
-                      {u.reservationId} · party of {u.partySize}
+                      {partyName(u.reservationId)} · party of {u.partySize}
                     </strong>
                     <div className="muted small">{times12(u.reason)}</div>
                   </li>

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { clock12, type Room } from "../domain";
 import { NIGHTS } from "./nights";
+import { decisionOf, useRequests, type RequestsState } from "./requests/store";
 import type { ActionResult } from "./Planner";
 
 export type PanelMode = "details" | "walkin" | "assistant" | "shift" | "reservation" | "request";
@@ -43,6 +44,20 @@ export function roomCounts(room: Room) {
   };
 }
 
+/**
+ * Tables held on this night: reserved in the room plus every table an accepted large-party plan holds for it
+ * (counted once).
+ */
+export function heldCount(room: Room, s: Pick<RequestsState, "book" | "decisions">): number {
+  const ids = new Set(room.tables.filter((t) => t.status === "reserved").map((t) => t.id));
+  for (const r of s.book?.requests ?? []) {
+    if (r.bookRoomId !== room.id) continue;
+    const d = decisionOf(s as RequestsState, r.id);
+    if (d.kind === "accepted") for (const id of d.tables) ids.add(id);
+  }
+  return ids.size;
+}
+
 export function ConsoleBar({
   room,
   roomSelect,
@@ -54,6 +69,7 @@ export function ConsoleBar({
   onReset,
 }: Props) {
   const c = roomCounts(room);
+  const held = heldCount(room, useRequests());
   return (
     <div className="console-bar">
       <div className="cb-room">
@@ -79,7 +95,7 @@ export function ConsoleBar({
         <Stat k="Covers seated" v={c.covers} />
         <Stat k="Tables seated" v={c.seatedTables} />
         <Stat k="Open" v={`${c.open}/${c.inService}`} />
-        <Stat k="Held" v={c.held} />
+        <Stat k="Held" v={held} />
       </dl>
       <div className="cb-actions" role="group" aria-label="Host actions">
         <button

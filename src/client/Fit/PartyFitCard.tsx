@@ -1,4 +1,5 @@
 import {
+  partyName,
   clock12,
   acceptLine,
   buildMinutes,
@@ -40,7 +41,7 @@ export function PartyFitCard({
   return (
     <li className={`fit-card${focus ? " is-focus" : ""}`} {...hover}>
       <div className="fit-head">
-        <strong>{title ?? f.reservationId}</strong>
+        <strong>{title ?? partyName(f.reservationId)}</strong>
         <span className="muted">
           party of {f.partySize} · {clock12(f.time)} · {f.area}
         </span>

@@ -2619,6 +2619,24 @@ button.primary:disabled {
   background: var(--surface-2);
   color: var(--muted);
 }
+.verdict-neutral {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.how-made > summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.how-made .metrics {
+  margin-top: 4px;
+}
+.override {
+  margin: 4px 0 0;
+}
+.totals-note {
+  flex-basis: 100%;
+  margin: 2px 0 0;
+}
 .row-request .row-btn {
   align-items: flex-start;
 }

@@ -71,6 +71,8 @@ export interface RequestsState {
   /** The manager's changes to a request (chat or manual controls); absent = as the guest asked. */
   adjust: Record<string, ChatConstraints>;
   chat: Record<string, ChatTurn[]>;
+  /** The manager's correction of an AI triage verdict, per request ("Wrong? Mark as junk"). */
+  overrides: Record<string, { verdict: "real" | "junk"; iso: string }>;
   /** Set by Accept: the planner opens this night and shows the party's plan. */
   openPlan: { roomId: string; requestId: string; seq: number; view: "plan" | "request" } | null;
 }
@@ -86,6 +88,7 @@ let state: RequestsState = {
   fitReadyAt: {},
   adjust: {},
   chat: {},
+  overrides: {},
   openPlan: null,
 };
 const listeners = new Set<() => void>();
@@ -256,6 +259,10 @@ export const requestsActions = {
       },
     });
   },
+  /** The manager says the AI triage got it wrong: one tap, shown on the card and logged as an override. */
+  overrideTriage(id: string, verdict: "real" | "junk") {
+    set({ overrides: { ...state.overrides, [id]: { verdict, iso: new Date().toISOString() } } });
+  },
   /** Undo a decision (back to pending); an accepted party leaves that night's book. */
   reopen(r: GuestRequest) {
     logDecision(r.id, { kind: "reopened" });
@@ -380,6 +387,7 @@ export function resetRequestsStore(): void {
     fitReadyAt: {},
     adjust: {},
     chat: {},
+    overrides: {},
     openPlan: null,
   };
 }

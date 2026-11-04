@@ -33,7 +33,7 @@ Parties above the online cap of 8 reach a request inbox from three sources: the 
 **AI agent** (a chat app or MCP client) booking for a guest, and a **walk-in at the host stand** (the host types it).
 Each request gets an AI triage (real vs junk, plus a two-line needs overview) and a **capacity fit** from the
 planner: the night's book is planned with and without the party, and it fits only if every existing booking keeps
-its seats. The AI never picks tables.
+its seats. Tables come from the deterministic capacity check; the AI reads the request and can't pick or add tables.
 
 **Readiness.** Each table in the proposed join turns green on the floor and gets a bubble, estimated from its meal
 phase. A request for now (it arrives within one 90-minute turn of the floor clock, or its hold has begun) shows live

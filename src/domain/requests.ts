@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { fitRequest, type RequestFit } from "./buildplan";
 import { HHMM, Label, type Reservation, type Room } from "./types";
+import { clock12, toMinutes } from "./time";
 import { countdown } from "./wording";
 
 export const NEEDS = ["accessible", "stroller", "quiet", "view"] as const;
@@ -13,7 +14,7 @@ export type RequestSource = (typeof SOURCES)[number];
 /** How each source reads on the card and in the activity log. */
 export const SOURCE_LABEL: Record<RequestSource, string> = {
   app: "Resy app",
-  "ai-agent": "AI agent (chat app or MCP)",
+  "ai-agent": "AI agent",
   "walk-in": "Walk-in at the host stand",
 };
 
@@ -156,4 +157,32 @@ export function needsOverview(r: GuestRequest): string {
   ].filter((x): x is string => Boolean(x));
   const text = parts.join(" · ");
   return text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}.` : "No special needs given.";
+}
+
+/** The fictional week the demo nights sit in (requests name only a weekday). */
+export const DEMO_WEEK: Record<GuestRequest["day"], string> = {
+  Mon: "Nov 2",
+  Tue: "Nov 3",
+  Wed: "Nov 4",
+  Thu: "Nov 5",
+  Fri: "Nov 6",
+  Sat: "Nov 7",
+  Sun: "Nov 8",
+};
+
+/**
+ * When a request is for, as the manager reads it. "Now" is the floor clock of the night on screen: a request for
+ * that same day reads "Fri 6:30 PM (in 3h 30m)"; any other day reads "Thu Nov 5 · 7:30 PM" with no countdown.
+ * `elapsedMin` is demo time that has passed since the page opened.
+ */
+export function requestWhen(
+  r: Pick<GuestRequest, "day" | "time">,
+  now: { day: string; clock: string } | null,
+  elapsedMin = 0,
+): string {
+  if (now && now.day === r.day) {
+    const away = toMinutes(r.time) - toMinutes(now.clock) - elapsedMin;
+    return `${r.day} ${clock12(r.time)} (${countdown(away)})`;
+  }
+  return `${r.day} ${DEMO_WEEK[r.day]} · ${clock12(r.time)}`;
 }
