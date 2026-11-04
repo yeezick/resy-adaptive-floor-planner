@@ -915,3 +915,30 @@ test.describe("host polish, part 3", () => {
     expect(finish && phase && finish.y < phase.y).toBe(true);
   });
 });
+
+test.describe("floor reads grey; colour only for exceptions", () => {
+  test("live floor: no elapsed '~Nm' labels; about-to-free tables say 'free ~Nm'", async ({
+    page,
+  }) => {
+    await page.route("**/api/agent", (route) => route.abort());
+    await openFloor(page);
+    await page.getByRole("tab", { name: "Dining room" }).click();
+    const labels = await page.locator("svg.floor .t-elapsed").allTextContents();
+    for (const l of labels) expect(l).not.toMatch(/^~\d+m$/);
+    await expect(page.locator("svg.floor .t-elapsed.is-soon").first()).toContainText(/free ~\d+m/);
+  });
+
+  test("seated tiles are graphite; table numbers are always drawn", async ({ page }) => {
+    await openFloor(page);
+    await page.getByRole("tab", { name: "Whole room" }).click();
+    const ids = await page.locator("svg.floor .t-id").count();
+    const tables = await page.locator("svg.floor g.table").count();
+    expect(ids).toBe(tables);
+    const fills = await page
+      .locator(
+        "svg.floor g.table[aria-label*='occupied'] > rect:not(.hit):not(.phase-bar):not(.booth-back):not(.held-outline):not(.ring)",
+      )
+      .evaluateAll((els) => [...new Set(els.map((e) => getComputedStyle(e).fill))]);
+    expect(fills.length).toBe(1);
+  });
+});

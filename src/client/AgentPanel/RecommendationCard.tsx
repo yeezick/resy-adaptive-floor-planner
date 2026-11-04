@@ -179,7 +179,9 @@ export function RecommendationCard({
               title={problems[0]?.text ?? "Push these tables together (you can split later)"}
               onClick={() => actions.onApplyRows(joinRows)}
             >
-              {joinRows.length > 1 ? `Apply combine (${joinRows.length} rows)` : "Apply combine"}
+              {joinRows.length > 1
+                ? `Join ${joinRows.map((r) => tablesPhrase(r)).join(" + ")}`
+                : `Join ${tablesPhrase(joinRows[0] ?? [])}`}
             </button>
           ))}
       </div>

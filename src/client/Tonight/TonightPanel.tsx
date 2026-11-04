@@ -305,7 +305,10 @@ function Proposal({
 
       <div className="totals">
         <Tile label="Covers booked" value={String(s.coversBooked)} />
-        <Tile label={`Peak · ${clock12(s.peakCovers.at)}`} value={String(s.peakCovers.covers)} />
+        <Tile
+          label={`In house at ${clock12(s.peakCovers.at)} (peak)`}
+          value={String(s.peakCovers.covers)}
+        />
         <Tile
           label="Parties of 8+ placed"
           value={`${s.placed}/${s.largeParties}`}
@@ -324,7 +327,7 @@ function Proposal({
             Apply to {nightLabel}
           </button>
           <button type="button" onClick={onEdit}>
-            Edit in editor
+            Open editor
           </button>
         </div>
       )}

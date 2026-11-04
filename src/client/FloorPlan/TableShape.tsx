@@ -1,8 +1,8 @@
 import { useContext, type KeyboardEvent, type PointerEvent } from "react";
-import { clock12, ELAPSED_EST_MIN, type Table } from "../../domain";
+import { clock12, estimateFreeTime, type Table } from "../../domain";
 import { PHASE_ABBR } from "../lib/service";
 import { AlwaysShowIds, usePpu, usePx } from "./scale";
-import { tableColors } from "./colors";
+import { LATE_PHASES, phaseBar, tableColors } from "./colors";
 import { tableNo } from "../../domain/wording";
 
 interface Props {
@@ -160,6 +160,7 @@ export function TableShape({
           style={{ fill: c.stroke }}
         />
       )}
+      {t.status === "occupied" && <PhaseBar table={t} />}
       <TableLabels table={t} color={c.text} />
       {badge ? (
         <ReadyBubble table={t} text={badge} />
@@ -197,6 +198,27 @@ function ReadyBubble({ table: t, text, kind }: { table: Table; text: string; kin
         {text}
       </text>
     </g>
+  );
+}
+
+/** A 3 px bar along the top inside edge of a seated table: its meal phase at a glance (amber = about to free). */
+function PhaseBar({ table: t }: { table: Table }) {
+  const px = usePx();
+  const h = px(3);
+  const inset = t.shape === "round" ? t.w * 0.22 : t.shape === "diamond" ? t.w * 0.3 : 0.25;
+  const y =
+    t.shape === "round" ? t.y + t.h * 0.12 : t.shape === "diamond" ? t.y + t.h * 0.28 : t.y + 0.2;
+  return (
+    <rect
+      className="phase-bar"
+      x={t.x + inset}
+      y={y}
+      width={Math.max(0.5, t.w - 2 * inset)}
+      height={h}
+      rx={h / 2}
+      style={{ fill: phaseBar(t.phase ?? "seated") }}
+      aria-hidden="true"
+    />
   );
 }
 
@@ -240,29 +262,44 @@ function Chairs({ table: t }: { table: Table }) {
 }
 
 /**
- * Estimated time since the party sat (from meal phase), centred under the table. On tables too small for
- * the phase word inside, the word goes here too (stacked), so phase is never colour alone.
+ * On a seated table ≤30 min from free: "free ~20m" (est., amber) under the tile. Elapsed time lives in Table
+ * details. On tables too small for the phase word inside, the word goes here (stacked), so phase is never
+ * colour alone.
  */
 function Elapsed({ table: t, phase }: { table: Table; phase: string | null }) {
   const px = usePx();
-  const m = ELAPSED_EST_MIN[t.phase ?? "seated"];
-  const font = Math.max(px(10), 0.62);
+  const ppu = usePpu();
+  const free = estimateFreeTime(t).minutes;
+  const soon = free !== null && free <= FREE_SOON_MIN;
+  // below this on-screen width, a tile shows its number only (labels underneath would collide)
+  if (t.w * ppu < LABEL_MIN_PX) return null;
+  if (!soon && !phase) return null;
+  // 15 px at touch scale; never wider than the tile it labels (whole-room views)
+  // up to 15 px; the label may run ~30 px past a tile's edges but no further
+  const font = Math.min(px(15), Math.max(px(9), px((t.w * ppu + 30) / 5.4)));
   const x = t.x + t.w / 2;
   const y = t.y + t.h + (t.shape === "booth" ? 0.25 : 0.7) + font * 0.8;
   return (
-    <text className="t-elapsed" x={x} y={y} fontSize={font}>
-      <title>{`about ${m} min since seated (estimated from meal phase)`}</title>
+    <text className={soon ? "t-elapsed is-soon" : "t-elapsed"} x={x} y={y} fontSize={font}>
+      {soon && <title>{`free in about ${free} min (estimated from meal phase)`}</title>}
       {phase && (
-        <tspan x={x} className="t-elapsed-phase">
+        <tspan x={x} className="t-elapsed-phase" fontSize={Math.min(px(12), font)}>
           {phase}
         </tspan>
       )}
-      <tspan x={x} dy={phase ? font * 1.1 : 0}>
-        ~{m}m
-      </tspan>
+      {soon && (
+        <tspan x={x} dy={phase ? font * 1.1 : 0}>
+          free ~{free}m
+        </tspan>
+      )}
     </text>
   );
 }
+
+/** Narrower tiles carry their number only (whole-room views). */
+const LABEL_MIN_PX = 34;
+/** Tables this close to free show a live "free ~Nm" on the floor. */
+const FREE_SOON_MIN = 30;
 
 const CHAR_W = 0.62; // average glyph width / font size for the system UI font
 
@@ -281,12 +318,26 @@ function TableLabels({ table: t, color }: { table: Table; color: string }) {
   const cy = t.y + t.h / 2;
   const shownPx = Math.min(t.w, t.h) * ppu;
   const compact = !alwaysIds && shownPx < ID_MIN_PX;
-  const inner = t.shape === "diamond" ? t.w * 0.5 : t.shape === "round" ? t.w * 0.72 : t.w * 0.86;
-  const idFont = Math.max(px(12), Math.min(1.5, Math.min(t.w, t.h) * 0.3));
+  // words stay well inside the tile so neighbouring tiles' words never run together
+  const inner = t.shape === "diamond" ? t.w * 0.5 : t.shape === "round" ? t.w * 0.66 : t.w * 0.72;
+  // table number ~20 px bold at Fit (never below 12 px; numbers are never dropped)
+  const idFont = Math.max(px(12), Math.min(px(20), Math.min(t.w, t.h) * 0.42));
   const occupied = t.status === "occupied";
-  const word = occupied ? PHASE_ABBR[t.phase ?? "seated"] : String(t.seats);
+  // an about-to-free tile too small for "free ~Nm" underneath shows its time inside instead of the phase
+  const free = estimateFreeTime(t).minutes;
+  const lateSmall =
+    occupied &&
+    t.w * ppu < LABEL_MIN_PX &&
+    free !== null &&
+    free <= FREE_SOON_MIN &&
+    LATE_PHASES.includes(t.phase ?? "seated");
+  const word = lateSmall
+    ? `~${free}m`
+    : occupied
+      ? PHASE_ABBR[t.phase ?? "seated"]
+      : String(t.seats);
   const fitFont = inner / (word.length * CHAR_W);
-  const wordFont = Math.min(fitFont, Math.max(px(10), idFont * 0.72));
+  const wordFont = Math.min(fitFont, px(12));
   // A phase word must fit inside the shape at a readable size, on a table big enough to hold it.
   const showWord = !compact && (!occupied || shownPx >= WORD_MIN_PX) && wordFont >= px(8);
   const gap = idFont * 0.08;
