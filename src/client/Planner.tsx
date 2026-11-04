@@ -33,6 +33,7 @@ import type { Highlight, HighlightControls } from "./highlight";
 import {
   finishParty,
   PHASE_LABEL,
+  revertAction,
   seatParty,
   setPhase,
   type DoneEntry,
@@ -358,11 +359,13 @@ export function Planner({
   const confirmWalkIn = (c: WalkInConfirm) => {
     if (!review) return;
     const { draft: d } = review;
-    const before = { room, waitlist, edited };
+    const before = room;
+    let after = room;
+    let waitId: string | null = null;
     const who = c.name ? `${c.name} (${c.size})` : `Party of ${c.size}`;
     let text: string;
     if (c.action === "seat") {
-      const r = run(() => seatParty(room, c.tables, c.size), "", true);
+      const r = run(() => (after = seatParty(room, c.tables, c.size)), "", true);
       if (!r.ok) return setNotice(r);
       text = `${who} seated at ${tablesPhrase(c.tables)}`;
     } else {
@@ -380,15 +383,18 @@ export function Planner({
           const next = rows.reduce((acc, row) => applyCombine(acc, row), room);
           setRoom(next);
           setEdited(true);
+          after = next;
           joined = true;
         } catch {
           // tables still in use can't be pushed together yet: the waitlist row keeps the target
         }
       }
+      const id = `W${nextId.current++}`;
+      waitId = id;
       setWaitlist((w) => [
         ...w,
         {
-          id: `W${nextId.current++}`,
+          id,
           partySize: c.size,
           needs: c.needs,
           quoteMin: c.quoteMin,
@@ -400,10 +406,11 @@ export function Planner({
       text = `${who} waitlisted · quoted ~${c.quoteMin} min${joined ? ` · ${tablesPhrase(c.tables)} pushed together` : ` · for ${tablesPhrase(c.tables)}`}`;
     }
     if (d.traceId) activityActions.recordApplied(d.traceId, `${text} (host confirmed)`);
+    // undo only this action, against the room as it is then: the host may have done more since
+    const seated = c.action === "seat" ? c.tables : [];
     const undo = () => {
-      setRoom(before.room);
-      setWaitlist(before.waitlist);
-      setEdited(before.edited);
+      setRoom((now) => revertAction(now, before, after, seated));
+      if (waitId) setWaitlist((w) => w.filter((e) => e.id !== waitId));
       setAiDone(({ [d.key]: _gone, ...rest }) => rest);
       setTaken((m) => new Map([...m].filter(([id]) => !c.tables.includes(id))));
     };

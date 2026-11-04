@@ -111,6 +111,32 @@ export function finishParty(room: Room, ids: readonly string[]): Room {
   };
 }
 
+/**
+ * Undo one action against the room as it is now: only the combos that action made are split and only `ids`
+ * get their service state (status, phase, party) back from `before`. Anything else the host did since stays.
+ */
+export function revertAction(now: Room, before: Room, after: Room, ids: readonly string[]): Room {
+  const key = (c: readonly string[]) => [...c].sort().join(",");
+  const had = new Set(before.combos.map(key));
+  const made = new Set(after.combos.map(key).filter((k) => !had.has(k)));
+  return {
+    ...now,
+    combos: now.combos.filter((c) => !made.has(key(c))),
+    tables: now.tables.map((t) => {
+      const was = ids.includes(t.id) ? tableById(before, t.id) : undefined;
+      return was
+        ? {
+            ...t,
+            status: was.status,
+            phase: was.phase,
+            partySize: was.partySize,
+            reservedAt: was.reservedAt,
+          }
+        : t;
+    }),
+  };
+}
+
 /** Synthetic "typical" quote by party size — a stand-in for a venue's historical ladder. */
 export function typicalWait(partySize: number): number {
   if (partySize <= 2) return 15;

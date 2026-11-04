@@ -208,7 +208,7 @@ export function WalkInReview({
         onBack={onBack}
         backLabel="‹ Back to AI Planner"
         primary={action === "seat" ? `Seat at ${tablesPhrase(tables)}` : `Waitlist · ~${quote} min`}
-        disabled={!tables.length || (action === "seat" && !now.ok)}
+        disabled={!tables.length || !now.ok}
         onConfirm={() =>
           onConfirm({
             action,

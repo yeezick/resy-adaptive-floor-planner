@@ -80,6 +80,11 @@ test.describe("AI Planner options", () => {
     await review.getByRole("button", { name: "One more guest" }).click();
     await expect(review.locator(".review-diff")).toContainText("Party: 8 → 10");
     await expect(review.locator(".review-diff")).toContainText("capacity fit ✓ →");
+    // an edit to an illegal set (short seats) can't be waitlisted
+    await expect(review.getByRole("button", { name: /^Waitlist/ })).toBeDisabled();
+    await review.getByRole("button", { name: "One fewer guest" }).click();
+    await review.getByRole("button", { name: "One fewer guest" }).click();
+    await expect(review.getByRole("button", { name: /^Waitlist/ })).toBeEnabled();
     await review.getByRole("button", { name: "‹ Back to AI Planner" }).click();
     await expect(page.locator(".rec-card")).toHaveCount(3);
     await expect(page.locator(".rec-done")).toHaveCount(0);
