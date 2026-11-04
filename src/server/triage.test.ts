@@ -53,6 +53,8 @@ describe("triageProblems", () => {
     );
     expect(triageProblems(out({ summary: ["Occasion: N/A.", "x"] }), req)).toHaveLength(1);
     expect(triageProblems(out({ summary: ["Time is fixed at 7:30 PM.", "x"] }), req)).toEqual([]);
+    // a guest's own "TBD" is faithful, not a placeholder
+    expect(triageProblems(out({ summary: ["Time TBD; dinner for 12.", "x"] }), req)).toEqual([]);
   });
   it("rejects a booking claim", () =>
     expect(triageProblems(out({ summary: ["Group of 12 is booked.", "ok"] }), req)[0]).toMatch(

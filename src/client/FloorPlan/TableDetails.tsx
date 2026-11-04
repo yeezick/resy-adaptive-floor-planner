@@ -35,6 +35,8 @@ interface Props {
   /** Minutes since the party sat, fixed when the host first changed its phase (a phase change isn't a re-seat). */
   seatedAgo?: ReadonlyMap<string, number>;
   onPhase?: (ids: string[], phase: Phase) => void;
+  /** Open the walk-in sheet with these tables picked. */
+  onSeatHere?: (ids: string[]) => void;
 }
 
 export function TableDetails({
@@ -45,6 +47,7 @@ export function TableDetails({
   phaseByHost,
   seatedAgo,
   onPhase,
+  onSeatHere,
 }: Props) {
   const tables = selected.map((id) => tableById(room, id)).filter((t): t is Table => !!t);
   if (!tables.length) return null;
@@ -60,6 +63,7 @@ export function TableDetails({
           byHost={phaseByHost?.has(t.id) ?? false}
           seatedMin={seatedAgo?.get(t.id)}
           onPhase={onPhase}
+          onSeatHere={onSeatHere}
         />
       ))}
     </div>
@@ -74,6 +78,7 @@ function TableCard({
   byHost,
   seatedMin,
   onPhase,
+  onSeatHere,
 }: {
   room: Room;
   table: Table;
@@ -82,6 +87,7 @@ function TableCard({
   byHost: boolean;
   seatedMin?: number;
   onPhase?: (ids: string[], phase: Phase) => void;
+  onSeatHere?: (ids: string[]) => void;
 }) {
   const free = estimateFreeTime(t);
   const combo = comboOf(room, t.id);
@@ -118,7 +124,8 @@ function TableCard({
             : free.minutes === 0
               ? waitLabel(0)
               : `in ~${free.minutes} min (est.)`}
-          <div className="muted small">{times12(free.basis)}</div>
+          {/* "open now" would repeat the status pill */}
+          {free.basis !== "open now" && <div className="muted small">{times12(free.basis)}</div>}
         </dd>
         {t.status === "occupied" && (
           <>
@@ -133,6 +140,15 @@ function TableCard({
           </>
         )}
       </dl>
+      {t.status === "open" && onSeatHere && (
+        <button
+          type="button"
+          className="primary seat-here-btn"
+          onClick={() => onSeatHere(combo ?? [t.id])}
+        >
+          Seat walk-in here
+        </button>
+      )}
       {t.status === "occupied" && (
         <button type="button" className="finish-btn" onClick={() => onFinish(combo ?? [t.id])}>
           Finish {tablesPhrase(combo ?? [t.id])} — party leaves, tables open

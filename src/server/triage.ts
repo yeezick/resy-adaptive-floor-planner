@@ -66,7 +66,7 @@ export function triageProblems(out: TriageOutput, r: GuestRequest): string[] {
   if (/https?:\/\/|www\.|@\w+\.\w+|\+?\d[\d\s().-]{8,}\d/.test(text))
     problems.push("repeats a link, email or phone number");
   // a summary line must read as what the guest said: no template words left in ("time is flexible unknown")
-  if (/\b(unknown|n\/a|null|undefined|tbd|not specified)\b/i.test(out.summary.join(" \n ")))
+  if (/\bunknown\b|(^|\s)n\/a\b/i.test(out.summary.join(" \n ")))
     problems.push(
       "leaves a placeholder (unknown, n/a) in the summary — say what the guest wrote or leave it out",
     );

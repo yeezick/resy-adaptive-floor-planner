@@ -278,9 +278,11 @@ export function generateTonight(base: Room, from: string, to: string): TonightPr
   );
   const parties = partyFits(base, plan.builds, from);
   const setupStarts: Record<string, string> = {};
-  for (const c of crew)
-    if (!setupStarts[c.reservationId] || c.start < (setupStarts[c.reservationId] as string))
-      setupStarts[c.reservationId] = c.start;
+  for (const c of crew) {
+    const cur = setupStarts[c.reservationId];
+    if (!cur || c.start < cur) setupStarts[c.reservationId] = c.start;
+  }
+  // a guard: crew starts are already clamped after an earlier party leaves, so in practice only holds can conflict
   const conflicts = holdConflicts(parties, setupStarts);
   return {
     conflicts,

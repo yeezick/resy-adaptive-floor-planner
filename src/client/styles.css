@@ -4503,3 +4503,37 @@ html.planner-shell .console > .preview-bar .link-btn {
 .checks-card {
   margin-bottom: 12px;
 }
+
+/* Theme switch: colours change in one frame (no transition flashing the old theme) */
+html.theme-switching *,
+html.theme-switching *::before,
+html.theme-switching *::after {
+  transition: none !important;
+}
+
+/* Touch: the rest of the named host controls at ≥44 × 44 (Discuss, Detail, Seat walk-in here, Finish, Scenarios) */
+@media (pointer: coarse) {
+  .ask-ai,
+  .decision-footer .ask-ai,
+  .seat-here-btn,
+  .finish-btn,
+  .scenario-menu summary,
+  .req-sent .link-btn {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .how-made > summary {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    min-width: 44px;
+  }
+}
+.toast-region {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  z-index: 60;
+}

@@ -22,7 +22,7 @@ export const SOURCE_LABEL: Record<RequestSource, string> = {
 export const SOURCE_SHORT: Record<RequestSource, string> = {
   app: "Resy app",
   "ai-agent": "AI agent",
-  "walk-in": "Walk-in",
+  "walk-in": "At host stand",
 };
 
 export const GuestRequest = z

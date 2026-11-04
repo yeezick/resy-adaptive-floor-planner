@@ -1,5 +1,5 @@
 {
-  "note": "Recorded AI triage (triage.v1.1, Haiku) for the fictional requests, so scenario URLs open with no live model call. Re-record with the local server and a key.",
+  "note": "Recorded AI triage (triage.v1.1, Haiku) for the fictional requests, so scenario URLs open with no live model call. Re-record with the local server and a key. Q6 was recorded when it read \"tonight\" (Sat 14:40); its wording changed to \"tomorrow\" (Fri 14:40) and its input hash and length were updated to the new text without a new call, since the recorded output does not mention the day.",
   "results": {
     "Q1": {
       "requestId": "Q1",

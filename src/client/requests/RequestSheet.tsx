@@ -37,7 +37,7 @@ import {
   type AdjustedFit,
   type ChatConstraints,
 } from "../../domain/requestChat";
-import { listAnd } from "../../domain/wording";
+import { listAnd, storagePhrase } from "../../domain/wording";
 import { RequestChat } from "./RequestChat";
 import { SourceFeedback } from "../activity/SourceFeedback";
 import {
@@ -381,8 +381,9 @@ export function RequestSheet({
         {roomRes && !roomRes.ok && <p className="warn-text small">{roomRes.error.message}</p>}
         {fit?.ok && (
           <p className="fit-summary small">
-            {tablesPhrase(fit.build.tables)} · {fit.build.area} · seats {fit.build.seats} · build by{" "}
-            {clock12(fit.build.buildBy)}
+            {tablesPhrase(fit.build.tables)}
+            {storagePhrase(fit.build) ? ` + ${storagePhrase(fit.build)} from storage` : ""} ·{" "}
+            {fit.build.area} · seats {fit.build.seats} · build by {clock12(fit.build.buildBy)}
           </p>
         )}
         {fit && !fit.ok && (
@@ -403,7 +404,8 @@ export function RequestSheet({
             f={cost}
             build={fit.build}
             needs={r.needs}
-            moved={fit.moved}
+            // a party the re-plan left on the same tables didn't move
+            moved={movedDetail.length ? fit.moved : []}
             movedDetail={movedDetail}
           />
         )}
@@ -717,14 +719,26 @@ function movedLines(
     SERVICE.from,
     SERVICE.to,
   );
-  return moved.map((id) => {
+  const out: string[] = [];
+  for (const id of moved) {
     const a = before.builds.find((b) => b.reservationId === id);
     const b = after.builds.find((x) => x.reservationId === id);
     const who = `${partyName(id)} (${a?.partySize ?? b?.partySize ?? "?"})`;
-    return a && b
-      ? `Moves ${who} from ${tablesPhrase(a.tables)} to ${tablesPhrase(b.tables)}`
-      : `Moves ${who} to other tables`;
-  });
+    if (!a || !b) {
+      out.push(`Moves ${who} to other tables`);
+      continue;
+    }
+    const added = b.tables.filter((t) => !a.tables.includes(t));
+    const kept = a.tables.every((t) => b.tables.includes(t));
+    // same tables: nothing moved for this party; a superset: it keeps its tables and takes more
+    if (kept && !added.length) continue;
+    out.push(
+      kept
+        ? `${who} also takes ${tablesPhrase(added)}`
+        : `Moves ${who} from ${tablesPhrase(a.tables)} to ${tablesPhrase(b.tables)}`,
+    );
+  }
+  return out;
 }
 
 /** The AI affordance: a four-point sparkle in the accent colour (decorative; the button says "Discuss"). */

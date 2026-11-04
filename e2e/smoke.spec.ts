@@ -172,7 +172,7 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
   // the Thursday live floor lists what had arrived by 7:10 PM Thu: the Fri 2:40 PM walk-in is not there yet
   await expect(rail.locator(".row-request")).toHaveCount(5);
   for (const label of ["Resy app", "AI agent"]) await expect(rail).toContainText(label);
-  await expect(rail).not.toContainText("Walk-in");
+  await expect(rail).not.toContainText("At host stand");
   await expect(rail).toContainText("Likely junk");
 
   // the 30-top can't have a private room at 19:30: Accept stays disabled, the reason is one line
@@ -1106,7 +1106,7 @@ test.describe("request flow: one state, demo clock, decisions stay open", () => 
     await page.locator(".room-select select").selectOption("book-fri");
     const rail = page.getByRole("region", { name: /Requests/ });
     await expect(rail.locator(".row-request")).toHaveCount(6);
-    await rail.locator(".row-request .row-btn", { hasText: "Walk-in" }).click();
+    await rail.locator(".row-request .row-btn", { hasText: "At host stand" }).click();
     const sheet = page.locator(".request-sheet");
     await expect(sheet).toContainText("received Fri 2:40 PM");
     await sheet.getByText("Detail ▸").click();
@@ -1206,4 +1206,80 @@ test("/evals leads with the published deterministic checks", async ({ page }) =>
   for (const [label, n] of rows)
     await expect(card.getByRole("row", { name: new RegExp(label) })).toContainText(n);
   await expect(page.getByText("No evaluation run is published yet")).toHaveCount(0);
+});
+
+test.describe("host polish (P1)", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/requests/*/triage", (route) => route.abort());
+    await page.route("**/api/agent", (route) => route.abort());
+  });
+
+  test("an open table offers Seat walk-in here, without repeating 'open now'", async ({ page }) => {
+    await page.goto("/");
+    await page.locator('svg.floor g[data-id="T10"]').focus();
+    await page.keyboard.press("Enter");
+    const card = page.locator(".table-card");
+    await expect(card).not.toContainText("open now");
+    await card.getByRole("button", { name: "Seat walk-in here" }).click();
+    await expect(page.locator(".walkin .picked")).toContainText("table 10");
+  });
+
+  test("an AI option's highlight ends when its panel closes", async ({ page }) => {
+    await page.goto("/?scenario=walkin-8-peak");
+    await expect(page.locator(".side-col")).toBeVisible();
+    await page.locator(".panel-head").getByRole("button", { name: "Close" }).click();
+    await expect(page.locator(".floor-highlight-tag")).not.toContainText("AI option");
+  });
+
+  test("Saturday 14-top: the headline names storage; no 'move' to the same tables", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.locator(".room-select select").selectOption("demo-night");
+    const rail = page.getByRole("region", { name: /Requests/ });
+    await rail.locator(".row-request .row-btn", { hasText: "14" }).first().click();
+    const sheet = page.locator(".request-sheet");
+    await expect(sheet.locator(".fit-summary")).toBeVisible();
+    const head = await sheet.locator(".fit-summary").innerText();
+    const cons = await sheet.getByRole("list", { name: "Cons" }).innerText();
+    for (const line of cons.split("\n")) {
+      const m = /from (tables? [\d–, and]+) to (tables? [\d–, and]+)/.exec(line);
+      if (m) expect(m[2]?.startsWith(m[1] ?? "")).toBe(false);
+    }
+    expect(head).toMatch(/seats \d+/);
+  });
+
+  test("Shift setup labels covers lost to holds as the whole night", async ({ page }) => {
+    await page.goto("/?scenario=party-22-accepted");
+    await expect(page.locator(".side-col")).toContainText("Covers lost to holds · whole night");
+  });
+
+  test("switching theme turns transitions off for the switch", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Light" }).click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
+    await expect(page.locator("html")).not.toHaveClass(/theme-switching/);
+  });
+});
+
+test.describe("review follow-ups", () => {
+  test("Fit toggles back to touch scale on iPad; the Scenarios menu closes on Escape", async ({
+    page,
+    viewport,
+  }) => {
+    await page.goto("/");
+    if ((viewport?.width ?? 0) <= 1280) {
+      const fit = page.getByRole("button", { name: "Fit to panel" });
+      const touch = await page.locator(".floor-scroll svg").boundingBox();
+      await fit.click();
+      await expect(fit).toHaveAttribute("aria-pressed", "true");
+      await fit.click();
+      await expect(fit).toHaveAttribute("aria-pressed", "false");
+      expect((await page.locator(".floor-scroll svg").boundingBox())?.width).toBe(touch?.width);
+    }
+    await page.locator(".scenario-menu summary").click();
+    await expect(page.locator(".scenario-menu ul")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".scenario-menu ul")).toBeHidden();
+  });
 });

@@ -65,7 +65,7 @@ export function PartyFitCard({
         <dd>
           {f.hold.tables.length ? (
             f.hold.runs.map((r, i) => (
-              <span key={r.from}>
+              <span key={r.tables[0] ?? i}>
                 {i > 0 && " · "}
                 {r.byArea.join(" · ")} held from <strong>{clock12(r.from)}</strong>
               </span>

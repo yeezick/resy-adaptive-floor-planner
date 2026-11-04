@@ -71,6 +71,7 @@ export function FloorPlan({
   if (fitFor !== fitKey) {
     setFitFor(fitKey);
     setZoom(1);
+    setFitted(false);
   }
   // The floor fills whatever height its column gives it (the planner page is a fixed-height shell).
   const [floorH, setFloorH] = useState<number | null>(null);
@@ -240,7 +241,10 @@ export function FloorPlan({
                 type="button"
                 role="tab"
                 aria-selected={preset === t.id}
-                onClick={() => setPreset(t.id)}
+                onClick={() => {
+                  setPreset(t.id);
+                  setFitted(false);
+                }}
               >
                 {t.label}
               </button>
@@ -260,9 +264,10 @@ export function FloorPlan({
             type="button"
             aria-label="Fit to panel"
             aria-pressed={isFit}
+            // Fit again returns a single room to touch scale (it scrolls)
             onClick={() => {
               setZoom(1);
-              setFitted(true);
+              setFitted(preset === "all" || !isFit);
             }}
           >
             {zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}
