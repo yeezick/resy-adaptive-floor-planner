@@ -1207,3 +1207,25 @@ test("/evals leads with the published deterministic checks", async ({ page }) =>
     await expect(card.getByRole("row", { name: new RegExp(label) })).toContainText(n);
   await expect(page.getByText("No evaluation run is published yet")).toHaveCount(0);
 });
+
+test.describe("review follow-ups", () => {
+  test("Fit toggles back to touch scale on iPad; the Scenarios menu closes on Escape", async ({
+    page,
+    viewport,
+  }) => {
+    await page.goto("/");
+    if ((viewport?.width ?? 0) <= 1280) {
+      const fit = page.getByRole("button", { name: "Fit to panel" });
+      const touch = await page.locator(".floor-scroll svg").boundingBox();
+      await fit.click();
+      await expect(fit).toHaveAttribute("aria-pressed", "true");
+      await fit.click();
+      await expect(fit).toHaveAttribute("aria-pressed", "false");
+      expect((await page.locator(".floor-scroll svg").boundingBox())?.width).toBe(touch?.width);
+    }
+    await page.locator(".scenario-menu summary").click();
+    await expect(page.locator(".scenario-menu ul")).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(page.locator(".scenario-menu ul")).toBeHidden();
+  });
+});

@@ -132,4 +132,13 @@ describe("hold starts per table (a later party never holds a table an earlier pa
       seatedUntil: "20:00",
     });
   });
+
+  it("a spare-tables-only party conflicts only through its setup start", () => {
+    const fits = fridayPlan();
+    const late = fits.find((x) => x.reservationId === "F4") as PartyFit;
+    const spare = { ...late, hold: { ...late.hold, runs: [], tables: [] } };
+    const list = fits.map((f) => (f === late ? spare : f));
+    expect(holdConflicts(list)).toEqual([]);
+    expect(holdConflicts(list, { F4: "19:30" }).length).toBeGreaterThan(0);
+  });
 });
