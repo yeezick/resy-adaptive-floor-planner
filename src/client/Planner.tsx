@@ -366,7 +366,10 @@ export function Planner({
             fitKey={hasSheet ? "sheet" : "full"}
           />
           <CoversStrip room={room} />
-          <Legend />
+          <details className="legend-key">
+            <summary className="small">Key ▸</summary>
+            <Legend />
+          </details>
         </section>
 
         <aside className="side-col" aria-labelledby="panel-title">

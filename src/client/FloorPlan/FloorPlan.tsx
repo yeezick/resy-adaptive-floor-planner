@@ -262,7 +262,7 @@ export function FloorPlan({
         </div>
       </div>
       <div className="floor-sub">
-        <PhaseStrip />
+        {room.tables.some((t) => t.status === "occupied") && <PhaseStrip />}
         <span
           className={`floor-highlight-tag small${
             highlight?.source === "ai" ? " is-ai" : highlight?.source === "fit" ? " is-fit" : ""
