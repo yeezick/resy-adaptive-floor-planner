@@ -117,8 +117,9 @@ export function RequestChat({
 
       <div className="adjust-grid small">
         <label>
-          Tables from
+          Table range: first
           <input
+            placeholder="any"
             type="number"
             min={1}
             max={999}
@@ -133,8 +134,9 @@ export function RequestChat({
           />
         </label>
         <label>
-          to
+          last
           <input
+            placeholder="any"
             type="number"
             min={1}
             max={999}

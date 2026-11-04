@@ -1,23 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  buildMinutes,
   namesIn,
   partyName,
   clock12,
   generateTonight,
+  storagePhrase,
+  tableNumbers,
+  tablesPhrase,
   times12,
+  toHHMM,
   toMinutes,
-  type LayoutChange,
+  type Build,
+  type CrewStep,
   type Room,
   type TonightProposal,
 } from "../../domain";
-import { dividersForTables } from "../FloorPlan/geometry";
-import { openedDividers } from "../FloorPlan/ChangeOverlay";
 import { PartyFitCard } from "../Fit/PartyFitCard";
 import type { HighlightControls } from "../highlight";
 import type { LayoutsApi } from "../layouts/useLayouts";
-
-export const POSITIONING =
-  "Host tools today plan the layout ahead of time. This plans tonight's layout from tonight's book.";
 
 interface Props {
   layouts: LayoutsApi;
@@ -30,6 +31,13 @@ interface Props {
   autoGenerate?: { from: string; to: string };
   /** A party to put first and pin on the floor. */
   focusId?: string;
+  /** The plan already applied to the layout in use (shown read-only, with Undo). */
+  applied?: TonightProposal | null;
+  /** The night on screen, as the night picker names it ("Fri · planning from 3:00 PM"). */
+  nightLabel: string;
+  onUndoApply?: () => void;
+  /** Undo the accept of the focused party (and any Apply after it). */
+  onUndoAccept?: () => void;
 }
 
 export function TonightPanel({
@@ -41,6 +49,10 @@ export function TonightPanel({
   onApply,
   autoGenerate,
   focusId,
+  applied = null,
+  nightLabel,
+  onUndoApply,
+  onUndoAccept,
 }: Props) {
   const [baseId, setBaseId] = useState(layouts.active.id);
   const [from, setFrom] = useState(autoGenerate?.from ?? "17:00");
@@ -56,56 +68,79 @@ export function TonightPanel({
     // once, on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+  const shown = proposal ?? applied;
 
   return (
     <div className="tonight">
-      <h3 className="section-title">Generate tonight's layout</h3>
-      <div className="field-stack">
-        <label className="field-inline">
-          <span>Start from</span>
-          <select value={base.id} onChange={(e) => setBaseId(e.target.value)}>
-            {layouts.layouts.map((l) => (
-              <option key={l.id} value={l.id}>
-                {l.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="field-row">
-          <label className="field-inline">
-            <span>From</span>
-            <input type="time" value={from} onChange={(e) => setFrom(e.target.value)} />
-          </label>
-          <label className="field-inline">
-            <span>To</span>
-            <input type="time" value={to} onChange={(e) => setTo(e.target.value)} />
-          </label>
+      {focusId && shown && (
+        <AcceptedCard p={shown} id={focusId} nightLabel={nightLabel} onUndo={onUndoAccept} />
+      )}
+      {applied && !proposal && (
+        <div className="applied-bar small" role="status">
+          <span>
+            Applied to <strong>{nightLabel}</strong>
+          </span>
+          {onUndoApply && (
+            <button type="button" className="link-btn" onClick={onUndoApply}>
+              Undo
+            </button>
+          )}
         </div>
-      </div>
-      <div className="btn-row">
-        <button
-          type="button"
-          className="primary"
-          disabled={!valid}
-          onClick={() => onProposal(generateTonight(base.room, from, to))}
-        >
-          {proposal ? "Regenerate" : "Generate tonight's layout"}
-        </button>
-        {proposal && (
-          <button type="button" onClick={() => onProposal(null)}>
-            Discard
-          </button>
-        )}
-      </div>
-      {!valid && <p className="warn-text small">Pick a start time before the end time.</p>}
+      )}
 
-      {proposal && (
+      {!applied && (
+        <details className="generate" open={!proposal}>
+          <summary className="section-title">Generate the night's layout ▸</summary>
+          <div className="field-stack">
+            <label className="field-inline">
+              <span>Start from</span>
+              <select value={base.id} onChange={(e) => setBaseId(e.target.value)}>
+                {layouts.layouts.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <div className="field-row">
+              <label className="field-inline">
+                <span>From</span>
+                <input type="time" value={from} onChange={(e) => setFrom(e.target.value)} />
+              </label>
+              <label className="field-inline">
+                <span>To</span>
+                <input type="time" value={to} onChange={(e) => setTo(e.target.value)} />
+              </label>
+            </div>
+          </div>
+          <div className="btn-row">
+            <button
+              type="button"
+              className={proposal ? undefined : "primary"}
+              disabled={!valid}
+              onClick={() => onProposal(generateTonight(base.room, from, to))}
+            >
+              {proposal ? "Regenerate" : "Generate tonight's layout"}
+            </button>
+            {proposal && (
+              <button type="button" onClick={() => onProposal(null)}>
+                Discard
+              </button>
+            )}
+          </div>
+          {!valid && <p className="warn-text small">Pick a start time before the end time.</p>}
+        </details>
+      )}
+
+      {shown && (
         <Proposal
-          p={proposal}
+          p={shown}
           focusId={focusId}
           highlight={highlight}
-          onEdit={() => onEdit(proposal.variant, tonightLabel(proposal))}
-          onApply={() => onApply(proposal)}
+          readOnly={!proposal}
+          nightLabel={nightLabel}
+          onEdit={() => onEdit(shown.variant, tonightLabel(shown))}
+          onApply={() => proposal && onApply(proposal)}
         />
       )}
     </div>
@@ -116,33 +151,159 @@ function tonightLabel(p: TonightProposal): string {
   return `Tonight ${times12(`${p.window.from}–${p.window.to}`)}`;
 }
 
+/** The party the manager just accepted, as one card: when, tables, build-by, hold, crew start — and Undo. */
+function AcceptedCard({
+  p,
+  id,
+  nightLabel,
+  onUndo,
+}: {
+  p: TonightProposal;
+  id: string;
+  nightLabel: string;
+  onUndo?: () => void;
+}) {
+  const f = p.parties.find((x) => x.reservationId === id);
+  const b = p.builds.find((x) => x.reservationId === id);
+  if (!f) return null;
+  const day = nightLabel.split(" · ")[0] ?? "";
+  const crewStart = b ? toHHMM(toMinutes(b.buildBy) - buildMinutes(b)) : null;
+  return (
+    <section className="accepted-card" aria-label="Accepted party">
+      <h3 className="accepted-title">
+        {partyName(id)} · {f.partySize} · {day} {clock12(f.time)} — Accepted
+      </h3>
+      <dl className="accepted-grid small">
+        <dt>Tables</dt>
+        <dd>
+          {tablesPhrase(f.tables)} · {f.area}
+        </dd>
+        {b && (
+          <>
+            <dt>Build by</dt>
+            <dd>{clock12(b.buildBy)}</dd>
+            <dt>Crew starts</dt>
+            <dd>
+              ~{clock12(crewStart ?? b.buildBy)} (est., ~{buildMinutes(b)} min)
+            </dd>
+          </>
+        )}
+        {f.hold.tables.length > 0 && (
+          <>
+            <dt>Held</dt>
+            <dd>{times12(`${f.hold.from}–${f.hold.until}`)}</dd>
+          </>
+        )}
+      </dl>
+      {onUndo && (
+        <button type="button" className="undo-accept" onClick={onUndo}>
+          Undo accept
+        </button>
+      )}
+    </section>
+  );
+}
+
+/** One crew instruction per build: "Join tables 82–86 (5 tables) · 2 chairs from storage". */
+function crewLine(b: Build | undefined, c: CrewStep): string {
+  if (!b) return times12(namesIn(c.actions[0] ?? ""));
+  const join =
+    b.rows.length > 1
+      ? `Join ${b.rows.map((r) => tableNumbers(r)).join(" + ")} (${b.tables.length} tables)`
+      : b.tables.length > 1
+        ? `Join ${tableNumbers(b.tables)} (${b.tables.length} tables)`
+        : `Set ${tablesPhrase(b.tables)}`;
+  const storage = storagePhrase(b);
+  const divider = b.dividersOpened.length ? " · open the divider" : "";
+  return `${join}${divider}${storage ? ` · ${storage} from storage` : ""}`;
+}
+
 function Proposal({
   p,
   focusId,
   highlight,
+  readOnly,
+  nightLabel,
   onEdit,
   onApply,
 }: {
   p: TonightProposal;
   focusId?: string;
   highlight: HighlightControls;
+  readOnly: boolean;
+  nightLabel: string;
   onEdit: () => void;
   onApply: () => void;
 }) {
   const s = p.summary;
-  const parties = groupByParty(p).sort(
-    (a, b) => Number(b.id === focusId) - Number(a.id === focusId),
-  );
+  const others = p.parties.filter((f) => f.reservationId !== focusId);
   return (
     <div className="proposal">
+      {p.infeasible.length > 0 && (
+        <p className="unplaced-line small" role="status">
+          <strong>
+            {p.infeasible.length} {p.infeasible.length === 1 ? "party needs" : "parties need"} a
+            table:
+          </strong>{" "}
+          {p.infeasible
+            .map((x) => {
+              const r = p.variant.reservations.find((v) => v.id === x.reservationId);
+              return `${partyName(x.reservationId)} (${x.partySize}${r ? `, ${clock12(r.time)}` : ""})`;
+            })
+            .join(" · ")}
+        </p>
+      )}
+
+      <section aria-label="Crew build list">
+        <h3 className="section-title">Setup checklist</h3>
+        <ol className="crew">
+          {p.crew.map((c) => {
+            const b = p.builds.find((x) => x.reservationId === c.reservationId);
+            const h = b ? { key: `crew-${c.reservationId}-${c.start}`, ids: b.tables } : null;
+            return (
+              <li
+                key={`${c.reservationId}-${c.start}`}
+                className={
+                  [c.tight && "is-tight", c.reservationId === focusId && "is-focus"]
+                    .filter(Boolean)
+                    .join(" ") || undefined
+                }
+                tabIndex={h ? 0 : undefined}
+                onMouseEnter={() =>
+                  h &&
+                  highlight.onHover({
+                    ...h,
+                    label: `${partyName(c.reservationId)} · party of ${c.partySize}`,
+                  })
+                }
+                onMouseLeave={() => highlight.onHover(null)}
+                onFocus={() =>
+                  h &&
+                  highlight.onHover({
+                    ...h,
+                    label: `${partyName(c.reservationId)} · party of ${c.partySize}`,
+                  })
+                }
+                onBlur={() => highlight.onHover(null)}
+              >
+                <div className="crew-head">
+                  <span className="crew-time">{times12(`${c.start}–${c.end}`)}</span>
+                  <strong>
+                    {partyName(c.reservationId)} ({c.partySize})
+                  </strong>
+                  {c.when === "rebuild" && <span className="pill">rebuild</span>}
+                  {c.tight && <span className="pill pill-warn">tight</span>}
+                </div>
+                <div className="crew-line small">{crewLine(b, c)}</div>
+              </li>
+            );
+          })}
+        </ol>
+      </section>
+
       <div className="totals">
         <Tile label="Covers booked" value={String(s.coversBooked)} />
         <Tile label={`Peak · ${clock12(s.peakCovers.at)}`} value={String(s.peakCovers.covers)} />
-        <Tile
-          label="Seats on floor"
-          value={String(s.seatsOnFloor)}
-          hint={s.seatsAddedFromStorage ? `+${s.seatsAddedFromStorage} from storage` : undefined}
-        />
         <Tile
           label="Large parties placed"
           value={`${s.placed}/${s.largeParties}`}
@@ -155,185 +316,66 @@ function Proposal({
         />
       </div>
 
-      <section aria-label="Capacity fit and cost by party">
-        <h3 className="section-title">Large parties · capacity fit + cost · {p.parties.length}</h3>
-        <p className="muted small">
-          Holds, sections and aisle checks come from the planner. Hover a party to see it on the
-          floor.
-        </p>
-        <ul className="fit-list">
-          {[...p.parties]
-            .sort(
-              (a, b) => Number(b.reservationId === focusId) - Number(a.reservationId === focusId),
-            )
-            .map((f) => {
-              const h = {
-                key: `fit-${f.reservationId}`,
-                ids: f.tables,
-                label: `${partyName(f.reservationId)} · party of ${f.partySize}`,
-              };
-              return (
-                <PartyFitCard
-                  key={f.reservationId}
-                  f={f}
-                  build={p.builds.find((b) => b.reservationId === f.reservationId)}
-                  focus={f.reservationId === focusId}
-                  onHover={(on) => highlight.onHover(on ? h : null)}
-                />
-              );
-            })}
-        </ul>
-      </section>
-      {p.infeasible.length > 0 && (
-        <section aria-label="No capacity fit">
-          <h3 className="section-title">No capacity fit · {p.infeasible.length}</h3>
-          <p className="muted small">The rest of the plan still stands.</p>
-          {p.infeasible.map((x) => (
-            <div key={x.reservationId} className="cant-fit">
-              <strong>{partyName(x.reservationId)}</strong>{" "}
-              <span className="small">{times12(namesIn(x.reason))}</span>
-              {x.partial && (
-                <div className="small muted">Best partial option: {times12(x.partial)}</div>
-              )}
-            </div>
-          ))}
-        </section>
+      {!readOnly && (
+        <div className="btn-row sheet-actions">
+          <button type="button" onClick={onEdit}>
+            Edit in editor
+          </button>
+          <button type="button" className="primary" onClick={onApply}>
+            Apply to {nightLabel}
+          </button>
+        </div>
       )}
 
-      <table className="data compact" aria-label="Storage used versus in stock">
-        <tbody>
-          <StockRow
-            label="Extenders"
-            used={s.storageUsed.extenders}
-            stock={s.storageInStock.extenders}
-          />
-          <StockRow label="Chairs" used={s.storageUsed.chairs} stock={s.storageInStock.chairs} />
-          <StockRow
-            label="Spare tables"
-            used={s.storageUsed.spareTables}
-            stock={s.storageInStock.spareTables}
-          />
-        </tbody>
-      </table>
-
-      <div className="btn-row sheet-actions">
-        <button type="button" onClick={onEdit}>
-          Edit in editor
-        </button>
-        <button type="button" className="primary" onClick={onApply}>
-          Apply to tonight
-        </button>
-      </div>
-
-      <section aria-label="Changes by party">
-        <h3 className="section-title">Changes by party · {parties.length}</h3>
-        <ul className="party-changes">
-          {parties.map((g) => {
+      <details className="more small">
+        <summary>
+          Capacity fit + cost by party ▸ {others.length > 0 ? `(${others.length} more)` : ""}
+        </summary>
+        <ul className="fit-list">
+          {p.parties.map((f) => {
             const h = {
-              key: `tonight-${g.id}`,
-              ids: g.tables,
-              label: `${partyName(g.id)} · party of ${g.size}`,
-              dividers: g.dividers,
+              key: `fit-${f.reservationId}`,
+              ids: f.tables,
+              label: `${partyName(f.reservationId)} · party of ${f.partySize}`,
             };
             return (
-              <li
-                key={g.id}
-                className={`card${g.id === focusId ? " is-focus" : ""}`}
-                tabIndex={0}
-                onMouseEnter={() => highlight.onHover(h)}
-                onMouseLeave={() => highlight.onHover(null)}
-                onFocus={() => highlight.onHover(h)}
-                onBlur={() => highlight.onHover(null)}
-              >
-                <div className="rec-head">
-                  <strong>{partyName(g.id)}</strong>
-                  {g.id === focusId && <span className="pill pill-accent">just accepted</span>}
-                  <span className="muted">party of {g.size}</span>
-                </div>
-                {g.reason && <p className="small rec-reason">{times12(namesIn(g.reason))}</p>}
-                <ul className="steps small">
-                  {g.changes.map((c, i) => (
-                    <li key={i} className={`chg chg-${c.kind}`}>
-                      {times12(c.text)}
-                    </li>
-                  ))}
-                </ul>
-              </li>
+              <PartyFitCard
+                key={f.reservationId}
+                f={f}
+                build={p.builds.find((b) => b.reservationId === f.reservationId)}
+                focus={f.reservationId === focusId}
+                onHover={(on) => highlight.onHover(on ? h : null)}
+              />
             );
           })}
         </ul>
-      </section>
-
-      <section aria-label="Crew build list">
-        <h3 className="section-title">Crew build list</h3>
-        <ol className="crew">
-          {p.crew.map((c) => (
-            <li
-              key={`${c.reservationId}-${c.start}`}
-              className={
-                [c.tight && "is-tight", c.reservationId === focusId && "is-focus"]
-                  .filter(Boolean)
-                  .join(" ") || undefined
-              }
-            >
-              <div className="crew-head">
-                <span className="crew-time">{times12(`${c.start}–${c.end}`)}</span>
-                <strong>
-                  {partyName(c.reservationId)} · {c.partySize}
-                </strong>
-                <span className="pill">{c.when === "set" ? "set before service" : "rebuild"}</span>
-                {c.reservationId === focusId && (
-                  <span className="pill pill-accent">just accepted</span>
-                )}
-                {c.tight && <span className="pill pill-warn">tight</span>}
-              </div>
-              <details className="small">
-                <summary>{c.actions.length} steps</summary>
-                <ol className="steps">
-                  {c.actions.map((a) => (
-                    <li key={a}>{times12(namesIn(a))}</li>
-                  ))}
-                </ol>
-              </details>
-            </li>
-          ))}
-        </ol>
-      </section>
+        {p.infeasible.map((x) => (
+          <div key={x.reservationId} className="cant-fit">
+            <strong>{partyName(x.reservationId)}</strong>{" "}
+            <span className="small">{times12(namesIn(x.reason))}</span>
+            {x.partial && (
+              <div className="small muted">Best partial option: {times12(x.partial)}</div>
+            )}
+          </div>
+        ))}
+        <table className="data compact" aria-label="Storage used versus in stock">
+          <tbody>
+            <StockRow
+              label="Extenders"
+              used={s.storageUsed.extenders}
+              stock={s.storageInStock.extenders}
+            />
+            <StockRow label="Chairs" used={s.storageUsed.chairs} stock={s.storageInStock.chairs} />
+            <StockRow
+              label="Spare tables"
+              used={s.storageUsed.spareTables}
+              stock={s.storageInStock.spareTables}
+            />
+          </tbody>
+        </table>
+      </details>
     </div>
   );
-}
-
-interface PartyGroup {
-  id: string;
-  size: number;
-  reason: string | undefined;
-  changes: LayoutChange[];
-  tables: string[];
-  dividers: string[];
-}
-
-function groupByParty(p: TonightProposal): PartyGroup[] {
-  const ids = [
-    ...new Set([
-      ...p.changes.map((c) => c.reservationId),
-      ...p.reasons.map((r) => r.reservationId),
-    ]),
-  ];
-  return ids.map((id) => {
-    const changes = p.changes.filter((c) => c.reservationId === id);
-    const tables = [...new Set(changes.flatMap((c) => c.tables))];
-    return {
-      id,
-      size:
-        p.crew.find((c) => c.reservationId === id)?.partySize ??
-        p.variant.reservations.find((r) => r.id === id)?.partySize ??
-        0,
-      reason: p.reasons.find((r) => r.reservationId === id)?.text,
-      changes,
-      tables,
-      dividers: [...openedDividers(changes), ...dividersForTables(p.variant, tables)],
-    };
-  });
 }
 
 function Tile({

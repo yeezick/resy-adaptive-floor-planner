@@ -23,7 +23,8 @@ export interface LayoutsApi {
   select: (id: string) => void;
   /** Save a room as a layout. Overwrites `id` when given (never the base), else creates one. */
   save: (room: Room, meta: { name: string; id?: string; date?: string; shift?: string }) => Layout;
-  remove: (id: string) => void;
+  /** Delete a layout; `nextActiveId` (if given and still present) becomes the layout in use. */
+  remove: (id: string, nextActiveId?: string) => void;
 }
 
 const BASE_ID = "base";
@@ -124,9 +125,10 @@ function persist(roomId: string, s: Stored): void {
   }
 }
 
-export function tonightName(from: string, to: string, date = new Date()): string {
-  const day = date.toLocaleDateString(undefined, { weekday: "short" });
-  return `Tonight — ${day} ${times12(`${from}–${to}`)}`;
+/** A saved tonight plan's name: the night's weekday (from the night on screen), never today's. */
+export function tonightName(from: string, to: string, day?: string): string {
+  const d = day ?? new Date().toLocaleDateString(undefined, { weekday: "short" });
+  return `${d} plan — ${times12(`${from}–${to}`)}`;
 }
 
 export function useLayouts(fixture: Room): LayoutsApi {
@@ -170,12 +172,20 @@ export function useLayouts(fixture: Room): LayoutsApi {
       setVersion((n) => n + 1);
       return layout;
     },
-    remove: (id) => {
+    remove: (id, nextActiveId) => {
       if (id === BASE_ID) return;
+      const variants = state.variants.filter((v) => v.id !== id);
+      const keep = (x: string) => x === BASE_ID || variants.some((v) => v.id === x);
       update({
-        variants: state.variants.filter((v) => v.id !== id),
-        activeId: state.activeId === id ? BASE_ID : state.activeId,
+        variants,
+        activeId:
+          nextActiveId && keep(nextActiveId)
+            ? nextActiveId
+            : state.activeId === id
+              ? BASE_ID
+              : state.activeId,
       });
+      setVersion((n) => n + 1);
     },
   };
 }

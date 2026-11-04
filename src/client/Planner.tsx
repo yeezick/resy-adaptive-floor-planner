@@ -16,10 +16,10 @@ import {
   type Room,
   type TonightProposal,
 } from "../domain";
-import type { EditRequest } from "./LayoutHost";
+import type { AppliedPlan, EditRequest } from "./LayoutHost";
 import { LayoutsList } from "./layouts/LayoutsList";
 import { tonightName, type LayoutsApi } from "./layouts/useLayouts";
-import { POSITIONING, TonightPanel } from "./Tonight/TonightPanel";
+import { TonightPanel } from "./Tonight/TonightPanel";
 import { AgentPanel } from "./AgentPanel/AgentPanel";
 import { BuildPlan } from "./BuildPlan/BuildPlan";
 import { ConsoleBar, type PanelMode } from "./ConsoleBar";
@@ -33,12 +33,12 @@ import type { Highlight, HighlightControls } from "./highlight";
 import { finishParty, seatParty, type DoneEntry, type WaitEntry } from "./lib/service";
 import { Rail } from "./Rail/Rail";
 import { ProposedTag, RequestSheet } from "./requests/RequestSheet";
-import { pendingCount, useRequests } from "./requests/store";
+import { pendingCount, requestsActions, useRequests } from "./requests/store";
 import { ReservationSheet } from "./WalkIn/ReservationSheet";
 import { WalkInSheet, type WalkInDraft } from "./WalkIn/WalkInSheet";
 import { tablesPhrase } from "../domain/wording";
 import { activeScenario } from "./scenarios";
-import { NIGHTS } from "./nights";
+import { NIGHTS, nightDate } from "./nights";
 
 const today = () => new Date().toLocaleDateString("en-CA"); // local YYYY-MM-DD
 
@@ -63,6 +63,14 @@ interface PlannerProps {
   focusRequest?: string;
   /** "request": open that request's sheet (not the plan) with its fit outlined on the floor. */
   focusView?: "plan" | "request";
+  /** The tonight plan applied to the layout in use, if this session applied it. */
+  applied?: AppliedPlan | null;
+  onApplied?: (
+    p: TonightProposal,
+    baseRoom: Room,
+    meta: { name: string; date?: string; shift?: string },
+  ) => void;
+  onUndoApply?: () => void;
 }
 
 export function Planner({
@@ -72,6 +80,9 @@ export function Planner({
   onEditLayout,
   focusRequest: focus,
   focusView,
+  applied = null,
+  onApplied,
+  onUndoApply,
 }: PlannerProps) {
   const focusRequest = focusView === "request" ? undefined : focus;
   const [room, setRoom] = useState(fixture);
@@ -125,21 +136,22 @@ export function Planner({
         }
       : null;
   // Opening an accepted request's night: show (and outline) that party's tables.
+  const shownPlan = proposal ?? applied?.proposal ?? null;
   const focusTables = useMemo(
     () =>
-      proposal && focusRequest
+      shownPlan && focusRequest
         ? [
             ...new Set(
-              proposal.changes
+              shownPlan.changes
                 .filter((c) => c.reservationId === focusRequest)
                 .flatMap((c) => c.tables),
             ),
           ]
         : [],
-    [proposal, focusRequest],
+    [shownPlan, focusRequest],
   );
   const focusTab = focusTables.length
-    ? tabForTables(proposal?.variant ?? room, focusTables)
+    ? tabForTables(shownPlan?.variant ?? room, focusTables)
     : "first";
   const focusHighlight: Highlight | null = focusTables.length
     ? {
@@ -441,15 +453,24 @@ export function Planner({
           )}
           {mode === "shift" && (
             <div className="tabpanel">
-              <p className="positioning">{POSITIONING}</p>
-              <LayoutsList
-                layouts={layouts}
-                onEdit={(r, name, id) => onEditLayout({ room: r, name, layoutId: id })}
-              />
               <TonightPanel
                 layouts={layouts}
-                autoGenerate={focusRequest ? { from: "17:00", to: "22:00" } : undefined}
+                autoGenerate={focusRequest && !applied ? { from: "17:00", to: "22:00" } : undefined}
                 focusId={focusRequest}
+                applied={applied?.proposal ?? null}
+                nightLabel={night?.label ?? room.name}
+                onUndoApply={onUndoApply}
+                onUndoAccept={
+                  focusRequest
+                    ? () => {
+                        const r = requests.book?.requests.find((x) => x.id === focusRequest);
+                        if (!r) return;
+                        onUndoApply?.();
+                        requestsActions.reopen(r);
+                        requestsActions.viewNight(r);
+                      }
+                    : undefined
+                }
                 proposal={proposal}
                 highlight={controls}
                 onProposal={setProposal}
@@ -462,18 +483,28 @@ export function Planner({
                     shift: proposal ? `${proposal.window.from}–${proposal.window.to}` : undefined,
                   })
                 }
-                onApply={(p) =>
-                  layouts.save(p.variant, {
-                    name: tonightName(p.window.from, p.window.to),
-                    date: today(),
+                onApply={(p) => {
+                  setProposal(null);
+                  onApplied?.(p, layouts.active.room, {
+                    name: tonightName(p.window.from, p.window.to, night?.day),
+                    date: night ? nightDate(night.day) : today(),
                     shift: `${p.window.from}–${p.window.to}`,
-                  })
-                }
+                  });
+                }}
               />
-              <details className="buildplan-details">
-                <summary>Large-party build plan for the layout in use (read-only)</summary>
-                <BuildPlan room={room} highlight={controls} />
+              <details className="layouts-details">
+                <summary>Layouts ▸</summary>
+                <LayoutsList
+                  layouts={layouts}
+                  onEdit={(r, name, id) => onEditLayout({ room: r, name, layoutId: id })}
+                />
               </details>
+              {!shownPlan && (
+                <details className="buildplan-details">
+                  <summary>Large-party build plan for the layout in use (read-only)</summary>
+                  <BuildPlan room={room} highlight={controls} />
+                </details>
+              )}
             </div>
           )}
         </aside>
