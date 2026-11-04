@@ -1,3 +1,4 @@
+import { AGENT_HARD_MS, Spinner, TOO_LONG, Working } from "../lib/wait";
 import {
   useEffect,
   useLayoutEffect,
@@ -38,8 +39,6 @@ export type Turn =
   | { id: number; role: "local"; text: string; ref: number; ranks: number[] };
 
 const MAX_HISTORY = 10;
-/** A request that takes longer than this gets a plain error (the host is mid-service). */
-const TIMEOUT_MS = 8000;
 
 interface Props {
   room: Room;
@@ -117,6 +116,7 @@ export function AgentPanel({
   const [turns, setTurns] = useState<Turn[]>(() => (fresh ? [] : scenarioTurns(room)));
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
+  const [waitSince, setWaitSince] = useState<number | null>(null);
   const [micHint, setMicHint] = useState(false);
   const nextId = useRef(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -218,25 +218,29 @@ export function AgentPanel({
     const history = toHistory(turns);
     setTurns((t) => [...t, userTurn]);
     setPending(true);
-    const timeout = new Promise<{ ok: false; error: ClientError }>((resolve) =>
-      window.setTimeout(
-        () =>
-          resolve({
-            ok: false,
-            error: {
-              code: "timeout",
-              message: "The AI Planner took too long. Try again, or pick a table yourself.",
-            } as ClientError,
-          }),
-        TIMEOUT_MS,
-      ),
-    );
-    const result = await Promise.race([
-      postAgent({ roomId: room.id, room, message, history }),
-      timeout,
-    ]);
-    void activityActions.recordAssistant(room.id, message, result);
+    setWaitSince(Date.now());
+    // the answer's turn id is fixed now: a slow answer replaces its own timeout line, nothing else
     const id = nextId.current++;
+    let timedOut = false;
+    const hard = window.setTimeout(() => {
+      timedOut = true;
+      setTurns((t) => [
+        ...t,
+        { id, role: "error", error: { code: "timeout", message: TOO_LONG } as ClientError },
+      ]);
+      setPending(false);
+    }, AGENT_HARD_MS);
+    const result = await postAgent({ roomId: room.id, room, message, history });
+    window.clearTimeout(hard);
+    void activityActions.recordAssistant(room.id, message, result);
+    if (timedOut) {
+      // late: a real answer replaces the timeout line; a late failure leaves it as it is
+      if (result.ok)
+        setTurns((t) =>
+          t.map((x) => (x.id === id ? { id, role: "assistant", res: result.data } : x)),
+        );
+      return;
+    }
     setTurns((t) => [
       ...t,
       result.ok
@@ -329,8 +333,11 @@ export function AgentPanel({
           ),
         )}
         {pending && (
-          <div className="bubble assistant muted" role="status">
-            Checking {room.tables.length} tables, meal phases and holds…
+          <div className="bubble assistant agent-working">
+            <Working
+              since={waitSince}
+              label={`Checking ${room.tables.length} tables, meal phases and holds`}
+            />
           </div>
         )}
       </div>
@@ -375,7 +382,13 @@ export function AgentPanel({
           )}
           <span className="spacer" />
           <button type="submit" className="tonal" disabled={pending || !input.trim()}>
-            {pending ? "Asking…" : "Send"}
+            {pending ? (
+              <>
+                <Spinner /> Asking…
+              </>
+            ) : (
+              "Send"
+            )}
           </button>
         </div>
       </form>
