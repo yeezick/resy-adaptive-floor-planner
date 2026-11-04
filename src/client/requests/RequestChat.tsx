@@ -87,7 +87,8 @@ export function RequestChat({
   };
   const noted = notedLine(currentRequest(s, r), cost);
   // A plan split across rooms: offer the one-room answer (storage included) up front, worked out after paint.
-  const [offer, setOffer] = useState<string | null>(null);
+  // keyed by the request state it was worked out for, so a stale line never shows for a changed request
+  const [offer, setOffer] = useState<{ key: string; text: string } | null>(null);
   const split = fit?.ok && fit.build.area.includes(" + ") ? fit.build.area : null;
   // keyed on the applied changes, so typing in the box never re-runs the per-room check
   const adjustKey = JSON.stringify(s.adjust[r.id] ?? null);
@@ -97,14 +98,17 @@ export function RequestChat({
     if (!room || !split) return;
     const t = window.setTimeout(() => {
       const plan = oneRoomPlan(room, req);
-      setOffer(
-        plan.ok
+      setOffer({
+        key: `${r.id}#${adjustKey}#${split}`,
+        text: plan.ok
           ? `This plan spans ${split}. ${oneRoomSentence(req, plan, { area: split })}`
           : `This plan spans ${split}. ${oneRoomSentence(req, plan, null)}`,
-      );
+      });
     }, 0);
     return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [room, split, req]);
+  const offerText = offer?.key === `${r.id}#${adjustKey}#${split}` ? offer.text : null;
 
   return (
     <section className="req-block req-chat" aria-label="Adjust this request">
@@ -113,10 +117,10 @@ export function RequestChat({
       </div>
 
       <ol className="chat-log" aria-label="AI Planner chat" aria-live="polite">
-        {(noted || (split && offer)) && (
+        {(noted || (split && offerText)) && (
           <li className="chat-noted">
             {noted && <p className="chat-out small">{noted}</p>}
-            {split && offer && <p className="chat-out small chat-offer">{offer}</p>}
+            {split && offerText && <p className="chat-out small chat-offer">{offerText}</p>}
           </li>
         )}
         {turns.map((t) => (

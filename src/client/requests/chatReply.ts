@@ -59,11 +59,13 @@ export function localAnswer(
   const storage = STORAGE.test(message);
   if (storage || ONE_ROOM.test(message)) {
     const plan = oneRoomPlan(room, r);
+    // what the night's OTHER builds take: this party's own build would hand its storage back
     const t = fit?.plan.totals;
+    const own = fit?.ok ? fit.build : null;
     const used = {
-      spareTables: t?.spareTables ?? 0,
-      extenders: t?.extenders ?? 0,
-      extraChairs: t?.extraChairs ?? 0,
+      spareTables: (t?.spareTables ?? 0) - (own?.spareTables ?? 0),
+      extenders: (t?.extenders ?? 0) - (own?.extenders ?? 0),
+      extraChairs: (t?.extraChairs ?? 0) - (own?.extraChairs ?? 0),
     };
     const text = [
       storage ? storageSentence(stockOf(room), used) : null,

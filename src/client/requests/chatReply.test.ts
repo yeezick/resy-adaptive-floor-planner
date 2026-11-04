@@ -43,6 +43,15 @@ describe("request chat answers from the capacity check", () => {
     );
   });
 
+  it("a plain storage ask stays local; storage is net of the night's other builds only", () => {
+    const a = localAnswer("bring a spare table from storage", ctx);
+    expect(a?.text).toMatch(/^Storage tonight: /);
+    if (!fit.ok) throw new Error("Q2 should fit");
+    const t = fit.plan.totals;
+    const freeSpare = 6 - (t.spareTables - fit.build.spareTables);
+    expect(a?.text).toContain(`${freeSpare} of 6 spare tables free`);
+  });
+
   it("a need already set: “Already covered”, with the aisle", () => {
     const a = localAnswer("make sure there's room for the wheelchair", ctx);
     expect(a?.text).toMatch(
