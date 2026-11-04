@@ -29,11 +29,14 @@ export function LayoutHost({
   roomSelect,
   focusRequest,
   focusView,
+  focusApply = false,
 }: {
   fixture: Room;
   roomSelect: ReactNode;
   focusRequest?: string;
   focusView?: "plan" | "request";
+  /** Accepted from the review screen: apply the crew plan without a second step. */
+  focusApply?: boolean;
 }) {
   const layouts = useLayouts(fixture);
   const [editing, setEditing] = useState<EditRequest | null>(null);
@@ -75,6 +78,7 @@ export function LayoutHost({
       onEditLayout={setEditing}
       focusRequest={focusRequest}
       focusView={focusView}
+      focusApply={focusApply}
       applied={applied?.layoutId === layouts.active.id ? applied : null}
       onApplied={(p, baseRoom, meta) => {
         const prevActiveId = layouts.active.id;

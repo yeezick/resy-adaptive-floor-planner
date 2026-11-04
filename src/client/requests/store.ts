@@ -57,6 +57,8 @@ export interface ChatTurn {
   changed?: string[];
   /** The constraints just before this turn (to show what this turn alone changed). */
   before?: ChatConstraints;
+  /** Answered on this device from the capacity check (no model call), e.g. "one room" or "from storage". */
+  local?: boolean;
 }
 
 export interface RequestsState {
@@ -83,8 +85,17 @@ export interface RequestsState {
   overrides: Record<string, { verdict: "real" | "junk"; iso: string }>;
   /** "Message guest → Mark as sent": the reply is logged, and the request stays open for Accept or Decline. */
   replies: Record<string, { at: string; iso: string; edited: boolean }>;
+  /** An alternative the chat named, outlined on the request's floor until the next turn. */
+  alt: Record<string, { tables: string[]; label: string }>;
   /** Set by Accept: the planner opens this night and shows the party's plan. */
-  openPlan: { roomId: string; requestId: string; seq: number; view: "plan" | "request" } | null;
+  openPlan: {
+    roomId: string;
+    requestId: string;
+    seq: number;
+    view: "plan" | "request";
+    /** Accept from the review screen: the crew plan is applied in the same confirm. */
+    apply?: boolean;
+  } | null;
 }
 
 let state: RequestsState = {
@@ -102,6 +113,7 @@ let state: RequestsState = {
   proposals: {},
   changedBy: {},
   replies: {},
+  alt: {},
   openPlan: null,
 };
 const listeners = new Set<() => void>();
@@ -194,7 +206,7 @@ async function applyScenario(book: RequestBook): Promise<void> {
         [r.id]: { kind: "accepted", ...demoStamp(), tables: fit.build.tables },
       },
       accepted: { ...state.accepted, [r.bookRoomId]: [toReservation(r)] },
-      openPlan: { roomId: r.bookRoomId, requestId: r.id, seq: ++seq, view: "plan" },
+      openPlan: { roomId: r.bookRoomId, requestId: r.id, seq: ++seq, view: "plan", apply: true },
     });
     return;
   }
@@ -258,7 +270,8 @@ export const requestsActions = {
     });
     return r;
   },
-  accept(r: GuestRequest, tables: string[]) {
+  /** Hold the tables and (by default) apply the night's crew plan in the same confirm. */
+  accept(r: GuestRequest, tables: string[], apply = true) {
     logDecision(r.id, { kind: "accepted" });
     const list = (state.accepted[r.bookRoomId] ?? []).filter((x) => x.id !== r.id);
     set({
@@ -267,7 +280,7 @@ export const requestsActions = {
         [r.id]: { kind: "accepted", ...demoStamp(), tables },
       },
       accepted: { ...state.accepted, [r.bookRoomId]: [...list, toReservation(r)] },
-      openPlan: { roomId: r.bookRoomId, requestId: r.id, seq: ++seq, view: "plan" },
+      openPlan: { roomId: r.bookRoomId, requestId: r.id, seq: ++seq, view: "plan", apply },
     });
   },
   /** The note is the manager's own words: kept with the decision in this session, never sent to the server log. */
@@ -342,6 +355,10 @@ export const requestsActions = {
   /** Send one chat message about this request; a valid answer updates its constraints. */
   async sendChat(r: GuestRequest, message: string) {
     const id = `turn-${++seq}`;
+    if (state.alt[r.id]) {
+      const { [r.id]: _old, ...alt } = state.alt;
+      set({ alt });
+    }
     const current = state.proposals[r.id]?.constraints ?? state.adjust[r.id] ?? baseConstraints(r);
     const turn: ChatTurn = {
       id,
@@ -363,6 +380,8 @@ export const requestsActions = {
       request: { partySize: r.partySize, day: r.day, time: r.time, needs: r.needs },
       constraints: current,
     });
+    // timed out meanwhile: the late answer is dropped
+    if ((state.chat[r.id] ?? []).find((x) => x.id === id)?.status === "error") return;
     if (!res.ok)
       return put({ ...turn, status: "error", error: res.error, outcome: res.error.message });
     put({ ...turn, status: "ok", result: res.data });
@@ -375,6 +394,52 @@ export const requestsActions = {
       if (JSON.stringify(next) !== JSON.stringify(current))
         set({ proposals: { ...state.proposals, [r.id]: { constraints: next } } });
     } else put({ ...turn, status: "ok", result: res.data, outcome: res.data.note ?? undefined });
+  },
+  /**
+   * A message the capacity check can answer by itself ("one room?", "bring tables from the back", a need that
+   * is already set): logged as a turn with its answer, no model call, nothing proposed.
+   */
+  answerLocal(
+    r: GuestRequest,
+    message: string,
+    answer: string,
+    alt?: { tables: string[]; label: string },
+  ) {
+    const id = `turn-${++seq}`;
+    const turn: ChatTurn = {
+      id,
+      at: demoStamp().iso,
+      message,
+      status: "ok",
+      outcome: answer,
+      changed: [],
+      local: true,
+    };
+    const { [r.id]: _old, ...alts } = state.alt;
+    set({
+      chat: { ...state.chat, [r.id]: [...(state.chat[r.id] ?? []), turn] },
+      alt: alt ? { ...alts, [r.id]: alt } : alts,
+    });
+  },
+  /** A turn still loading after 8 s ends with a plain error (a late answer is ignored). */
+  timeoutTurn(requestId: string, turnId: string) {
+    const list = state.chat[requestId] ?? [];
+    if (!list.some((x) => x.id === turnId && x.status === "loading")) return;
+    set({
+      chat: {
+        ...state.chat,
+        [requestId]: list.map((x) =>
+          x.id === turnId
+            ? {
+                ...x,
+                status: "error",
+                outcome:
+                  "That took too long. Nothing changed; try again or set it on the review screen.",
+              }
+            : x,
+        ),
+      },
+    });
   },
   /** The sheet records what the planner answered after a turn (for the chat log and the activity log). */
   noteTurn(requestId: string, turnId: string, outcome: string, changed: string[]) {
@@ -472,6 +537,7 @@ export function resetRequestsStore(): void {
     proposals: {},
     changedBy: {},
     replies: {},
+    alt: {},
     openPlan: null,
   };
 }

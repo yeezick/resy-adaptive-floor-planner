@@ -115,3 +115,27 @@
   color: var(--accent);
   text-decoration: none;
 }
+.review-who {
+  font-size: 17px;
+}
+.review-time select {
+  min-height: 44px;
+  font-size: 15px;
+}
+.review-date {
+  font-size: 14px;
+}
+.review-range {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.review-range input {
+  width: 5.5em;
+  min-height: 44px;
+}
+.review-from {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+}

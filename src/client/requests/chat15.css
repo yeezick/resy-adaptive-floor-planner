@@ -1,0 +1,47 @@
+/* Discuss: plain chat, the box pinned under the thread, larger and multi-line */
+.req-chat .chat-log {
+  max-height: 260px;
+  overflow-y: auto;
+}
+.req-chat .chat-noted .chat-out {
+  color: var(--text);
+}
+.req-chat .chat-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  padding-top: 6px;
+}
+.req-chat .chat-form textarea {
+  width: 100%;
+  min-height: 76px;
+  font-size: 16px;
+  line-height: 1.4;
+  resize: none;
+}
+.chat-form-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.chat-form-foot .spacer {
+  flex: 1;
+}
+.chat-form-foot button[type="submit"] {
+  min-height: 44px;
+  min-width: 72px;
+}
+.req-chat .mic-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  background: transparent;
+  border-color: var(--border);
+  color: var(--disabled-fg);
+  cursor: help;
+}

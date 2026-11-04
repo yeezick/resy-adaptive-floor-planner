@@ -362,7 +362,19 @@ export function FloorPlan({
                 {changes && <ChangeUnderlay room={room} changes={changes} />}
 
                 {room.combos.map((ids) => (
-                  <Combo key={ids.join("+")} room={room} ids={ids} byId={byId} />
+                  <Combo
+                    key={ids.join("+")}
+                    room={room}
+                    ids={ids}
+                    byId={byId}
+                    // a Held tag or a ready bubble sits on these tables' top edge: the badge goes above it
+                    lift={ids.some(
+                      (id) =>
+                        !!highlight?.badges?.[id] ||
+                        (held?.has(id) ?? false) ||
+                        byId.get(id)?.status === "reserved",
+                    )}
+                  />
                 ))}
 
                 {tables.map((t) => (
@@ -414,7 +426,19 @@ function ComboBadge({ x, y, text }: { x: number; y: number; text: string }) {
   );
 }
 
-function Combo({ room, ids, byId }: { room: Room; ids: string[]; byId: Map<string, Table> }) {
+function Combo({
+  room,
+  ids,
+  byId,
+  lift = false,
+}: {
+  room: Room;
+  ids: string[];
+  byId: Map<string, Table>;
+  /** Raise the badge clear of the tags on the tables' top edge (Held, ready). */
+  lift?: boolean;
+}) {
+  const px = usePx();
   const ts = ids.map((id) => byId.get(id)).filter((t): t is Table => t !== undefined);
   if (!ts.length) return null;
   const m = 0.6;
@@ -427,7 +451,11 @@ function Combo({ room, ids, byId }: { room: Room; ids: string[]; byId: Map<strin
   return (
     <g className="combo" aria-hidden="true">
       <rect x={x} y={y} width={w} height={h} rx={0.8} />
-      <ComboBadge x={x} y={y} text={`${ts.map((t) => t.id.slice(1)).join("+")} · ${seats(ts)}`} />
+      <ComboBadge
+        x={x}
+        y={lift ? y - px(9) * 1.45 - px(4) : y}
+        text={`${ts.map((t) => t.id.slice(1)).join("+")} · ${seats(ts)}`}
+      />
       {links.map(([a, b]) => {
         const ta = byId.get(a);
         const tb = byId.get(b);

@@ -29,6 +29,8 @@ interface Props {
   onApply: (p: TonightProposal) => void;
   /** Generate once on mount (opening an accepted request's night). */
   autoGenerate?: { from: string; to: string };
+  /** Apply the generated plan at once (the manager already confirmed it with Accept). */
+  autoApply?: boolean;
   /** A party to put first and pin on the floor. */
   focusId?: string;
   /** The plan already applied to the layout in use (shown read-only, with Undo). */
@@ -50,6 +52,7 @@ export function TonightPanel({
   onEdit,
   onApply,
   autoGenerate,
+  autoApply = false,
   focusId,
   applied = null,
   nightLabel,
@@ -67,7 +70,9 @@ export function TonightPanel({
     const a = auto.current;
     if (!a) return;
     auto.current = undefined;
-    onProposal(generateTonight(base.room, a.from, a.to));
+    const p = generateTonight(base.room, a.from, a.to);
+    if (autoApply) onApply(p);
+    else onProposal(p);
     // once, on mount
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -76,9 +81,15 @@ export function TonightPanel({
   return (
     <div className="tonight">
       {focusId && shown && (
-        <AcceptedCard p={shown} id={focusId} day={nightDay ?? ""} onUndo={onUndoAccept} />
+        <AcceptedCard
+          p={shown}
+          id={focusId}
+          day={nightDay ?? ""}
+          onUndo={onUndoAccept}
+          applied={!!applied && !proposal}
+        />
       )}
-      {applied && !proposal && (
+      {applied && !proposal && !focusId && (
         <div className="applied-bar small" role="status">
           <span>
             Crew plan applied to <strong>{nightLabel}</strong>
@@ -160,11 +171,14 @@ function AcceptedCard({
   id,
   day,
   onUndo,
+  applied = false,
 }: {
   p: TonightProposal;
   id: string;
   day: string;
   onUndo?: () => void;
+  /** Accept held the tables and applied the crew plan in one confirm. */
+  applied?: boolean;
 }) {
   const f = p.parties.find((x) => x.reservationId === id);
   const b = p.builds.find((x) => x.reservationId === id);
@@ -204,10 +218,24 @@ function AcceptedCard({
           </>
         )}
       </dl>
-      {onUndo && (
-        <button type="button" className="undo-accept" onClick={onUndo}>
-          Undo accept
-        </button>
+      {applied ? (
+        <p className="accepted-result small" role="status">
+          Accepted · tables held · crew plan applied
+          {onUndo && (
+            <>
+              {" · "}
+              <button type="button" className="link-btn" onClick={onUndo}>
+                Undo
+              </button>
+            </>
+          )}
+        </p>
+      ) : (
+        onUndo && (
+          <button type="button" className="undo-accept" onClick={onUndo}>
+            Undo accept
+          </button>
+        )
       )}
     </section>
   );

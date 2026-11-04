@@ -84,6 +84,8 @@ interface PlannerProps {
   focusRequest?: string;
   /** "request": open that request's sheet (not the plan) with its fit outlined on the floor. */
   focusView?: "plan" | "request";
+  /** Apply the crew plan as soon as it is generated (Accept already confirmed it). */
+  focusApply?: boolean;
   /** The tonight plan applied to the layout in use, if this session applied it. */
   applied?: AppliedPlan | null;
   onApplied?: (
@@ -101,6 +103,7 @@ export function Planner({
   onEditLayout,
   focusRequest: focus,
   focusView,
+  focusApply = false,
   applied = null,
   onApplied,
   onUndoApply,
@@ -264,8 +267,14 @@ export function Planner({
         : null,
     [room, reqTables, request, requests.fitReadyAt],
   );
-  const reqHighlight: Highlight | null =
-    reqTables.length && reqReady
+  const alt = request && request.bookRoomId === room.id ? requests.alt[request.id] : undefined;
+  const altHighlight: Highlight | null =
+    mode === "request" && alt
+      ? { key: `alt-${request?.id}`, ids: alt.tables, label: alt.label, source: "fit" }
+      : null;
+  const reqHighlight: Highlight | null = altHighlight
+    ? altHighlight
+    : reqTables.length && reqReady
       ? {
           key: `req-${request?.id}`,
           ids: reqTables,
@@ -601,7 +610,11 @@ export function Planner({
           <FloorPlan
             key={proposal ? "preview" : reqTables.length ? `req-${request?.id}` : "live"}
             initialTab={
-              proposal ? focusTab : reqTables.length ? tabForTables(room, reqTables) : undefined
+              proposal || focusTables.length
+                ? focusTab
+                : reqTables.length
+                  ? tabForTables(room, reqTables)
+                  : undefined
             }
             room={proposal?.variant ?? room}
             selected={proposal ? [] : selected}
@@ -766,6 +779,7 @@ export function Planner({
               <TonightPanel
                 layouts={layouts}
                 autoGenerate={focusRequest && !applied ? { from: "17:00", to: "22:00" } : undefined}
+                autoApply={focusApply}
                 focusId={focusRequest}
                 applied={applied?.proposal ?? null}
                 nightLabel={night?.label ?? room.name}
