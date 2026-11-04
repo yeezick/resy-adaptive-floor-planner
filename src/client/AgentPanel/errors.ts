@@ -18,7 +18,7 @@ export function friendlyError(err: ClientError): { title: string; body: string }
         body: "This server has no model API key, so the agent can't answer. Manual controls still work.",
       };
     case "timeout":
-      return { title: "The agent took too long", body: "Try again, or ask a narrower question." };
+      return { title: "That took too long", body: "Nothing changed. Try again." };
     case "upstream":
       return {
         title: "Model provider error",

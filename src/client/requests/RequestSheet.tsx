@@ -533,7 +533,7 @@ export function RequestSheet({
 
       {decision.kind === "pending" && room && (
         <div className="req-chat-wrap" hidden={!chatOpen}>
-          <RequestChat request={r0} result={proposedAdj ?? adj} room={room} fit={fit} cost={cost} />
+          <RequestChat request={r0} room={room} fit={fit} cost={cost} />
           <button type="button" className="link-btn small" onClick={() => setChatOpen(false)}>
             Hide chat
           </button>

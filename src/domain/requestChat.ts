@@ -28,6 +28,10 @@ export const ChatConstraints = z
   .strict();
 export type ChatConstraints = z.infer<typeof ChatConstraints>;
 
+/** The chat's reply when the AI gave no usable change and no question back (a refusal, or two rejects). */
+export const ESCALATED_NOTE =
+  "I couldn't turn that into a change. Nothing changed. You can set party, time, tables and needs on the review screen after Accept.";
+
 export function baseConstraints(r: GuestRequest): ChatConstraints {
   return { tableRange: null, partySize: null, time: null, needs: [...r.needs], notes: [] };
 }

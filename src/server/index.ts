@@ -285,7 +285,7 @@ export function createApp(opts: AppOptions = {}) {
         res,
         503,
         "no_key",
-        "The request chat is not configured on this server (no API key). Use the controls on the card.",
+        "The request chat is not configured on this server (no API key). Nothing changed. You can set party, time, tables and needs on the review screen after Accept.",
       );
     if (budget.exhausted())
       return sendError(

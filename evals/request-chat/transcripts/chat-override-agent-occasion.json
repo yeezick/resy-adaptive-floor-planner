@@ -1,0 +1,9 @@
+{
+  "id": "chat-override-agent-occasion",
+  "promptVersion": "request-chat.v1.1",
+  "model": "claude-haiku-5-5",
+  "output": null,
+  "validatorRejects": 2,
+  "costUsd": 0.000405,
+  "latencyMs": 3474
+}
