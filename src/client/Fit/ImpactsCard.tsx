@@ -1,10 +1,11 @@
 import {
-  acceptLine,
+  bookedVsWalkIns,
   buildMinutes,
+  capacityLine,
   coverTrade,
   DECLINE_LINE,
   impactsOf,
-  signed,
+  takeItLine,
   type Build,
   type PartyFit,
   times12,
@@ -12,8 +13,32 @@ import {
 } from "../../domain";
 
 /**
- * Impacts of saying yes to one large party: pros and cons side by side, then the net covers line and the crew's
- * build time. Solver output only; estimates say "est.". A negative net is shown as it is.
+ * Saying yes, in covers, as a host reads it: the party is booked (guaranteed); the hold costs walk-in capacity,
+ * which turns into covers only if every held seat would have turned. Solver output only. A capacity fit never
+ * cancels a booking (every booking keeps a table, or there is no fit), so "cancelled" is 0 whenever this shows.
+ */
+export function CoversSummary({ f, moved }: { f: PartyFit; moved: number }) {
+  const trade = coverTrade(f.partySize, f.hold.coversLost);
+  const cancelled = 0;
+  const takeIt = takeItLine(trade, { fit: true, cancelled });
+  return (
+    <div className="covers-summary">
+      <p className="impacts-net">
+        <strong className="net-hero">{bookedVsWalkIns(trade)}</strong>
+      </p>
+      <p className="capacity-line small muted">{capacityLine(trade, moved, cancelled)}</p>
+      {takeIt && (
+        <p className="take-it small" role="note">
+          {takeIt}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Impacts of saying yes to one large party: pros and cons side by side, then the crew's build time and what a
+ * decline means. Solver output only; estimates say "est.".
  */
 export function ImpactsCard({
   room,
@@ -32,17 +57,8 @@ export function ImpactsCard({
   movedDetail?: readonly string[];
 }) {
   const { pros, cons } = impactsOf(room, { fit: f, needs, moved, movedDetail });
-  const trade = coverTrade(f.partySize, f.hold.coversLost);
   return (
     <div className="impacts" aria-label="Impacts of saying yes">
-      <p className="impacts-net">
-        <strong className={`net-hero${trade.net < 0 ? " is-neg" : ""}`}>
-          Net {signed(trade.net)} covers (est.)
-        </strong>
-        <span className="net-basis muted small">
-          {acceptLine(trade)} · {DECLINE_LINE}
-        </span>
-      </p>
       <div className="impacts-cols">
         <div className="impacts-col is-pro">
           <h5 className="small">Pros</h5>
@@ -63,7 +79,10 @@ export function ImpactsCard({
           </ul>
         </div>
       </div>
-      <p className="small">Crew: build time ~{buildMinutes(build)} min (est.)</p>
+      <p className="small">
+        Crew: build time ~{buildMinutes(build)} min (est.) ·{" "}
+        <span className="muted">{DECLINE_LINE}</span>
+      </p>
     </div>
   );
 }

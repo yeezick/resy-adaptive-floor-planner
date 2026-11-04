@@ -20,7 +20,7 @@ export interface ImpactsInput {
   movedDetail?: readonly string[];
 }
 
-/** Pros: covers in one booking, nothing moved, aisle clear (when asked). Cons: hold, covers lost, section load. */
+/** Pros: covers in one booking, nothing moved, aisle clear (when asked). Cons: hold, walk-in capacity held, section load. */
 export function impactsOf(
   room: Room,
   { fit: f, needs, moved, movedDetail = [] }: ImpactsInput,
@@ -55,7 +55,7 @@ export function impactsOf(
         ? `Tables held until ${f.hold.until}: ${f.hold.runs.map((r) => `${tableNumbers(r.tables)} from ${r.from}`).join(", ")}`
         : `Tables held ${f.hold.from}–${f.hold.until}`,
     );
-    cons.push(`~${f.hold.coversLost} covers lost over one turn (est.)`);
+    cons.push(`Holds up to ~${f.hold.coversLost} walk-in covers over one turn (est.)`);
   } else pros.push("Spare tables from storage only: nothing on the floor is held");
 
   if (f.spansSections)

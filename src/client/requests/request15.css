@@ -1,0 +1,129 @@
+/* Large-party request sheet: one short line per card, details behind "More ▸", one footer row. */
+
+/* AI triage: the summary's first line, one step larger than body text */
+.request-sheet.decision .ai-card .req-overview {
+  font-size: 16px;
+  line-height: 1.35;
+  list-style: none;
+  padding-left: 0;
+}
+.triage-more > summary {
+  font-size: 13px;
+}
+.triage-more[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.req-overview-rest {
+  margin: 4px 0 0;
+  padding-left: 0;
+  list-style: none;
+  font-size: 14px;
+  color: var(--text);
+}
+.triage-more .triage-detail > p {
+  margin: 4px 0 0;
+}
+
+/* Capacity check: booked vs walk-in capacity, the rule's recommendation, then More ▸ */
+.covers-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+}
+.covers-summary .impacts-net {
+  margin: 0;
+}
+.covers-summary .net-hero {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+}
+.capacity-line {
+  margin: 0;
+  line-height: 1.35;
+}
+.take-it {
+  margin: 2px 0 0;
+  font-weight: 600;
+  color: var(--ok);
+}
+.fit-more[open] {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.fit-more .impacts {
+  border-top: 0;
+  padding-top: 0;
+}
+.fit-more .more-head {
+  margin: 0 0 2px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.fit-more .fit-build > p,
+.fit-more .fit-other ul {
+  margin: 0 0 4px;
+}
+
+/* Footer: Decline · Message · Discuss · Accept on one row; Accept is the only filled button */
+.decision-footer .btn-row {
+  gap: 6px;
+}
+.decision-footer .btn-row button {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-left: 8px;
+  padding-right: 8px;
+  justify-content: center;
+}
+.decision-footer .btn-row .ask-ai,
+.decision-footer .btn-row .ask-ai:hover:not(:disabled) {
+  min-height: 0;
+  padding-top: 6px;
+  padding-bottom: 6px;
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  color: var(--accent-ink);
+}
+.decision-footer .btn-row .ask-ai:hover:not(:disabled) {
+  background: var(--accent-soft);
+}
+.decision-footer .btn-row .ask-ai:disabled {
+  border-color: var(--border);
+  color: var(--muted);
+}
+.decision-footer .btn-row .ask-ai .sparkle {
+  fill: var(--accent);
+}
+@media (pointer: coarse), (max-width: 1280px) {
+  .decision-footer .btn-row button,
+  .decision-footer .btn-row .ask-ai {
+    min-height: 44px;
+  }
+}
+
+/* Decline: optional note under the reasons */
+.decline-note {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+.decline-note textarea {
+  width: 100%;
+  min-height: 44px;
+  resize: vertical;
+  font: inherit;
+}
+.decision-note {
+  margin-left: 6px;
+  color: var(--muted);
+}

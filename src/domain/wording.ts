@@ -159,6 +159,36 @@ export function acceptLine(t: CoverTrade): string {
 
 export const DECLINE_LINE = "Decline: 0 · request leaves Resy";
 
+/**
+ * The trade as a host reads it: the party is booked covers; the hold costs walk-in capacity, which only becomes
+ * covers if every held seat would have turned. "+22 booked vs up to ~24 possible walk-ins".
+ */
+export function bookedVsWalkIns(t: CoverTrade): string {
+  return t.lost > 0
+    ? `+${t.gain} booked vs up to ~${t.lost} possible walk-ins`
+    : `+${t.gain} booked · no walk-in capacity held`;
+}
+
+/**
+ * "Booked +22 (guaranteed) · Walk-in capacity held: up to ~24 (only if every held seat would turn) ·
+ * Reservations moved 1 · cancelled 0".
+ */
+export function capacityLine(t: CoverTrade, moved: number, cancelled: number): string {
+  const held = t.lost > 0 ? `up to ~${t.lost} (only if every held seat would turn)` : "none";
+  return `Booked +${t.gain} (guaranteed) · Walk-in capacity held: ${held} · Reservations moved ${moved} · cancelled ${cancelled}`;
+}
+
+/**
+ * A fixed rule, not a model: when the party fits and no reservation is cancelled, a booked party beats walk-ins
+ * that may never come. Null otherwise.
+ */
+export function takeItLine(
+  t: CoverTrade,
+  { fit, cancelled }: { fit: boolean; cancelled: number },
+): string | null {
+  return fit && cancelled === 0 ? `Take it: a booked ${t.gain} beats uncertain walk-ins` : null;
+}
+
 /** Minutes from `now` to `at` as "in 2h 10m", "in 45m", "now" or "15m ago". */
 export function countdown(minutes: number): string {
   const m = Math.round(minutes);

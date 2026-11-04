@@ -97,11 +97,14 @@ export function DecisionChip({ d }: { d: RowDecision }) {
       return <span className="verdict verdict-neutral">Accepted</span>;
     case "declined":
       return (
-        <span
-          className={`verdict ${d.reason === "policy" ? "verdict-policy" : d.reason === "fit" ? "verdict-fit" : "verdict-wait"}`}
-        >
-          Declined · {d.reason === "fit" ? "no capacity fit" : d.reason}
-        </span>
+        <>
+          <span
+            className={`verdict ${d.reason === "policy" ? "verdict-policy" : d.reason === "fit" ? "verdict-fit" : "verdict-wait"}`}
+          >
+            Declined · {d.reason === "fit" ? "no capacity fit" : d.reason}
+          </span>
+          {d.note && <span className="decision-note small">“{d.note}”</span>}
+        </>
       );
     case "edited":
       return <span className="verdict verdict-wait">Reply edited</span>;

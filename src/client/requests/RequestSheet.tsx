@@ -16,7 +16,7 @@ import {
   toMinutes,
   type Room,
 } from "../../domain";
-import { ImpactsCard } from "../Fit/ImpactsCard";
+import { CoversSummary, ImpactsCard } from "../Fit/ImpactsCard";
 import {
   checkRequest,
   draftReply,
@@ -48,6 +48,7 @@ import {
   type TriageState,
 } from "./store";
 import { partyName } from "../lib/names";
+import "./request15.css";
 
 export { SOURCE_LABEL, SOURCE_SHORT } from "../../domain/requests";
 
@@ -124,6 +125,8 @@ export function RequestSheet({
   const roomRes = useAsync(r0.bookRoomId, loadRoom);
   const [mode, setMode] = useState<"none" | "decline" | "reply">("none");
   const [reason, setReason] = useState<DeclineReason | null>(null);
+  // the manager's own note on a decline (optional); it can also go into the draft reply
+  const [note, setNote] = useState("");
 
   // The night's book, plus parties the manager already accepted for it (other than this one).
   const room: Room | null = useMemo(() => {
@@ -186,7 +189,7 @@ export function RequestSheet({
             `Capacity fit: ${tablesPhrase(fit.build.tables)} · ${fit.build.area} · seats ${fit.build.seats}, build by ${fit.build.buildBy}`,
             ...(cost
               ? [
-                  `Hold from ${cost.hold.from} · ~${cost.hold.coversLost} covers lost (est.)`,
+                  `Hold from ${cost.hold.from} · walk-in capacity held: up to ~${cost.hold.coversLost} (est.)`,
                   `Section ${cost.sections.join(" + ")}${cost.spansSections ? " (spans two)" : ""}`,
                   `Aisle: ${cost.aisle.checked.length} joins ${cost.aisle.ok ? "clear" : "fail"}`,
                   ...cost.aisle.rejected.map((x) => `Rejected ${x.reason}`),
@@ -250,7 +253,7 @@ export function RequestSheet({
           <VerdictChip t={t} override={override} />
         </div>
         <ul className="req-overview" aria-label="What the party needs">
-          {overview.map((line) => (
+          {overview.slice(0, 1).map((line) => (
             <li key={line}>{normalTimes(line)}</li>
           ))}
         </ul>
@@ -269,63 +272,73 @@ export function RequestSheet({
           </div>
         )}
         <div className="triage-row small">
+          {/* feedback stays at the source, on the same row as More ▸ */}
           {t?.status === "ok" && !override && (
             <SourceFeedback rowId={`row-${t.result.traceId}`} what="AI triage" compact />
           )}
-          {(verdict === "real" || verdict === "junk") && (
-            <span className="override">
-              <span className="muted">
-                {override ? `You marked this as ${override.verdict}. ` : "Wrong? "}
+          <details className="how-made triage-more">
+            <summary>More ▸</summary>
+            {overview.length > 1 && (
+              <ul className="req-overview-rest" aria-label="More about the party">
+                {overview.slice(1).map((line) => (
+                  <li key={line}>{normalTimes(line)}</li>
+                ))}
+              </ul>
+            )}
+            {(verdict === "real" || verdict === "junk") && (
+              <span className="override">
+                <span className="muted">
+                  {override ? `You marked this as ${override.verdict}. ` : "Wrong? "}
+                </span>
+                <button
+                  type="button"
+                  className="link-btn"
+                  onClick={() =>
+                    requestsActions.overrideTriage(r0.id, verdict === "junk" ? "real" : "junk")
+                  }
+                >
+                  Mark as {verdict === "junk" ? "real" : "junk"}
+                </button>
               </span>
-              <button
-                type="button"
-                className="link-btn"
-                onClick={() =>
-                  requestsActions.overrideTriage(r0.id, verdict === "junk" ? "real" : "junk")
-                }
-              >
-                Mark as {verdict === "junk" ? "real" : "junk"}
-              </button>
-            </span>
-          )}
-          <details className="how-made">
-            <summary>Detail ▸</summary>
-            {t?.status === "ok" && (
-              <p>
-                <span className="muted">Why: </span>
-                {t.result.reason}
+            )}
+            <div className="triage-detail">
+              {t?.status === "ok" && (
+                <p>
+                  <span className="muted">Why: </span>
+                  {t.result.reason}
+                </p>
+              )}
+              <p className="muted">
+                {SOURCE_LABEL[r.source]}
+                {SOURCE_DETAIL[r.source] ? ` ${SOURCE_DETAIL[r.source]}` : ""}
               </p>
-            )}
-            <p className="muted">
-              {SOURCE_LABEL[r.source]}
-              {SOURCE_DETAIL[r.source] ? ` ${SOURCE_DETAIL[r.source]}` : ""}
-            </p>
-            <p className="req-message">
-              <span className="muted">
-                {r.source === "walk-in" ? "Host's note: " : "Guest's message: "}
-              </span>
-              {r.message}
-            </p>
-            <p className="muted">
-              Shown here only. The activity log keeps the AI's summary, never the guest's words.
-            </p>
-            {t?.status === "ok" && (
-              <details className="how-made">
-                <summary>How this was made</summary>
-                <div className="metrics" aria-label="Triage cost and latency">
-                  <span>
-                    {usd(t.result.metrics.costUsd)}
-                    {t.result.cached ? " (cached view, no new call)" : ""}
-                  </span>
-                  <span>{duration(t.result.metrics.latencyMs)}</span>
-                  <span>{t.result.model}</span>
-                  <span>{t.result.promptVersion}</span>
-                  {t.result.validatorRejects > 0 && (
-                    <span>{t.result.validatorRejects} validator reject(s)</span>
-                  )}
-                </div>
-              </details>
-            )}
+              <p className="req-message">
+                <span className="muted">
+                  {r.source === "walk-in" ? "Host's note: " : "Guest's message: "}
+                </span>
+                {r.message}
+              </p>
+              <p className="muted">
+                Shown here only. The activity log keeps the AI's summary, never the guest's words.
+              </p>
+              {t?.status === "ok" && (
+                <details className="how-made">
+                  <summary>How this was made</summary>
+                  <div className="metrics" aria-label="Triage cost and latency">
+                    <span>
+                      {usd(t.result.metrics.costUsd)}
+                      {t.result.cached ? " (cached view, no new call)" : ""}
+                    </span>
+                    <span>{duration(t.result.metrics.latencyMs)}</span>
+                    <span>{t.result.model}</span>
+                    <span>{t.result.promptVersion}</span>
+                    {t.result.validatorRejects > 0 && (
+                      <span>{t.result.validatorRejects} validator reject(s)</span>
+                    )}
+                  </div>
+                </details>
+              )}
+            </div>
           </details>
         </div>
       </section>
@@ -379,13 +392,6 @@ export function RequestSheet({
         )}
         {!roomRes && <p className="muted small">Loading {r.day}'s book…</p>}
         {roomRes && !roomRes.ok && <p className="warn-text small">{roomRes.error.message}</p>}
-        {fit?.ok && (
-          <p className="fit-summary small">
-            {tablesPhrase(fit.build.tables)}
-            {storagePhrase(fit.build) ? ` + ${storagePhrase(fit.build)} from storage` : ""} ·{" "}
-            {fit.build.area} · seats {fit.build.seats} · build by {clock12(fit.build.buildBy)}
-          </p>
-        )}
         {fit && !fit.ok && (
           <p className="small cant-fit-line">{times12(adj ? adj.line : fit.reason)}</p>
         )}
@@ -398,65 +404,80 @@ export function RequestSheet({
             Show on {r.day}'s floor →
           </button>
         )}
-        {fit?.ok && cost && room && (
-          <ImpactsCard
-            room={room}
-            f={cost}
-            build={fit.build}
-            needs={r.needs}
-            // a party the re-plan left on the same tables didn't move
-            moved={movedDetail.length ? fit.moved : []}
-            movedDetail={movedDetail}
-          />
+        {fit?.ok && cost && (
+          <CoversSummary f={cost} moved={movedDetail.length ? fit.moved.length : 0} />
         )}
-        {fit?.ok && (
-          <details className="small more">
-            <summary>Build and tables ▸</summary>
-            <p className="crew-note">
-              {crewNote(fit.build)}
-              {constraints?.notes.length ? ` Also: ${constraints.notes.join(", ")}.` : ""}
+        <details className="small more fit-more">
+          <summary>More ▸</summary>
+          {fit?.ok && (
+            <p className="fit-summary small">
+              {tablesPhrase(fit.build.tables)}
+              {storagePhrase(fit.build) ? ` + ${storagePhrase(fit.build)} from storage` : ""} ·{" "}
+              {fit.build.area} · seats {fit.build.seats} · build by {clock12(fit.build.buildBy)}
             </p>
-            <p className="muted">Every booking already on {r.day} still has a table.</p>
-            {ready && ready.tables.length > 0 && (
-              <ul className="ready-list" aria-label="Tables in the join, and when each is free">
-                {ready.tables.map((t) => {
-                  const b = readinessChip(t, ready);
-                  return (
-                    <li key={t.id}>
-                      <span className="ready-no">{tableNo(t.id)}</span>
-                      <span className="muted">
-                        {t.phase ?? (t.status === "reserved" ? "open, held later" : t.status)}
-                      </span>
-                      <span className={`ready-chip ${tableReady(t, ready) ? "is-now" : "is-wait"}`}>
-                        {b}
-                      </span>
+          )}
+          {fit?.ok && cost && room && (
+            <ImpactsCard
+              room={room}
+              f={cost}
+              build={fit.build}
+              needs={r.needs}
+              // a party the re-plan left on the same tables didn't move
+              moved={movedDetail.length ? fit.moved : []}
+              movedDetail={movedDetail}
+            />
+          )}
+          {fit?.ok && (
+            <div className="fit-build">
+              <h4 className="more-head">Build and tables</h4>
+              <p className="crew-note">
+                {crewNote(fit.build)}
+                {constraints?.notes.length ? ` Also: ${constraints.notes.join(", ")}.` : ""}
+              </p>
+              <p className="muted">Every booking already on {r.day} still has a table.</p>
+              {ready && ready.tables.length > 0 && (
+                <ul className="ready-list" aria-label="Tables in the join, and when each is free">
+                  {ready.tables.map((t) => {
+                    const b = readinessChip(t, ready);
+                    return (
+                      <li key={t.id}>
+                        <span className="ready-no">{tableNo(t.id)}</span>
+                        <span className="muted">
+                          {t.phase ?? (t.status === "reserved" ? "open, held later" : t.status)}
+                        </span>
+                        <span
+                          className={`ready-chip ${tableReady(t, ready) ? "is-now" : "is-wait"}`}
+                        >
+                          {b}
+                        </span>
+                      </li>
+                    );
+                  })}
+                  {!ready.ready && (
+                    <li className="muted ready-key">
+                      {ready.at === null
+                        ? "~Xm = until free (est.)"
+                        : `projected to the hold start, ${clock12(ready.at)}; est. from meal phase`}
                     </li>
-                  );
-                })}
-                {!ready.ready && (
-                  <li className="muted ready-key">
-                    {ready.at === null
-                      ? "~Xm = until free (est.)"
-                      : `projected to the hold start, ${clock12(ready.at)}; est. from meal phase`}
-                  </li>
-                )}
+                  )}
+                </ul>
+              )}
+            </div>
+          )}
+          {cost && cost.aisle.rejected.length > 0 && (
+            <div className="fit-other">
+              <h4 className="more-head">Other layouts considered</h4>
+              <ul>
+                {cost.aisle.rejected.map((x) => (
+                  <li key={x.tables.join()}>Not used: {times12(x.reason)}</li>
+                ))}
               </ul>
-            )}
-          </details>
-        )}
-        {cost && cost.aisle.rejected.length > 0 && (
-          <details className="small more">
-            <summary>Other layouts considered ▸</summary>
-            <ul>
-              {cost.aisle.rejected.map((x) => (
-                <li key={x.tables.join()}>Not used: {times12(x.reason)}</li>
-              ))}
-            </ul>
-          </details>
-        )}
-        <p className="muted small">
-          Tables come from Capacity check; the AI reads the request and can't pick or add tables.
-        </p>
+            </div>
+          )}
+          <p className="muted">
+            Tables come from Capacity check; the AI reads the request and can't pick or add tables.
+          </p>
+        </details>
       </section>
 
       {decision.kind === "pending" && room && (
@@ -484,6 +505,16 @@ export function RequestSheet({
               </span>
             </label>
           ))}
+          <label className="decline-note small">
+            <span>Add a note for the guest or the log</span>
+            <textarea
+              rows={2}
+              maxLength={300}
+              placeholder="Optional"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+            />
+          </label>
         </fieldset>
       )}
       {decision.kind === "pending" && mode === "reply" && (
@@ -498,15 +529,26 @@ export function RequestSheet({
             value={reply ?? draft}
             onChange={(e) => setReply(e.target.value)}
           />
-          <button
-            type="button"
-            onClick={() => {
-              requestsActions.reply(r, reply !== null && reply !== draft);
-              setMode("none");
-            }}
-          >
-            Mark as sent
-          </button>
+          <div className="btn-row">
+            <button
+              type="button"
+              onClick={() => {
+                requestsActions.reply(r, reply !== null && reply !== draft);
+                setMode("none");
+              }}
+            >
+              Mark as sent
+            </button>
+            {note.trim() && (
+              <button
+                type="button"
+                title="Add your decline note to the end of the reply"
+                onClick={() => setReply(`${(reply ?? draft).trimEnd()}\n\n${note.trim()}`)}
+              >
+                Insert note
+              </button>
+            )}
+          </div>
           <p className="muted small">Prototype: nothing is sent to anyone.</p>
         </div>
       )}
@@ -537,17 +579,7 @@ export function RequestSheet({
               · no guest message is sent
             </p>
           )}
-          <button
-            type="button"
-            className="ask-ai text-btn"
-            title="Discuss this request with the AI Planner"
-            disabled={!room}
-            onClick={discuss}
-          >
-            <Sparkle /> Discuss
-          </button>
           <div className="btn-row">
-            <span className="spacer" />
             <button
               type="button"
               aria-expanded={mode === "decline"}
@@ -562,16 +594,26 @@ export function RequestSheet({
               type="button"
               aria-expanded={mode === "reply"}
               disabled={junk}
+              aria-label="Message guest"
               onClick={() => setMode(mode === "reply" ? "none" : "reply")}
             >
-              Message guest
+              Message
+            </button>
+            <button
+              type="button"
+              className="ask-ai"
+              title="Discuss this request with the AI Planner"
+              disabled={!room}
+              onClick={discuss}
+            >
+              <Sparkle /> Discuss
             </button>
             {mode === "decline" ? (
               <button
                 type="button"
                 className="primary"
                 disabled={reason === null}
-                onClick={() => reason && requestsActions.decline(r, reason)}
+                onClick={() => reason && requestsActions.decline(r, reason, note)}
               >
                 {declineLabel}
               </button>
@@ -618,7 +660,7 @@ export function RequestSheet({
             {decision.kind === "accepted"
               ? `Accepted ${times12(decision.at)} · ${tablesPhrase(decision.tables)}`
               : decision.kind === "declined"
-                ? `Declined: ${decision.reason === "fit" ? "no capacity fit" : decision.reason} · ${times12(decision.at)}`
+                ? `Declined: ${decision.reason === "fit" ? "no capacity fit" : decision.reason} · ${times12(decision.at)}${decision.note ? ` · “${decision.note}”` : ""}`
                 : `Replied ${times12(decision.at)}${decision.edited ? " · draft edited" : ""}`}
           </strong>
           <button type="button" className="link-btn" onClick={() => requestsActions.reopen(r)}>

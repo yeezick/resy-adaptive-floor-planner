@@ -348,9 +348,9 @@ function Proposal({
           warn={s.placed < s.largeParties}
         />
         <Tile
-          label="Covers lost to holds · whole night"
-          value={`~${s.coversLostToHolds} est.`}
-          hint="seats × time held ÷ one 90-min turn"
+          label="Walk-in capacity held · whole night"
+          value={`up to ~${s.coversLostToHolds} est.`}
+          hint="only if every held seat would turn: seats × time held ÷ one 90-min turn"
         />
       </div>
 
