@@ -4,8 +4,8 @@ import { demoIso, demoNow, demoStamp, receivedBy, resetDemoClock, setDemoNight }
 afterEach(() => resetDemoClock());
 
 describe("demo clock", () => {
-  it("starts on the Thursday live service and follows the night on screen", () => {
-    expect(demoNow()).toEqual({ day: "Thu", clock: "19:10" });
+  it("starts on the Wednesday live service and follows the night on screen", () => {
+    expect(demoNow()).toEqual({ day: "Wed", clock: "19:10" });
     setDemoNight("book-fri", "15:00");
     expect(demoNow()).toEqual({ day: "Fri", clock: "15:00" });
     setDemoNight("custom-room", "12:00");
@@ -33,5 +33,7 @@ describe("demo clock", () => {
     expect(receivedBy("Fri 15:30", "Fri", "15:00")).toBe(false);
     expect(receivedBy("Wed 21:47", "Thu", "19:10")).toBe(true);
     expect(receivedBy("Fri 14:40", "Sat", "15:00")).toBe(true);
+    expect(receivedBy("Wed 21:47", "Wed", "19:10")).toBe(false);
+    expect(receivedBy("Tue 11:20", "Wed", "19:10")).toBe(true);
   });
 });

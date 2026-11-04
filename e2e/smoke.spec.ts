@@ -169,8 +169,8 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
   await openFloor(page);
   const rail = page.getByRole("region", { name: /Requests/ });
   await expect(rail).toContainText("Proposed feature");
-  // the Thursday live floor lists what had arrived by 7:10 PM Thu: the Fri 2:40 PM walk-in is not there yet
-  await expect(rail.locator(".row-request")).toHaveCount(5);
+  // the Wednesday live floor lists what had arrived by 7:10 PM Wed: Q5 (Wed 9:47 PM) and the Fri walk-in are not there yet
+  await expect(rail.locator(".row-request")).toHaveCount(4);
   for (const label of ["Resy app", "AI agent"]) await expect(rail).toContainText(label);
   await expect(rail).not.toContainText("At host stand");
   await expect(rail).toContainText("Likely junk");
@@ -1096,12 +1096,12 @@ test.describe("request flow: one state, demo clock, decisions stay open", () => 
     await expect(page.locator(".floor-highlight-tag")).toContainText("Whitaker");
   });
 
-  test("the live floor is Thursday; the Friday walk-in shows on Friday with 'tomorrow'", async ({
+  test("the live floor is Wednesday; the Friday walk-in shows on Friday with 'tomorrow'", async ({
     page,
   }) => {
     await page.goto("/");
     await expect(page.locator(".room-select select option:checked")).toHaveText(
-      "Thu · live service 7:10 PM",
+      "Wed · live service 7:10 PM",
     );
     await page.locator(".room-select select").selectOption("book-fri");
     const rail = page.getByRole("region", { name: /Requests/ });
