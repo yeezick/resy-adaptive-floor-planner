@@ -26,8 +26,12 @@ test.describe("request chat", () => {
     for (const label of ["First table", "Last table", "Headcount", "Time"])
       await expect(chat.getByLabel(label)).toHaveCount(0);
     await expect(chat.getByRole("group", { name: "Needs" })).toHaveCount(0);
-    await expect(chat.locator(".chat-noted")).toHaveText(
+    await expect(chat.locator(".chat-noted .chat-out").first()).toHaveText(
       "Noted: wheelchair + stroller, aisle clearance kept.",
+    );
+    // the plan splits two rooms: the one-room answer (with storage) is offered up front
+    await expect(chat.locator(".chat-offer")).toHaveText(
+      "This plan spans Garden Room + Library. No single room fits 22, even with tables from storage (closest: Garden Room, 20 seats).",
     );
     const box = chat.getByRole("textbox", { name: "Message about this request" });
     await expect(box).toBeFocused();
