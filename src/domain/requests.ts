@@ -159,7 +159,21 @@ export function needsOverview(r: GuestRequest): string {
   return text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}.` : "No special needs given.";
 }
 
-/** The fictional week the demo nights sit in (requests name only a weekday). */
+/**
+ * The fictional week the demo nights sit in (requests name only a weekday). Tied to the fixtures: if the fixture
+ * nights move to another week, change this with them.
+ */
+export const DEMO_WEEK_ISO: Record<GuestRequest["day"], string> = {
+  Mon: "2026-11-02",
+  Tue: "2026-11-03",
+  Wed: "2026-11-04",
+  Thu: "2026-11-05",
+  Fri: "2026-11-06",
+  Sat: "2026-11-07",
+  Sun: "2026-11-08",
+};
+
+/** The same week as the manager reads a date ("Nov 6"). */
 export const DEMO_WEEK: Record<GuestRequest["day"], string> = {
   Mon: "Nov 2",
   Tue: "Nov 3",

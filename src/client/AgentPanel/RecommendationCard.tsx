@@ -26,6 +26,8 @@ interface Props {
   actions: RecActions;
   /** Party size from the host's message, used to pre-fill "Seat party of N". */
   partySize: number;
+  /** The first option: its "Select tables" is the view's one filled button. */
+  primary?: boolean;
 }
 
 function isApplied(room: Room, ids: string[]): boolean {
@@ -59,7 +61,15 @@ export function waitText(room: Room, rec: Pick<Recommendation, "tables" | "waitM
   return `~${rec.waitMin} min est.${basis}`;
 }
 
-export function RecommendationCard({ rec, hlKey, room, highlight, actions, partySize }: Props) {
+export function RecommendationCard({
+  rec,
+  hlKey,
+  room,
+  highlight,
+  actions,
+  partySize,
+  primary = false,
+}: Props) {
   const unknown = rec.tables.filter((id) => !tableById(room, id));
   const { rows, base } = layout(room, rec.tables);
   const extraChairs = unknown.length ? 0 : Math.max(0, rec.seats - base);
@@ -121,7 +131,7 @@ export function RecommendationCard({ rec, hlKey, room, highlight, actions, party
       <div className="btn-row">
         <button
           type="button"
-          className={rec.rank === 1 ? "primary" : undefined}
+          className={primary ? "primary" : undefined}
           disabled={unknown.length > 0}
           title={`Opens the walk-in sheet with these tables picked; you confirm the seat`}
           onClick={() => actions.onSelectTables(rec.tables, partySize)}

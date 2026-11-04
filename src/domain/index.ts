@@ -15,4 +15,3 @@ export * from "./requestChat";
 export * from "./readiness";
 export * from "./impacts";
 export * from "./feedback";
-export * from "./names";

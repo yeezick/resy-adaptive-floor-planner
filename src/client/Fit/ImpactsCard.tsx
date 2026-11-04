@@ -31,11 +31,7 @@ export function ImpactsCard({
   /** Named moves ("Moves Okafor (10) from tables 63–66 to tables 27–29"), shown in place of the count. */
   movedDetail?: readonly string[];
 }) {
-  const impacts = impactsOf(room, { fit: f, needs, moved });
-  const cons = movedDetail.length
-    ? [...movedDetail, ...impacts.cons.filter((c) => !/other large part/.test(c))]
-    : impacts.cons;
-  const pros = impacts.pros;
+  const { pros, cons } = impactsOf(room, { fit: f, needs, moved, movedDetail });
   const trade = coverTrade(f.partySize, f.hold.coversLost);
   return (
     <div className="impacts" aria-label="Impacts of saying yes">

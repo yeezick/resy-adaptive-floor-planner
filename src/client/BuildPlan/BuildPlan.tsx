@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  partyName,
   clock12,
   LARGE_PARTY,
   planBuilds,
@@ -14,6 +13,7 @@ import { normaliseDivider } from "../FloorPlan/geometry";
 import type { Highlight, HighlightControls } from "../highlight";
 import { Storage } from "./Storage";
 import { tablesPhrase } from "../../domain/wording";
+import { partyName } from "../lib/names";
 
 interface Props {
   room: Room;

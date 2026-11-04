@@ -72,7 +72,7 @@ export interface RequestsState {
   adjust: Record<string, ChatConstraints>;
   chat: Record<string, ChatTurn[]>;
   /** A change the chat proposed and the manager hasn't applied yet (nothing changes until Apply). */
-  proposals: Record<string, { constraints: ChatConstraints; turnId: string }>;
+  proposals: Record<string, { constraints: ChatConstraints }>;
   /** Who made the request's current changes: the chat (applied) or the manual controls. */
   changedBy: Record<string, "chat" | "controls">;
   /** The manager's correction of an AI triage verdict, per request ("Wrong? Mark as junk"). */
@@ -184,7 +184,7 @@ async function applyScenario(book: RequestBook): Promise<void> {
     set({
       proposals: {
         ...state.proposals,
-        [r.id]: { constraints: mergeTurn(baseConstraints(r), output), turnId: "turn-scenario-1" },
+        [r.id]: { constraints: mergeTurn(baseConstraints(r), output) },
       },
       chat: {
         ...state.chat,
@@ -286,15 +286,19 @@ export const requestsActions = {
   },
   /** Manual controls: set this request's constraints directly (same fields the chat sets). */
   setConstraints(id: string, c: ChatConstraints) {
+    // a manual edit supersedes a chat proposal that was built on the old constraints
+    const { [id]: _stale, ...proposals } = state.proposals;
     set({
       adjust: { ...state.adjust, [id]: c },
       changedBy: { ...state.changedBy, [id]: "controls" },
+      proposals,
     });
   },
   resetConstraints(id: string) {
     const { [id]: _gone, ...adjust } = state.adjust;
     const { [id]: _who, ...changedBy } = state.changedBy;
-    set({ adjust, changedBy });
+    const { [id]: _stale, ...proposals } = state.proposals;
+    set({ adjust, changedBy, proposals });
   },
   /** Apply the chat's proposed change: only now does the request's capacity check change. */
   applyProposal(id: string) {
@@ -341,12 +345,11 @@ export const requestsActions = {
     if (res.data.output) {
       // a proposal, shown as a diff: nothing changes until the manager presses Apply
       const latest = state.proposals[r.id]?.constraints ?? state.adjust[r.id] ?? baseConstraints(r);
-      set({
-        proposals: {
-          ...state.proposals,
-          [r.id]: { constraints: mergeTurn(latest, res.data.output), turnId: id },
-        },
-      });
+      const next = mergeTurn(latest, res.data.output);
+      const current = state.adjust[r.id] ?? baseConstraints(r);
+      // a turn that changes nothing (or only asks a question) proposes nothing
+      if (JSON.stringify(next) !== JSON.stringify(current))
+        set({ proposals: { ...state.proposals, [r.id]: { constraints: next } } });
     } else put({ ...turn, status: "ok", result: res.data, outcome: res.data.note ?? undefined });
   },
   /** The sheet records what the planner answered after a turn (for the chat log and the activity log). */
@@ -383,7 +386,7 @@ export const requestsActions = {
   },
 };
 
-export function decisionOf(s: RequestsState, id: string): Decision {
+export function decisionOf(s: Pick<RequestsState, "decisions">, id: string): Decision {
   return s.decisions[id] ?? { kind: "pending" };
 }
 

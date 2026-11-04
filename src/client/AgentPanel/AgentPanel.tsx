@@ -246,7 +246,8 @@ function partyHint(turns: Turn[], i: number): number | undefined {
 
 /** The answer's first sentence; the rest behind "More ▸" (display only). */
 function AnswerLead({ text }: { text: string }) {
-  const m = /^(.+?[.!?])(\s+)([\s\S]+)$/.exec(text);
+  // split after the first sentence of at least ~20 characters (so "e.g." never ends the lead)
+  const m = /^(.{20,}?[.!?])(\s+)([\s\S]+)$/.exec(text);
   if (!m) return <p className="answer">{text}</p>;
   return (
     <div className="answer">
@@ -271,8 +272,9 @@ function AssistantTurn({ turnId, res, room, highlight, actions, partyHint }: Ass
       )}
       {recs.length > 0 && (
         <div className="recs">
-          {recs.map((r) => (
+          {recs.map((r, i) => (
             <RecommendationCard
+              primary={i === 0}
               key={r.rank}
               rec={r}
               hlKey={`rec-${turnId}-${r.rank}`}
