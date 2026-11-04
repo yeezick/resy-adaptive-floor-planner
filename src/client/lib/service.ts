@@ -135,7 +135,7 @@ export function etaText(room: Room, opt: SeatingOption): string {
   if (!slowest || slowest.status !== "occupied") return `~${opt.waitMin} min`;
   const phase = slowest.phase ?? "seated";
   const n = tables.filter((t) => t.status === "occupied" && (t.phase ?? "seated") === phase).length;
-  return `~${opt.waitMin} min — ${n} table${n === 1 ? "" : "s"} on ${PHASE_LABEL[phase].toLowerCase()}`;
+  return `~${opt.waitMin} min (est.) — ${n} table${n === 1 ? "" : "s"} on ${PHASE_LABEL[phase].toLowerCase()}`;
 }
 
 /** Party size mentioned in a host's message ("party of 8", "8-top", "for 6"), if any. */

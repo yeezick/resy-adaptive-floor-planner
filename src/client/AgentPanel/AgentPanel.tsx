@@ -207,7 +207,7 @@ export function AgentPanel({ room, highlight, ...actions }: Props) {
           >
             {input.length}/{MAX_MESSAGE_CHARS}
           </span>
-          <button type="submit" className="primary" disabled={pending || !input.trim()}>
+          <button type="submit" className="tonal" disabled={pending || !input.trim()}>
             {pending ? "Asking…" : "Ask"}
           </button>
         </div>
@@ -244,11 +244,26 @@ function partyHint(turns: Turn[], i: number): number | undefined {
   return undefined;
 }
 
+/** The answer's first sentence; the rest behind "More ▸" (display only). */
+function AnswerLead({ text }: { text: string }) {
+  const m = /^(.+?[.!?])(\s+)([\s\S]+)$/.exec(text);
+  if (!m) return <p className="answer">{text}</p>;
+  return (
+    <div className="answer">
+      <p className="answer-lead">{m[1]}</p>
+      <details className="more small">
+        <summary>More ▸</summary>
+        <p>{m[3]}</p>
+      </details>
+    </div>
+  );
+}
+
 function AssistantTurn({ turnId, res, room, highlight, actions, partyHint }: AssistantProps) {
   const recs = [...res.recommendations].sort((a, b) => a.rank - b.rank);
   return (
     <div className="bubble assistant">
-      {res.answer && <p className="answer">{times12(plainTables(res.answer))}</p>}
+      {res.answer && <AnswerLead text={times12(plainTables(res.answer))} />}
       {res.clarifyingQuestion && (
         <p className="clarify">
           <span className="pill">Question</span> {times12(plainTables(res.clarifyingQuestion))}

@@ -100,7 +100,7 @@ export function ConsoleBar({
       <div className="cb-actions" role="group" aria-label="Host actions">
         <button
           type="button"
-          className="primary"
+          className="tonal"
           aria-pressed={mode === "walkin"}
           onClick={() => onMode("walkin")}
         >

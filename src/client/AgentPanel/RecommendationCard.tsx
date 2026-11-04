@@ -2,6 +2,8 @@ import {
   checkTableSet,
   combinedSeats,
   comboOf,
+  REMAINING_MIN,
+  RESET_MIN,
   tableById,
   type Room,
   type Table,
@@ -11,6 +13,7 @@ import { dividersForTables } from "../FloorPlan/geometry";
 import { combineStatus } from "../FloorPlan/SelectionBar";
 import type { Highlight, HighlightControls } from "../highlight";
 import { waitLabel } from "../lib/format";
+import { PHASE_LABEL } from "../lib/service";
 import type { RecActions } from "./AgentPanel";
 import { plainTables, tableNo, tablesPhrase } from "../../domain/wording";
 import { times12 } from "../../domain/time";
@@ -36,6 +39,24 @@ function layout(room: Room, ids: string[]): { rows: string[][]; base: number } {
   if (check.ok) return { rows: check.rows, base: check.baseSeats };
   const tables = ids.map((id) => tableById(room, id)).filter((t): t is Table => !!t);
   return { rows: [ids], base: combinedSeats(tables) };
+}
+
+/**
+ * The wait with its basis, from the slowest seated table in the option: "~11 min est. (check ~6 + reset 5)".
+ * The basis is shown only when it adds up to the option's wait.
+ */
+export function waitText(room: Room, rec: Pick<Recommendation, "tables" | "waitMin">): string {
+  if (rec.waitMin === 0) return waitLabel(0);
+  const slowest = rec.tables
+    .map((id) => tableById(room, id))
+    .filter((t): t is Table => !!t && t.status === "occupied")
+    .sort((a, b) => REMAINING_MIN[b.phase ?? "seated"] - REMAINING_MIN[a.phase ?? "seated"])[0];
+  const left = slowest ? REMAINING_MIN[slowest.phase ?? "seated"] : null;
+  const basis =
+    slowest && left !== null && left + RESET_MIN === rec.waitMin
+      ? ` (${PHASE_LABEL[slowest.phase ?? "seated"].toLowerCase()} ~${left} + reset ${RESET_MIN})`
+      : "";
+  return `~${rec.waitMin} min est.${basis}`;
 }
 
 export function RecommendationCard({ rec, hlKey, room, highlight, actions, partySize }: Props) {
@@ -69,13 +90,13 @@ export function RecommendationCard({ rec, hlKey, room, highlight, actions, party
         <span className="rank">#{rec.rank}</span>
         <strong>{rows.map((r) => tablesPhrase(r)).join("  |  ")}</strong>
         <span className="muted">
-          {rec.seats} seats · {waitLabel(rec.waitMin)}
+          {rec.seats} seats · {waitText(room, rec)}
         </span>
       </header>
       {(extraChairs > 0 || dividers.length > 0) && (
         <div className="rec-tags">
           {extraChairs > 0 && (
-            <span className="pill pill-warn">
+            <span className="pill">
               +{extraChairs} chair{extraChairs === 1 ? "" : "s"} from storage
             </span>
           )}
@@ -100,7 +121,7 @@ export function RecommendationCard({ rec, hlKey, room, highlight, actions, party
       <div className="btn-row">
         <button
           type="button"
-          className="primary"
+          className={rec.rank === 1 ? "primary" : undefined}
           disabled={unknown.length > 0}
           title={`Opens the walk-in sheet with these tables picked; you confirm the seat`}
           onClick={() => actions.onSelectTables(rec.tables, partySize)}
