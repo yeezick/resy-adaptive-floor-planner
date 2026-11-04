@@ -348,8 +348,18 @@ test("in-request chat: a message becomes constraints, the planner re-runs, manua
   await expect(log).toContainText("headcount is now 26");
   await expect(log).toContainText("party of 26 and high chair → Capacity fit:");
   const sheet = page.locator(".request-sheet");
+  // a proposal: shown as a diff, nothing changes until Apply
+  const diff = sheet.getByRole("group", { name: "Change proposed in chat" });
+  await expect(diff).toContainText("Party: 22 → 26");
+  await expect(diff).toContainText("Notes: + high chair");
+  await expect(diff).toContainText("capacity fit ✓ → capacity fit ✓");
+  await expect(sheet.locator(".req-title")).toContainText("party of 22");
+  await diff.getByRole("button", { name: "Apply" }).click();
   await expect(sheet.locator(".req-title")).toContainText("party of 26");
+  await expect(sheet.locator(".changed-line")).toContainText("Changed in chat");
+  await expect(sheet.locator(".original-fit")).toHaveText("Original request: capacity fit ✓");
   await expect(sheet.locator(".impacts")).toContainText("Accept: +26 covers");
+  await sheet.getByText("Build and tables ▸").click();
   await expect(sheet.locator(".crew-note")).toContainText("Also: high chair.");
   // manual parity: the same table range from the controls, no chat needed
   await chat.getByLabel("Table range: first").fill("30");
@@ -522,8 +532,19 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     const log = chat.getByRole("list", { name: "AI Planner chat" });
     await expect(log).toContainText("find another space between tables 30–50");
     await expect(log).toContainText("tables 30–50 →");
+    // the chat's change waits as a diff; Capacity check still shows the original fit
+    const sheet = page.locator(".request-sheet");
+    const diff = sheet.getByRole("group", { name: "Change proposed in chat" });
+    await expect(diff).toContainText("Tables: any → 30–50");
+    await expect(diff).toContainText("capacity fit ✓ → no capacity fit");
+    await expect(diff).toContainText("closest: tables 57–61 and 63–66");
+    await expect(sheet.locator(".fit-pill")).toContainText("capacity fit ✓");
+    await diff.getByRole("button", { name: "Apply" }).click();
     await expect(chat.getByLabel("Table range: first")).toHaveValue("30");
-    await expect(page.locator(".request-sheet")).toContainText("Closest:");
+    await expect(sheet.locator(".fit-pill")).toHaveText("no capacity fit");
+    await expect(sheet.locator(".original-fit")).toHaveText("Original request: capacity fit ✓");
+    await sheet.locator(".changed-line").getByRole("button", { name: "Revert" }).click();
+    await expect(sheet.locator(".fit-pill")).toContainText("capacity fit ✓");
   });
 
   for (const id of [

@@ -30,7 +30,14 @@ import { fetchRoom } from "../api";
 import { duration, usd } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
 import { useElapsedMinutes } from "../lib/useDemoClock";
-import { checkAdjusted } from "../../domain/requestChat";
+import {
+  baseConstraints,
+  changeList,
+  checkAdjusted,
+  type AdjustedFit,
+  type ChatConstraints,
+} from "../../domain/requestChat";
+import { listAnd } from "../../domain/wording";
 import { RequestChat } from "./RequestChat";
 import {
   decisionOf,
@@ -131,6 +138,14 @@ export function RequestSheet({
     [room, r0, constraints],
   );
   const r = adj?.request ?? r0;
+  // A change the chat proposed: shown as a diff, applied only when the manager presses Apply.
+  const proposal = s.proposals[r0.id];
+  const proposedAdj = useMemo(
+    () => (room && proposal ? checkAdjusted(room, r0, proposal.constraints) : null),
+    [room, r0, proposal],
+  );
+  const original = useMemo(() => (room ? checkRequest(room, r0) : null), [room, r0]);
+  const changedBy = s.changedBy[r0.id];
   const fit = useMemo(() => adj?.fit ?? (room ? checkRequest(room, r0) : null), [adj, room, r0]);
   const elapsed = useElapsedMinutes();
   const draft = useMemo(() => (fit ? times12(draftReply(r, fit)) : ""), [fit, r]);
@@ -307,6 +322,37 @@ export function RequestSheet({
             </span>
           )}
         </div>
+        {proposal && proposedAdj && fit && (
+          <ChatDiff
+            request={r0}
+            before={constraints ?? baseConstraints(r0)}
+            after={proposal.constraints}
+            fitBefore={fit.ok}
+            result={proposedAdj}
+            onApply={() => requestsActions.applyProposal(r0.id)}
+            onDiscard={() => requestsActions.discardProposal(r0.id)}
+          />
+        )}
+        {constraints && changeList(r0, constraints).length > 0 && (
+          <p className="changed-line small" role="status">
+            <span>
+              {changedBy === "chat" ? "Changed in chat" : "Changed by hand"}:{" "}
+              {listAnd(changeList(r0, constraints).map((x) => times12(x)))}
+            </span>
+            <button
+              type="button"
+              className="link-btn"
+              onClick={() => requestsActions.resetConstraints(r0.id)}
+            >
+              Revert
+            </button>
+          </p>
+        )}
+        {constraints && changeList(r0, constraints).length > 0 && original && (
+          <p className="original-fit small">
+            Original request: {original.ok ? "capacity fit ✓" : "no capacity fit"}
+          </p>
+        )}
         {!roomRes && <p className="muted small">Loading {r.day}'s book…</p>}
         {roomRes && !roomRes.ok && <p className="warn-text small">{roomRes.error.message}</p>}
         {fit?.ok && (
@@ -401,7 +447,7 @@ export function RequestSheet({
           onToggle={(e) => setChatOpen((e.target as HTMLDetailsElement).open)}
         >
           <summary className="small">Discuss this request ▸</summary>
-          <RequestChat request={r0} result={adj} />
+          <RequestChat request={r0} result={proposedAdj ?? adj} />
         </details>
       )}
 
@@ -510,6 +556,70 @@ export function RequestSheet({
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/**
+ * The chat's proposed change, as a diff of the request and of the capacity check:
+ * "Tables: any → 30–50 · capacity fit ✓ → no capacity fit · closest: tables 57–61 and 63–66". Apply / Discard.
+ */
+function ChatDiff({
+  request: r,
+  before,
+  after,
+  fitBefore,
+  result,
+  onApply,
+  onDiscard,
+}: {
+  request: GuestRequest;
+  before: ChatConstraints;
+  after: ChatConstraints;
+  fitBefore: boolean;
+  result: AdjustedFit;
+  onApply: () => void;
+  onDiscard: () => void;
+}) {
+  const rows: string[] = [];
+  const range = (c: ChatConstraints) =>
+    c.tableRange ? `${c.tableRange.from}–${c.tableRange.to}` : "any";
+  if (range(before) !== range(after)) rows.push(`Tables: ${range(before)} → ${range(after)}`);
+  const size = (c: ChatConstraints) => c.partySize ?? r.partySize;
+  if (size(before) !== size(after)) rows.push(`Party: ${size(before)} → ${size(after)}`);
+  const time = (c: ChatConstraints) => clock12(c.time ?? r.time);
+  if (time(before) !== time(after)) rows.push(`Time: ${time(before)} → ${time(after)}`);
+  const added = after.needs.filter((n) => !before.needs.includes(n));
+  const removed = before.needs.filter((n) => !after.needs.includes(n));
+  if (added.length) rows.push(`Needs: + ${added.join(", ")}`);
+  if (removed.length) rows.push(`Needs: − ${removed.join(", ")}`);
+  const notes = after.notes.filter((n) => !before.notes.includes(n));
+  if (notes.length) rows.push(`Notes: + ${notes.join(", ")}`);
+  const word = (ok: boolean) => (ok ? "capacity fit ✓" : "no capacity fit");
+  rows.push(`${word(fitBefore)} → ${word(result.fit.ok)}`);
+  if (result.fit.ok) rows.push(`tables: ${tablesPhrase(result.fit.build.tables)}`);
+  else if (result.closest) rows.push(`closest: ${times12(result.closest)}`);
+  return (
+    <div className="chat-diff" role="group" aria-label="Change proposed in chat">
+      <p className="chat-diff-title small">
+        <span className="ai-label">
+          <span aria-hidden="true">✦</span> Proposed in chat
+        </span>{" "}
+        <span className="muted">· nothing changes until you apply it</span>
+      </p>
+      <ul className="chat-diff-rows small">
+        {rows.map((x) => (
+          <li key={x}>{x}</li>
+        ))}
+      </ul>
+      <div className="btn-row">
+        <button type="button" className="tonal" onClick={onApply}>
+          Apply
+        </button>
+        <button type="button" onClick={onDiscard}>
+          Discard
+        </button>
+      </div>
     </div>
   );
 }

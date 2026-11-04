@@ -71,6 +71,10 @@ export interface RequestsState {
   /** The manager's changes to a request (chat or manual controls); absent = as the guest asked. */
   adjust: Record<string, ChatConstraints>;
   chat: Record<string, ChatTurn[]>;
+  /** A change the chat proposed and the manager hasn't applied yet (nothing changes until Apply). */
+  proposals: Record<string, { constraints: ChatConstraints; turnId: string }>;
+  /** Who made the request's current changes: the chat (applied) or the manual controls. */
+  changedBy: Record<string, "chat" | "controls">;
   /** The manager's correction of an AI triage verdict, per request ("Wrong? Mark as junk"). */
   overrides: Record<string, { verdict: "real" | "junk"; iso: string }>;
   /** Set by Accept: the planner opens this night and shows the party's plan. */
@@ -89,6 +93,8 @@ let state: RequestsState = {
   adjust: {},
   chat: {},
   overrides: {},
+  proposals: {},
+  changedBy: {},
   openPlan: null,
 };
 const listeners = new Set<() => void>();
@@ -176,7 +182,10 @@ async function applyScenario(book: RequestBook): Promise<void> {
   const output = RECORDED_CHAT.result.output;
   if (sc.request.chat && RECORDED_CHAT.requestId === r.id && output) {
     set({
-      adjust: { ...state.adjust, [r.id]: mergeTurn(baseConstraints(r), output) },
+      proposals: {
+        ...state.proposals,
+        [r.id]: { constraints: mergeTurn(baseConstraints(r), output), turnId: "turn-scenario-1" },
+      },
       chat: {
         ...state.chat,
         [r.id]: [
@@ -277,16 +286,35 @@ export const requestsActions = {
   },
   /** Manual controls: set this request's constraints directly (same fields the chat sets). */
   setConstraints(id: string, c: ChatConstraints) {
-    set({ adjust: { ...state.adjust, [id]: c } });
+    set({
+      adjust: { ...state.adjust, [id]: c },
+      changedBy: { ...state.changedBy, [id]: "controls" },
+    });
   },
   resetConstraints(id: string) {
     const { [id]: _gone, ...adjust } = state.adjust;
-    set({ adjust });
+    const { [id]: _who, ...changedBy } = state.changedBy;
+    set({ adjust, changedBy });
+  },
+  /** Apply the chat's proposed change: only now does the request's capacity check change. */
+  applyProposal(id: string) {
+    const p = state.proposals[id];
+    if (!p) return;
+    const { [id]: _gone, ...proposals } = state.proposals;
+    set({
+      proposals,
+      adjust: { ...state.adjust, [id]: p.constraints },
+      changedBy: { ...state.changedBy, [id]: "chat" },
+    });
+  },
+  discardProposal(id: string) {
+    const { [id]: _gone, ...proposals } = state.proposals;
+    set({ proposals });
   },
   /** Send one chat message about this request; a valid answer updates its constraints. */
   async sendChat(r: GuestRequest, message: string) {
     const id = `turn-${++seq}`;
-    const current = state.adjust[r.id] ?? baseConstraints(r);
+    const current = state.proposals[r.id]?.constraints ?? state.adjust[r.id] ?? baseConstraints(r);
     const turn: ChatTurn = {
       id,
       at: new Date().toISOString(),
@@ -311,8 +339,14 @@ export const requestsActions = {
       return put({ ...turn, status: "error", error: res.error, outcome: res.error.message });
     put({ ...turn, status: "ok", result: res.data });
     if (res.data.output) {
-      const latest = state.adjust[r.id] ?? baseConstraints(r);
-      set({ adjust: { ...state.adjust, [r.id]: mergeTurn(latest, res.data.output) } });
+      // a proposal, shown as a diff: nothing changes until the manager presses Apply
+      const latest = state.proposals[r.id]?.constraints ?? state.adjust[r.id] ?? baseConstraints(r);
+      set({
+        proposals: {
+          ...state.proposals,
+          [r.id]: { constraints: mergeTurn(latest, res.data.output), turnId: id },
+        },
+      });
     } else put({ ...turn, status: "ok", result: res.data, outcome: res.data.note ?? undefined });
   },
   /** The sheet records what the planner answered after a turn (for the chat log and the activity log). */
@@ -388,6 +422,8 @@ export function resetRequestsStore(): void {
     adjust: {},
     chat: {},
     overrides: {},
+    proposals: {},
+    changedBy: {},
     openPlan: null,
   };
 }
