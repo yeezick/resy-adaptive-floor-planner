@@ -66,7 +66,7 @@ test.describe("request chat", () => {
     const { chat, calls } = await openDiscuss(page);
     await say(page, "bring tables from the back if available");
     await expect(chat.locator(".chat-log > li").last()).toContainText(
-      /Storage tonight: \d+ of 6 spare tables free, 6 extenders, 40 chairs\./,
+      /Storage tonight: \d+ of 6 spare tables free, \d+ of 6 extenders, \d+ of 40 chairs\./,
     );
     await say(page, "make room for the wheelchair");
     await expect(chat.locator(".chat-log > li").last()).toContainText(
