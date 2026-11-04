@@ -64,7 +64,9 @@ export function usePartiesOnTables(
         if (fit.ok) return fit.plan.builds;
       }
       return planBuilds(booked, SERVICE.from, SERVICE.to).builds;
-    } catch {
+    } catch (err) {
+      // the bubbles are decoration: a planner error hides them, but stays visible in development
+      if (import.meta.env.DEV) console.warn("party bubbles: no build plan", err);
       return [];
     }
   }, [opts.proposal, room, accepted, request]);

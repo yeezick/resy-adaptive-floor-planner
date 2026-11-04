@@ -2284,10 +2284,6 @@ button.primary:disabled {
 .phase-strip-word {
   font-weight: 500;
 }
-.phase-strip-arrow {
-  color: var(--muted);
-  margin-left: 2px;
-}
 .floor-sub .floor-highlight-tag {
   margin-left: auto;
   max-width: 100%;

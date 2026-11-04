@@ -135,7 +135,7 @@ export function TableShape({
       tabIndex={0}
       role="button"
       aria-pressed={selected}
-      aria-label={`${describe(t)}${held ? ", held for a large party" : ""}${party && t.status !== "occupied" ? `, party of ${party} planned here` : ""}${badge ? `, ${badgeWords(badge)}` : ""}`}
+      aria-label={`${describe(t)}${held ? ", held for a large party" : ""}${party && t.status !== "occupied" ? `, party of ${party}` : ""}${badge ? `, ${badgeWords(badge)}` : ""}`}
       {...handlers}
     >
       <HitArea table={t} />
