@@ -25,4 +25,13 @@ describe("party names", () => {
     expect(out).not.toMatch(/\bP6\b/);
     expect(out).toContain("T41");
   });
+
+  it("names the party in tonight's crew action and reason only at display time", () => {
+    expect(namesIn("After ~19:00, split the tables R1 used")).toBe(
+      `After ~19:00, split the tables ${partyName("R1")} used`,
+    );
+    expect(namesIn("R1 (10) → Main · one long table of 3")).toBe(
+      `${partyName("R1")} (10) → Main · one long table of 3`,
+    );
+  });
 });

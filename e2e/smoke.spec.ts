@@ -105,6 +105,24 @@ test("generate tonight's layout places parties and explains what can't fit", asy
   await expect(page.locator('[aria-label="No capacity fit"]')).toBeVisible();
 });
 
+test("tonight's reasons and crew steps show guest names, not party ids", async ({ page }) => {
+  await openFloor(page);
+  await page.locator(".room-select select").selectOption("heavy-saturday");
+  await expect(page.locator(".room-name")).toBeVisible();
+  await hostButton(page, "Shift setup").click();
+  const times = page.locator(".tonight input[type=time]");
+  await times.nth(0).fill("17:00");
+  await times.nth(1).fill("21:00");
+  await page.getByRole("button", { name: "Generate tonight's layout" }).click();
+  const crew = page.locator('[aria-label="Crew build list"]');
+  await expect(crew).toBeVisible();
+  for (const d of await crew.locator("details").all()) await d.locator("summary").click();
+  const reasons = await page.locator(".proposal .rec-reason").allInnerTexts();
+  const steps = await crew.locator(".steps li").allInnerTexts();
+  expect(reasons.length + steps.length).toBeGreaterThan(0);
+  for (const t of [...reasons, ...steps]) expect(t).not.toMatch(/\b[DEFHNPQR]\d{1,4}\b/);
+});
+
 test("editor opens the base layout and inspects a table", async ({ page }) => {
   await openFloor(page);
   await hostButton(page, "Shift setup").click();

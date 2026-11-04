@@ -255,7 +255,7 @@ function Proposal({
                   {g.id === focusId && <span className="pill pill-accent">just accepted</span>}
                   <span className="muted">party of {g.size}</span>
                 </div>
-                {g.reason && <p className="small rec-reason">{times12(g.reason)}</p>}
+                {g.reason && <p className="small rec-reason">{times12(namesIn(g.reason))}</p>}
                 <ul className="steps small">
                   {g.changes.map((c, i) => (
                     <li key={i} className={`chg chg-${c.kind}`}>
@@ -296,7 +296,7 @@ function Proposal({
                 <summary>{c.actions.length} steps</summary>
                 <ol className="steps">
                   {c.actions.map((a) => (
-                    <li key={a}>{times12(a)}</li>
+                    <li key={a}>{times12(namesIn(a))}</li>
                   ))}
                 </ol>
               </details>
