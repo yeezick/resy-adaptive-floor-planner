@@ -24,7 +24,7 @@ import { ConsoleBar, type PanelMode } from "./ConsoleBar";
 import { CoversStrip } from "./CoversStrip";
 import { FloorPlan } from "./FloorPlan/FloorPlan";
 import { tabForTables } from "./FloorPlan/geometry";
-import { Legend } from "./FloorPlan/Legend";
+import { Legend, PhaseStrip } from "./FloorPlan/Legend";
 import { SelectionBar } from "./FloorPlan/SelectionBar";
 import { TableDetails } from "./FloorPlan/TableDetails";
 import type { Highlight, HighlightControls } from "./highlight";
@@ -55,7 +55,7 @@ export type ActionResult = { ok: true; message: string } | { ok: false; message:
 const PANEL_TITLE: Record<PanelMode, string> = {
   details: "Table details",
   walkin: "Walk-in",
-  assistant: "AI Planner",
+  assistant: "✦ AI Planner",
   shift: "Shift setup",
   reservation: "Add reservation",
   request: "Large-party request",
@@ -388,9 +388,22 @@ export function Planner({
           <CoversStrip room={room} />
           <details
             className="legend-key"
-            open={room.tables.some((t) => t.status === "occupied") || undefined}
+            open={
+              (room.tables.some((t) => t.status === "occupied") &&
+                typeof window !== "undefined" &&
+                window.innerWidth > 1280) ||
+              undefined
+            }
           >
-            <summary className="small">Key ▸</summary>
+            <summary className="small">
+              Key <span className="caret-closed">▸</span>
+              <span className="caret-open">▾</span>
+            </summary>
+            {room.tables.some((t) => t.status === "occupied") && (
+              <div className="legend-phase-ipad">
+                <PhaseStrip />
+              </div>
+            )}
             <Legend />
           </details>
         </section>
@@ -412,13 +425,14 @@ export function Planner({
             )}
           </div>
           <div className="tabpanel" hidden={mode !== "details"}>
-            <SelectionBar
-              room={room}
-              selected={selected}
-              onCombine={combine}
-              onSplit={split}
-              onClear={() => setSelected([])}
-            />
+            {notice && (
+              <p
+                className={`panel-notice small ${notice.ok ? "is-ok" : "warn-text"}`}
+                role="status"
+              >
+                {notice.message}
+              </p>
+            )}
             <TableDetails
               room={room}
               selected={selected}
@@ -433,6 +447,18 @@ export function Planner({
                 if (r.ok) setPhaseByHost((s) => new Set([...s, ...ids]));
               }}
             />
+            {selected.length > 0 && (
+              <details className="more small combine-split" open={selected.length > 1 || undefined}>
+                <summary>Combine / split ▸</summary>
+                <SelectionBar
+                  room={room}
+                  selected={selected}
+                  onCombine={combine}
+                  onSplit={split}
+                  onClear={() => setSelected([])}
+                />
+              </details>
+            )}
           </div>
           {mode === "walkin" && (
             <div className="tabpanel">

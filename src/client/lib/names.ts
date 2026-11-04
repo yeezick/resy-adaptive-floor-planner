@@ -109,3 +109,11 @@ export function partyName(id: string): string {
 export function namesIn(text: string): string {
   return text.replace(/\b([DEFHNPQRdefhpt]\d{1,4})\b/g, (id: string) => partyName(id));
 }
+
+/** A fictional name for the party seated at a table (walk-ins have no booking id): "Kerr, N.". */
+export function seatedName(tableId: string): string {
+  const n = Number(tableId.replace(/\D/g, "")) || 1;
+  const name = SURNAMES[(n * 7 + 3) % SURNAMES.length] as string;
+  const initial = INITIALS[(n * 3) % INITIALS.length] as string;
+  return `${name}, ${initial}.`;
+}

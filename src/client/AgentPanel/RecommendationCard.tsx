@@ -137,6 +137,9 @@ export function RecommendationCard({
           )}
         </div>
       )}
+      {!unknown.length && (
+        <p className="rec-check small">Capacity check: capacity fit ✓ · {rec.seats} seats</p>
+      )}
       <p className="rec-reason">{times12(plainTables(rec.reasoning))}</p>
       {rec.tradeoffs.length > 0 && (
         <ul className="tradeoffs small">

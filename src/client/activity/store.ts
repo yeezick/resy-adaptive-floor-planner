@@ -26,7 +26,12 @@ interface State {
   applied: ManagerAction[];
   /** 👍 / 👎 per activity-log row (this manager). Notes are hash + length only. */
   feedback: FeedbackRecord[];
+  /** Why a 👎 (reason chips), per row: categorical, so stored as is (session only). */
+  reasons: Record<string, FeedbackReason[]>;
 }
+
+export const FEEDBACK_REASONS = ["Wrong verdict", "Wrong reason", "Missed need"] as const;
+export type FeedbackReason = (typeof FEEDBACK_REASONS)[number];
 
 // Feedback is saved in this browser (the public demo has no accounts); a scenario starts from its fixture.
 const FEEDBACK_KEY = "afp.feedback.v1";
@@ -52,6 +57,7 @@ let state: State = {
   assistant: [],
   applied: [],
   feedback: typeof window === "undefined" ? [] : loadFeedback(),
+  reasons: {},
 };
 const listeners = new Set<() => void>();
 const set = (next: Partial<State>) => {
@@ -134,6 +140,12 @@ export const activityActions = {
     });
     set({ feedback });
     saveFeedback(feedback);
+  },
+  /** Toggle a reason chip on a 👎 (categorical, logged with the row). */
+  toggleReason(rowId: string, reason: FeedbackReason) {
+    const cur = state.reasons[rowId] ?? [];
+    const next = cur.includes(reason) ? cur.filter((x) => x !== reason) : [...cur, reason];
+    set({ reasons: { ...state.reasons, [rowId]: next } });
   },
   /** Append an optional note to the row's entry. Only its hash + length are kept. */
   async note(rowId: string, text: string) {
@@ -283,5 +295,9 @@ export function useFeedback(): FeedbackRecord[] {
 
 /** Tests only. */
 export function resetActivityStore(feedback: FeedbackRecord[] = []): void {
-  state = { assistant: [], applied: [], feedback };
+  state = { assistant: [], applied: [], feedback, reasons: {} };
+}
+
+export function useFeedbackReasons(): Record<string, FeedbackReason[]> {
+  return useSyncExternalStore(subscribe, () => state).reasons;
 }

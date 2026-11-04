@@ -16,6 +16,7 @@ import { activityActions } from "../activity/store";
 import { RecommendationCard } from "./RecommendationCard";
 import { plainTables, tablesPhrase } from "../../domain/wording";
 import { times12 } from "../../domain/time";
+import { SourceFeedback } from "../activity/SourceFeedback";
 import { activeScenario, RECORDED_WALKIN } from "../scenarios";
 
 export type Turn =
@@ -178,11 +179,13 @@ export function AgentPanel({ room, highlight, ...actions }: Props) {
       </div>
 
       <div className="chips" aria-label="Example prompts">
-        {examples.map((ex) => (
-          <button key={ex} type="button" className="chip" onClick={() => pickExample(ex)}>
-            {ex}
-          </button>
-        ))}
+        {examples
+          .filter((ex) => !turns.some((t) => t.role === "user" && t.text === ex))
+          .map((ex) => (
+            <button key={ex} type="button" className="chip" onClick={() => pickExample(ex)}>
+              {ex}
+            </button>
+          ))}
       </div>
 
       <form className="composer" onSubmit={onSubmit}>
@@ -265,6 +268,7 @@ function AssistantTurn({ turnId, res, room, highlight, actions, partyHint }: Ass
   return (
     <div className="bubble assistant">
       {res.answer && <AnswerLead text={times12(plainTables(res.answer))} />}
+      {res.answer && <SourceFeedback rowId={`row-${res.traceId}`} what="AI Planner answer" />}
       {res.clarifyingQuestion && (
         <p className="clarify">
           <span className="pill">Question</span> {times12(plainTables(res.clarifyingQuestion))}
