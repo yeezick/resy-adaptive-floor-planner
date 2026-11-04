@@ -1,6 +1,6 @@
 import { useState } from "react";
-import type { EvalResults } from "../../shared/evals";
-import { fetchEvalResults } from "../api";
+import type { DeterministicChecks, EvalResults } from "../../shared/evals";
+import { fetchEvalChecks, fetchEvalResults } from "../api";
 import { pct } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
 import { CalibrationPanel } from "./CalibrationPanel";
@@ -9,10 +9,12 @@ import { ProposedTag } from "../ProposedTag";
 import { ScenarioTable } from "./ScenarioTable";
 
 const loadResults = () => fetchEvalResults();
+const loadChecks = () => fetchEvalChecks();
 
 export function EvalsPage() {
   const [retry, setRetry] = useState(0);
   const result = useAsync(`evals#${retry}`, loadResults);
+  const checks = useAsync(`checks#${retry}`, loadChecks);
 
   return (
     <div className="evals">
@@ -25,6 +27,7 @@ export function EvalsPage() {
           judge checked against human labels, and what each recommendation costs.
         </p>
       </div>
+      {checks?.ok && <Checks c={checks.data} />}
       {result === undefined && <div className="state-card">Loading results…</div>}
       {result && !result.ok && result.error.code === "not_found" && (
         <div className="state-card">
@@ -81,16 +84,61 @@ function KnownLimits({ limits }: { limits: string[] }) {
   );
 }
 
+/** The deterministic checks (no model call) from the last published run: what each checks and how many pass. */
+function Checks({ c }: { c: DeterministicChecks }) {
+  const passed = c.groups.reduce((n, g) => n + g.passed, 0);
+  const total = c.groups.reduce((n, g) => n + g.total, 0);
+  return (
+    <section className="card checks-card" aria-label="Deterministic checks">
+      <h2 className="section-title">
+        Deterministic checks · {passed}/{total} pass
+      </h2>
+      <p className="muted small">
+        Run on every change with no model call: the planner's holds, sections, aisle checks and
+        can't-fit answers on every fixture night, the activity log and the request chat. Run{" "}
+        {new Date(c.runAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })} ·
+        commit <span className="mono">{c.gitSha.slice(0, 7)}</span>.
+      </p>
+      <table className="checks-table small">
+        <thead>
+          <tr>
+            <th scope="col">Check</th>
+            <th scope="col">What it checks</th>
+            <th scope="col" className="num">
+              Pass
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {c.groups.map((g) => (
+            <tr key={g.id}>
+              <th scope="row">{g.label}</th>
+              <td>{g.what}</td>
+              <td className={`num ${g.passed === g.total ? "ok-text" : "warn-text"}`}>
+                {g.passed}/{g.total}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
 /** A results file with no scenarios: say so plainly instead of showing zeros. */
 function NoRun({ r }: { r: EvalResults }) {
   return (
     <>
-      <section className="state-card no-run" aria-label="No evaluation run yet">
-        <h2>No evaluation run is published yet</h2>
+      <section
+        className="state-card no-run"
+        aria-label="AI Planner scenario scores not recorded yet"
+      >
+        <h2>AI Planner scenario scores: not recorded yet</h2>
         <p className="muted">
-          When one is, this page shows how often the AI Planner's recommendations pass a fixed set
-          of checks, what each recommendation costs and how long it takes. Until then there is
-          nothing to score, so no numbers are shown.
+          The checks above need no model. Scoring the AI Planner's own answers needs a recorded run
+          of the scenario set; once one is published, this section shows how often its
+          recommendations pass, what each costs and how long it takes. Until then no rates are
+          shown.
         </p>
         <h3 className="section-title">What a run will report</h3>
         <ul className="small">

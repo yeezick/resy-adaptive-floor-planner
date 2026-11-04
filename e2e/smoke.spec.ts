@@ -1190,3 +1190,20 @@ test("chat Apply updates the rail row and the floor pill too (one request state)
   await expect(row).toContainText("7:00 PM");
   await expect(page.locator(".floor-highlight-tag")).toContainText("party of 26");
 });
+
+test("/evals leads with the published deterministic checks", async ({ page }) => {
+  await page.goto("/evals");
+  const card = page.getByRole("region", { name: "Deterministic checks" });
+  await expect(card).toContainText(/Deterministic checks · \d+\/\d+ pass/);
+  const rows: [string, string][] = [
+    ["Holds", "46/46"],
+    ["Server sections", "46/46"],
+    ["Aisle clearance", "52/52"],
+    ["Can't-fit answers", "9/9"],
+    ["Activity log", "10/10"],
+    ["Request chat", "30/30"],
+  ];
+  for (const [label, n] of rows)
+    await expect(card.getByRole("row", { name: new RegExp(label) })).toContainText(n);
+  await expect(page.getByText("No evaluation run is published yet")).toHaveCount(0);
+});

@@ -86,3 +86,23 @@ export const EvalResults = z
   })
   .strict();
 export type EvalResults = z.infer<typeof EvalResults>;
+
+/**
+ * Shape of public/evals/checks.json: the deterministic checks (no model call) that run on every change, written
+ * by `evals/run.ts --replay --write`. Read by /evals.
+ */
+export const CheckGroup = z
+  .object({
+    id: z.string(),
+    label: z.string(),
+    what: z.string(),
+    passed: z.number().int().nonnegative(),
+    total: z.number().int().nonnegative(),
+  })
+  .strict();
+export type CheckGroup = z.infer<typeof CheckGroup>;
+
+export const DeterministicChecks = z
+  .object({ runAt: z.string(), gitSha: z.string(), groups: z.array(CheckGroup) })
+  .strict();
+export type DeterministicChecks = z.infer<typeof DeterministicChecks>;
