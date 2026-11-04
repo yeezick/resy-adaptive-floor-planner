@@ -3936,3 +3936,10 @@ button[aria-pressed="true"]:not(.primary):not(.fb-thumb) {
 .activity-counts .totals-note {
   grid-column: 1 / -1;
 }
+
+/* Layout editor on a touch screen: a taller canvas */
+@media (pointer: coarse) {
+  .editor .floor-scroll {
+    --floor-h: max(560px, calc(100vh - 220px));
+  }
+}
