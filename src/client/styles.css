@@ -4109,3 +4109,37 @@ html.planner-shell .console-body > .side-col {
   background: var(--surface-3);
   color: var(--text);
 }
+
+/* iPad: the console bar stays on one line */
+.cb-stats dd,
+.cb-clock,
+.room-name {
+  white-space: nowrap;
+}
+@media (max-width: 1280px) {
+  .room-select select {
+    max-width: 200px;
+  }
+  .cb-clock {
+    font-size: 20px;
+    padding-left: 12px;
+  }
+  .console-bar {
+    gap: 10px;
+  }
+  .cb-room .cb-sub {
+    display: none;
+  }
+}
+html.planner-shell .console > .preview-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+html.planner-shell .console > .preview-bar .link-btn {
+  float: none;
+  margin-left: auto;
+}
