@@ -41,7 +41,7 @@ export const RequestVia = z
   .object({
     by: z.enum(REQUEST_BY),
     channel: z.enum(REQUEST_CHANNELS),
-    /** The app or client the sender named ("iOS", "ChatGPT"), when known. */
+    /** The app or client the sender named ("iOS", "Chat client"), when known. */
     app: z.string().min(1).max(30).optional(),
   })
   .strict();
@@ -64,7 +64,7 @@ const CHANNEL_LABEL: Record<RequestVia["channel"], string> = {
   walk_in: "host stand",
 };
 
-/** The Request field: "<who> · <channel>", e.g. "AI agent · chat app (ChatGPT)"; "not recorded" when unknown. */
+/** The Request field: "<who> · <channel>", e.g. "AI agent · chat app (Chat client)"; "not recorded" when unknown. */
 export function requestVia(r: { via?: RequestVia | undefined }): string {
   const v = r.via;
   if (!v) return "not recorded";
