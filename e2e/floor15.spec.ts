@@ -48,10 +48,16 @@ function overlaps(
 async function expectBubble(page: Page, id: string, size: string) {
   const bubble = page.locator(`.party-bubble[data-table="${id}"]`);
   await expect(bubble).toHaveText(size);
-  // never over the table number
-  const num = await page.locator(`g.table[data-id="${id}"] .t-id`).boundingBox();
-  const b = await bubble.locator("rect").boundingBox();
-  expect(num && b && !overlaps(num, b)).toBe(true);
+  // never over the table number (measured once the floor has drawn both; retried while it settles)
+  const num = page.locator(`g.table[data-id="${id}"] .t-id`);
+  await expect(num).toBeVisible();
+  await expect
+    .poll(async () => {
+      const a = await num.boundingBox();
+      const b = await bubble.locator("rect").boundingBox();
+      return !!a && !!b && !overlaps(a, b);
+    }, `${id}: bubble clear of the table number`)
+    .toBe(true);
   return bubble;
 }
 
