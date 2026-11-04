@@ -352,7 +352,7 @@ export function FloorPlan({
                     badge={highlight?.badges?.[t.id]}
                     dim={dimOthers && !lit.has(t.id)}
                     dragging={drag?.id === t.id && drag.moved}
-                    held={held?.has(t.id) ?? false}
+                    held={(held?.has(t.id) ?? false) || t.status === "reserved"}
                     onPointerDown={(e) => onTableDown(e, t)}
                     onPointerMove={(e) => onTableMove(e, t)}
                     onPointerUp={(e) => onTableUp(e, t)}

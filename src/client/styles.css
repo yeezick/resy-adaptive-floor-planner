@@ -4285,3 +4285,57 @@ html.planner-shell .console > .preview-bar .link-btn {
   flex-wrap: nowrap;
   gap: 4px;
 }
+
+/* Floor tiles: graphite with a phase word + a thin phase bar; only about-to-free (Dessert / Check) is amber */
+:root[data-theme="dark"],
+:root {
+  --tile-busy: #3a3a3e;
+  --tile-busy-edge: #55555a;
+  --tile-busy-ink: #f2f2f2;
+  --phase-bar: #a8a8ac;
+  --phase-bar-late: #e8b95a;
+}
+:root[data-theme="light"] {
+  --tile-busy: #dedbd5;
+  --tile-busy-edge: #a29e96;
+  --tile-busy-ink: #1d2327;
+  --phase-bar: #6b6b70;
+  --phase-bar-late: #9a6c12;
+}
+.phase-seated,
+.phase-drinks,
+.phase-appetizers,
+.phase-entrees {
+  background: var(--tile-busy);
+  color: var(--tile-busy-ink);
+  box-shadow: inset 0 -3px 0 var(--phase-bar);
+}
+.phase-dessert,
+.phase-check {
+  background: var(--warn-soft);
+  color: var(--text);
+  box-shadow: inset 0 -3px 0 var(--phase-bar-late);
+}
+.floor .t-id {
+  font-weight: 700;
+}
+.floor .t-elapsed.is-soon {
+  fill: var(--phase-bar-late);
+  font-weight: 600;
+}
+.floor .t-elapsed-phase {
+  fill: var(--muted);
+  font-weight: 600;
+}
+.cb-stats dt,
+.console-bar .cb-stats dt {
+  font-size: 12px;
+}
+@media (max-width: 1280px) {
+  .cb-stats {
+    gap: 10px;
+  }
+  .cb-stats dt {
+    letter-spacing: 0.01em;
+  }
+}

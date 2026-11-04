@@ -23,9 +23,9 @@ export const STATUS_STYLE = {
     text: v("table-open-ink"),
   },
   reserved: {
-    fill: v("table-reserved-fill"),
-    stroke: v("table-reserved-stroke"),
-    text: v("table-reserved-ink"),
+    fill: v("table-open-fill"),
+    stroke: v("border-strong"),
+    text: v("table-open-ink"),
   },
   blocked: {
     fill: "url(#hatch)",
@@ -34,10 +34,26 @@ export const STATUS_STYLE = {
   },
 } as const;
 
+/** Dessert and Check: the table is about to free (amber = needs attention). */
+export const LATE_PHASES: readonly Phase[] = ["dessert", "check"];
+
+/**
+ * Seated tables are graphite with the phase as a word and a thin bar; only about-to-free phases are amber.
+ * Open tables keep a green outline; reserved tables are neutral (held).
+ */
 export function tableColors(t: Table): { fill: string; stroke: string; text: string } {
   if (t.status === "occupied") {
-    const phase = t.phase ?? "seated";
-    return { fill: phaseFill(phase), stroke: v("phase-stroke"), text: phaseInk(phase) };
+    const late = LATE_PHASES.includes(t.phase ?? "seated");
+    return {
+      fill: v("tile-busy"),
+      stroke: late ? v("phase-bar-late") : v("tile-busy-edge"),
+      text: v("tile-busy-ink"),
+    };
   }
   return STATUS_STYLE[t.status];
+}
+
+/** The 3 px phase bar along a seated tile's top edge. */
+export function phaseBar(phase: Phase): string {
+  return LATE_PHASES.includes(phase) ? v("phase-bar-late") : v("phase-bar");
 }

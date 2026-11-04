@@ -93,7 +93,7 @@ export function PhaseStrip() {
         just sat → about to leave
       </span>
       <span className="phase-strip-arrow">
-        ~45m = time since seated · amber ~20m bubble = until free (est.)
+        free ~20m = est. until free · Dessert / Check (amber) = about to free
       </span>
     </div>
   );
