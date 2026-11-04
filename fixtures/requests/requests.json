@@ -5,6 +5,11 @@
     {
       "id": "Q1",
       "source": "app",
+      "via": {
+        "by": "guest",
+        "channel": "resy_app",
+        "app": "iOS"
+      },
       "receivedAt": "Tue 09:12",
       "day": "Sat",
       "bookRoomId": "demo-night",
@@ -18,6 +23,10 @@
     {
       "id": "Q2",
       "source": "ai-agent",
+      "via": {
+        "by": "agent",
+        "channel": "mcp"
+      },
       "receivedAt": "Tue 10:03",
       "day": "Fri",
       "bookRoomId": "book-fri",
@@ -30,6 +39,10 @@
     {
       "id": "Q3",
       "source": "app",
+      "via": {
+        "by": "guest",
+        "channel": "resy_app"
+      },
       "receivedAt": "Tue 10:41",
       "day": "Thu",
       "bookRoomId": "book-thu",
@@ -44,6 +57,11 @@
     {
       "id": "Q4",
       "source": "app",
+      "via": {
+        "by": "guest",
+        "channel": "resy_app",
+        "app": "Android"
+      },
       "receivedAt": "Tue 11:20",
       "day": "Sat",
       "bookRoomId": "demo-night",
@@ -56,6 +74,11 @@
     {
       "id": "Q5",
       "source": "ai-agent",
+      "via": {
+        "by": "agent",
+        "channel": "chat_app",
+        "app": "ChatGPT"
+      },
       "receivedAt": "Wed 21:47",
       "day": "Sat",
       "bookRoomId": "demo-night",
@@ -69,6 +92,10 @@
     {
       "id": "Q6",
       "source": "walk-in",
+      "via": {
+        "by": "staff",
+        "channel": "walk_in"
+      },
       "receivedAt": "Fri 14:40",
       "day": "Sat",
       "bookRoomId": "demo-night",
