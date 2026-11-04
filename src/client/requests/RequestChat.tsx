@@ -45,16 +45,18 @@ export function RequestChat({
 
   // Once the planner has re-run after a turn, record its one-line answer on that turn (and in the log).
   const pending = turns.find((t) => t.status === "ok" && t.outcome === undefined);
+  // the turn's answer is what its proposal would do (the proposal, if one is waiting; else the current state)
+  const proposed = s.proposals[r.id]?.constraints ?? c;
   useEffect(() => {
     if (!pending || !result) return;
     const clarify = pending.result?.output?.clarify;
     requestsActions.noteTurn(
       r.id,
       pending.id,
-      clarify && !changeList(r, c).length ? `Question: ${clarify}` : result.line,
-      changeDelta(r, pending.before ?? baseConstraints(r), c),
+      clarify && !changeList(r, proposed).length ? `Question: ${clarify}` : result.line,
+      changeDelta(r, pending.before ?? baseConstraints(r), proposed),
     );
-  }, [pending, result, r, c]);
+  }, [pending, result, r, proposed]);
 
   const send = () => {
     const m = text.trim();

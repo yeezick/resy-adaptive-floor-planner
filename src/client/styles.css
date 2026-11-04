@@ -3882,3 +3882,36 @@ button[aria-pressed="true"]:not(.primary):not(.fb-thumb) {
   border-color: var(--text);
   box-shadow: inset 3px 0 0 var(--text);
 }
+
+/* A change proposed in the chat: a diff with Apply / Discard (nothing changes until Apply) */
+.chat-diff {
+  border: 1px solid color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.chat-diff-title {
+  margin: 0;
+}
+.chat-diff-rows {
+  margin: 0;
+  padding-left: 18px;
+  font-variant-numeric: tabular-nums;
+}
+.changed-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 10px;
+  border-radius: 7px;
+  background: var(--surface-2);
+}
+.original-fit {
+  margin: 0;
+  color: var(--muted);
+}
