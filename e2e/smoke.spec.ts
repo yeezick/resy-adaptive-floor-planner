@@ -696,3 +696,44 @@ test.describe("after accept", () => {
     await expect(page.locator(".request-sheet .req-actions")).toContainText("Accept");
   });
 });
+
+test.describe("declutter", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/requests/*/triage", (route) => route.abort());
+    await page.route("**/api/requests/*/chat", (route) => route.abort());
+    await page.route("**/api/agent", (route) => route.abort());
+  });
+
+  for (const id of ["party-22-agent", "party-22-accepted", "request-chat"]) {
+    test(`${id}: planning clock — no meal-phase key, status key folded`, async ({ page }) => {
+      await page.goto(`/?scenario=${id}`);
+      await expect(page.locator(".side-col")).toBeVisible();
+      await expect(page.locator(".phase-strip")).toHaveCount(0);
+      await expect(page.locator(".legend")).toBeHidden();
+    });
+  }
+
+  for (const id of ["party-22-agent", "party-22-accepted", "walkin-8-peak", "request-chat"]) {
+    test(`${id}: at most one filled primary button in view`, async ({ page }) => {
+      await page.goto(`/?scenario=${id}`);
+      await expect(page.locator(".side-col")).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      const visible = await page
+        .locator("button.primary")
+        .evaluateAll((els) => els.filter((e) => (e as HTMLElement).offsetParent !== null).length);
+      expect(visible).toBeLessThanOrEqual(1);
+    });
+  }
+
+  test("walkin-8-peak: the AI Planner leads with one sentence; every wait says est. and its basis", async ({
+    page,
+  }) => {
+    await page.goto("/?scenario=walkin-8-peak");
+    await expect(page.locator(".answer-lead")).toBeVisible();
+    const lead = await page.locator(".answer-lead").boundingBox();
+    expect(lead && lead.height).toBeLessThanOrEqual(48);
+    await expect(page.locator(".rec-card").first()).toContainText(
+      /~\d+ min est\. \(check ~6 \+ reset 5\)/,
+    );
+  });
+});
