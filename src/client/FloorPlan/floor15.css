@@ -24,23 +24,6 @@
   height: 12px;
 }
 
-/* Party on the table: inverted pill in the tile's bottom-right corner (distinct from the seat count) */
-.floor .party-bubble rect {
-  fill: var(--text);
-  stroke: var(--surface);
-  stroke-width: 0.1;
-}
-.floor .party-bubble text {
-  fill: var(--surface);
-  font-weight: 700;
-  text-anchor: middle;
-  dominant-baseline: central;
-}
-/* drawn above the tiles; taps go to the table underneath */
-.floor .party-bubbles {
-  pointer-events: none;
-}
-
 /* Top bar: the venue name never wraps, even with "Edited · Reset" showing */
 .console-bar .cb-title {
   flex: none;
