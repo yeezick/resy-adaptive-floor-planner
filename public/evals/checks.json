@@ -1,6 +1,6 @@
 {
-  "runAt": "2026-11-04T23:16:58.551Z",
-  "gitSha": "1d5394569229ac5ec5a1be88e98e01cd06735d05",
+  "runAt": "2026-11-04T23:39:13.515Z",
+  "gitSha": "25c8af31d89d67c7209ca8beb8e213e04677f6a7",
   "groups": [
     {
       "id": "holds",
@@ -44,5 +44,11 @@
       "passed": 36,
       "total": 36
     }
-  ]
+  ],
+  "chatScenarios": {
+    "total": 9,
+    "adversarial": 5,
+    "passing": 9,
+    "adversarialPassing": 5
+  }
 }

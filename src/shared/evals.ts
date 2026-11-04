@@ -102,7 +102,24 @@ export const CheckGroup = z
   .strict();
 export type CheckGroup = z.infer<typeof CheckGroup>;
 
+/** The request chat's golden scenarios: how many, how many are adversarial, how many pass every check. */
+export const ScenarioCount = z
+  .object({
+    total: z.number().int(),
+    adversarial: z.number().int(),
+    passing: z.number().int(),
+    adversarialPassing: z.number().int(),
+  })
+  .strict();
+export type ScenarioCount = z.infer<typeof ScenarioCount>;
+
 export const DeterministicChecks = z
-  .object({ runAt: z.string(), gitSha: z.string(), groups: z.array(CheckGroup) })
+  .object({
+    runAt: z.string(),
+    gitSha: z.string(),
+    groups: z.array(CheckGroup),
+    /** Optional: older published files have no scenario count. */
+    chatScenarios: ScenarioCount.optional(),
+  })
   .strict();
 export type DeterministicChecks = z.infer<typeof DeterministicChecks>;

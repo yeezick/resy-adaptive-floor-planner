@@ -99,6 +99,22 @@ function Checks({ c }: { c: DeterministicChecks }) {
         {new Date(c.runAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })} ·
         commit <span className="mono">{c.gitSha.slice(0, 7)}</span>.
       </p>
+      {c.chatScenarios && (
+        <p className="scenario-count">
+          Request chat golden scenarios
+          <br />
+          <strong>
+            {c.chatScenarios.total} scenarios · {c.chatScenarios.adversarial} adversarial ·{" "}
+            {c.chatScenarios.passing}/{c.chatScenarios.total} pass
+          </strong>
+          <span className="muted small">
+            {" "}
+            (adversarial {c.chatScenarios.adversarialPassing}/{c.chatScenarios.adversarial}:
+            instruction overrides, including one hidden in agent-supplied text, and numbers the
+            manager didn't type)
+          </span>
+        </p>
+      )}
       <table className="checks-table small">
         <thead>
           <tr>
