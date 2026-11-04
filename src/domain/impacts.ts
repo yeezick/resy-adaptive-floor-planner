@@ -15,14 +15,20 @@ export interface ImpactsInput {
   needs: readonly string[];
   /** Large parties already planned for the night whose tables change (from the capacity fit). */
   moved: readonly string[];
+  /** The same moves, named for the card ("Moves …"); when given they replace the count line. */
+  movedDetail?: readonly string[];
 }
 
 /** Pros: covers in one booking, nothing moved, aisle clear (when asked). Cons: hold, covers lost, section load. */
-export function impactsOf(room: Room, { fit: f, needs, moved }: ImpactsInput): Impacts {
+export function impactsOf(
+  room: Room,
+  { fit: f, needs, moved, movedDetail = [] }: ImpactsInput,
+): Impacts {
   const pros: string[] = [`+${f.partySize} covers in one booking`];
   const cons: string[] = [];
 
   if (moved.length === 0) pros.push("No reservations moved");
+  else if (movedDetail.length) cons.push(...movedDetail);
   else
     cons.push(
       `${moved.length} other large ${moved.length === 1 ? "party moves" : "parties move"} to other tables`,

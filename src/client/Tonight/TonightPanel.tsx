@@ -1,8 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
   buildMinutes,
-  namesIn,
-  partyName,
   clock12,
   generateTonight,
   storagePhrase,
@@ -19,6 +17,7 @@ import {
 import { PartyFitCard } from "../Fit/PartyFitCard";
 import type { HighlightControls } from "../highlight";
 import type { LayoutsApi } from "../layouts/useLayouts";
+import { partyName, namesIn } from "../lib/names";
 
 interface Props {
   layouts: LayoutsApi;
@@ -35,6 +34,8 @@ interface Props {
   applied?: TonightProposal | null;
   /** The night on screen, as the night picker names it ("Fri · planning from 3:00 PM"). */
   nightLabel: string;
+  /** Its weekday ("Fri"), for the accepted card. */
+  nightDay?: string;
   onUndoApply?: () => void;
   /** Undo the accept of the focused party (and any Apply after it). */
   onUndoAccept?: () => void;
@@ -51,6 +52,7 @@ export function TonightPanel({
   focusId,
   applied = null,
   nightLabel,
+  nightDay,
   onUndoApply,
   onUndoAccept,
 }: Props) {
@@ -73,7 +75,7 @@ export function TonightPanel({
   return (
     <div className="tonight">
       {focusId && shown && (
-        <AcceptedCard p={shown} id={focusId} nightLabel={nightLabel} onUndo={onUndoAccept} />
+        <AcceptedCard p={shown} id={focusId} day={nightDay ?? ""} onUndo={onUndoAccept} />
       )}
       {applied && !proposal && (
         <div className="applied-bar small" role="status">
@@ -155,23 +157,23 @@ function tonightLabel(p: TonightProposal): string {
 function AcceptedCard({
   p,
   id,
-  nightLabel,
+  day,
   onUndo,
 }: {
   p: TonightProposal;
   id: string;
-  nightLabel: string;
+  day: string;
   onUndo?: () => void;
 }) {
   const f = p.parties.find((x) => x.reservationId === id);
   const b = p.builds.find((x) => x.reservationId === id);
   if (!f) return null;
-  const day = nightLabel.split(" · ")[0] ?? "";
   const crewStart = b ? toHHMM(toMinutes(b.buildBy) - buildMinutes(b)) : null;
   return (
     <section className="accepted-card" aria-label="Accepted party">
       <h3 className="accepted-title">
-        {partyName(id)} · {f.partySize} · {day} {clock12(f.time)} — Accepted
+        {partyName(id)} · {f.partySize} · {day ? `${day} ` : ""}
+        {clock12(f.time)} — Accepted
       </h3>
       <dl className="accepted-grid small">
         <dt>Tables</dt>

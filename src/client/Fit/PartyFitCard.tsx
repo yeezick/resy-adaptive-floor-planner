@@ -1,5 +1,4 @@
 import {
-  partyName,
   clock12,
   acceptLine,
   buildMinutes,
@@ -8,6 +7,7 @@ import {
   type Build,
   type PartyFit,
 } from "../../domain";
+import { partyName } from "../lib/names";
 
 /**
  * Capacity fit + cost for one large party: yes vs no in covers, crew build time, hold, server section(s) and

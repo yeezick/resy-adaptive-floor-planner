@@ -5,7 +5,7 @@ import { pct } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
 import { CalibrationPanel } from "./CalibrationPanel";
 import { CostLatency } from "./CostLatency";
-import { ProposedTag } from "../requests/RequestSheet";
+import { ProposedTag } from "../ProposedTag";
 import { ScenarioTable } from "./ScenarioTable";
 
 const loadResults = () => fetchEvalResults();

@@ -1,6 +1,6 @@
 // Display names for parties. A reservation in the fixtures has only an id ("F12"), so the screen shows a
 // fictional guest name derived from that id; a request shows its contact's surname. Ids stay the internal keys.
-import requestsJson from "../../fixtures/requests/requests.json";
+import requestsJson from "../../../fixtures/requests/requests.json";
 
 const SURNAMES = [
   "Alvarez",
@@ -67,7 +67,9 @@ const SURNAMES = [
 const INITIALS = "ABCDEGHJKLMNPRSTW";
 
 /** Letters the fixtures use for reservation ids, one per night ("F" = Friday's book…). */
-const PREFIXES = "DEFHNPR";
+const PREFIXES = "DEFHNPRQ";
+/** Small bookings use a lower-case letter; it maps to its night's large-party letter (Thursday: "t" → "E"). */
+const NIGHT_OF: Record<string, string> = { d: "D", e: "E", f: "F", h: "H", p: "P", r: "R", t: "E" };
 
 interface RequestContact {
   id: string;
@@ -95,7 +97,8 @@ export function partyName(id: string): string {
   const [, letter, digits] = m as unknown as [string, string, string];
   // large parties use capitals (≤13 a night), small bookings lower case: lower case starts 15 names later
   const small = letter === letter.toLowerCase();
-  const offset = Math.max(0, PREFIXES.indexOf(letter.toUpperCase())) * 7 + (small ? 15 : 0);
+  const night = small ? (NIGHT_OF[letter] ?? letter.toUpperCase()) : letter;
+  const offset = Math.max(0, PREFIXES.indexOf(night)) * 7 + (small ? 15 : 0);
   const n = Number(digits);
   const name = SURNAMES[(n - 1 + offset + SURNAMES.length) % SURNAMES.length] as string;
   const initial = INITIALS[(n * 5 + offset) % INITIALS.length] as string;

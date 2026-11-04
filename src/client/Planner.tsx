@@ -9,8 +9,6 @@ import {
   findTablesForParty,
   joinReadiness,
   joinBadge,
-  partyName,
-  surname,
   readinessPill,
   tableById,
   type Room,
@@ -32,13 +30,15 @@ import { TableDetails } from "./FloorPlan/TableDetails";
 import type { Highlight, HighlightControls } from "./highlight";
 import { finishParty, seatParty, type DoneEntry, type WaitEntry } from "./lib/service";
 import { Rail } from "./Rail/Rail";
-import { ProposedTag, RequestSheet } from "./requests/RequestSheet";
+import { RequestSheet } from "./requests/RequestSheet";
+import { ProposedTag } from "./ProposedTag";
 import { pendingCount, requestsActions, useRequests } from "./requests/store";
 import { ReservationSheet } from "./WalkIn/ReservationSheet";
 import { WalkInSheet, type WalkInDraft } from "./WalkIn/WalkInSheet";
 import { tablesPhrase } from "../domain/wording";
 import { activeScenario } from "./scenarios";
 import { NIGHTS, nightDate } from "./nights";
+import { partyName, surname } from "./lib/names";
 
 const today = () => new Date().toLocaleDateString("en-CA"); // local YYYY-MM-DD
 
@@ -111,6 +111,7 @@ export function Planner({
   }, []);
   // iPad: an open sheet collapses the rail to a strip; the host can expand it again.
   const [railOpen, setRailOpen] = useState(false);
+  const [railFor, setRailFor] = useState(false);
   const request = requests.book?.requests.find((r) => r.id === openRequest) ?? null;
 
   const [notice, setNotice] = useState<ActionResult | null>(null);
@@ -285,6 +286,11 @@ export function Planner({
 
   const night = NIGHTS[room.id];
   const hasSheet = mode !== "details" || selected.length > 0;
+  // the expanded rail resets each time a sheet closes
+  if (railFor !== hasSheet) {
+    setRailFor(hasSheet);
+    if (!hasSheet && railOpen) setRailOpen(false);
+  }
   const openCount = pendingCount(requests);
   return (
     <div className={`console${hasSheet ? " has-sheet" : ""}${railOpen ? " rail-open" : ""}`}>
@@ -366,7 +372,10 @@ export function Planner({
             fitKey={hasSheet ? "sheet" : "full"}
           />
           <CoversStrip room={room} />
-          <details className="legend-key">
+          <details
+            className="legend-key"
+            open={room.tables.some((t) => t.status === "occupied") || undefined}
+          >
             <summary className="small">Key ▸</summary>
             <Legend />
           </details>
@@ -462,6 +471,7 @@ export function Planner({
                 focusId={focusRequest}
                 applied={applied?.proposal ?? null}
                 nightLabel={night?.label ?? room.name}
+                nightDay={night?.day}
                 onUndoApply={onUndoApply}
                 onUndoAccept={
                   focusRequest

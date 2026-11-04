@@ -61,3 +61,17 @@ describe("impacts of saying yes (pros and cons, solver only)", () => {
     expect(cons).toContain("Aisle too narrow at a join: 30 in (needs 36 in)");
   });
 });
+
+describe("named moves", () => {
+  it("replace the count line when given", () => {
+    const { room, f } = friday22();
+    const out = impactsOf(room, {
+      fit: f,
+      needs: [],
+      moved: ["F1"],
+      movedDetail: ["Moves X (12) from tables 63–66 to tables 77–80"],
+    });
+    expect(out.cons).toContain("Moves X (12) from tables 63–66 to tables 77–80");
+    expect(out.cons.join(" ")).not.toMatch(/other large part/);
+  });
+});

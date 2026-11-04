@@ -8,7 +8,7 @@ import {
   type RowDecision,
 } from "../../domain/activity";
 import { duration, usd } from "../lib/format";
-import { ProposedTag } from "../requests/RequestSheet";
+import { ProposedTag } from "../ProposedTag";
 import { startRequests, useRequests } from "../requests/store";
 import {
   DEMO_MANAGER,
@@ -21,7 +21,7 @@ import {
 import { activityActions, useActivity, useFeedback } from "./store";
 import { SOURCE_LABEL as REQUEST_SOURCE } from "../../domain/requests";
 import { clock12, times12 } from "../../domain/time";
-import { namesIn } from "../../domain/names";
+import { namesIn } from "../lib/names";
 
 const KIND_LABEL: Record<ActivityKind, string> = {
   request: "Request triage",
@@ -75,7 +75,9 @@ function rejectLine(r: ActivityRow): string {
 
 /** A row has AI output to rate (a failed call has none). */
 function isAiOutput(r: ActivityRow): boolean {
-  return r.model !== "—" && !/failed/i.test(r.what);
+  return (
+    r.model !== "—" && !/^(Triage failed|AI Planner failed|AI Planner chat failed)/.test(r.what)
+  );
 }
 
 export function fmtAt(iso: string): string {
@@ -124,7 +126,7 @@ export function ActivityPage() {
   const counts = activityCounts(rows);
   const inbox = new Set((useRequests().book?.requests ?? []).map((r) => r.id));
   const pendingRows = rows.filter((r) => r.source !== "host" && r.decision.kind === "pending");
-  const openNow = new Set(pendingRows.filter((r) => inbox.has(r.refId)).map((r) => r.refId)).size;
+  const openNow = pendingRows.filter((r) => inbox.has(r.refId)).length;
   const olderPending = pendingRows.filter((r) => !inbox.has(r.refId)).length;
   const selected = rows.find((r) => r.id === open) ?? null;
   const total = rows.reduce((n, r) => n + r.costUsd, 0);
@@ -381,9 +383,7 @@ function NoteBox({ rowId, onDone }: { rowId: string; onDone: () => void }) {
       <button type="button" className="link-btn" onClick={onDone}>
         Skip
       </button>
-      <span className="muted small fb-ack" role="status">
-        Rating saved to this log only (prototype).
-      </span>
+      <span className="muted small fb-ack">Rating saved to this log only (prototype).</span>
     </form>
   );
 }
@@ -420,7 +420,7 @@ function RecordPanel({ r, onClose }: { r: ActivityRow; onClose: () => void }) {
                   ? "Guest message not stored (privacy)"
                   : v.startsWith("sha256")
                     ? "Not stored (privacy): fingerprint only"
-                    : times12(namesIn(v))}
+                    : times12(k === "Request" ? namesIn(v) : v)}
               </dd>
             </div>
           ))}
@@ -428,7 +428,15 @@ function RecordPanel({ r, onClose }: { r: ActivityRow; onClose: () => void }) {
         <h3 className="section-title">AI output</h3>
         <ul className="plain">
           {r.record.aiOutput.map((x) => (
-            <li key={x}>{times12(x)}</li>
+            <li key={x}>
+              {times12(
+                x.replace(
+                  /^Validator rejected (\d+) answer\(s\) first$/,
+                  (_m, n: string) =>
+                    `Capacity check rejected ${n} AI option${n === "1" ? "" : "s"} first`,
+                ),
+              )}
+            </li>
           ))}
         </ul>
         <h3 className="section-title">Capacity check</h3>

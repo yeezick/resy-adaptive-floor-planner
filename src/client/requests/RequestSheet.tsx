@@ -11,7 +11,6 @@ import {
   readinessPill,
   tableNo,
   tablesPhrase,
-  partyName,
   planBuilds,
   type Room,
 } from "../../domain";
@@ -46,12 +45,11 @@ import {
   type DeclineReason,
   type TriageState,
 } from "./store";
+import { partyName } from "../lib/names";
 
 export { SOURCE_LABEL, SOURCE_SHORT } from "../../domain/requests";
 
-export function ProposedTag() {
-  return <span className="proposed-tag">Proposed feature</span>;
-}
+export { ProposedTag } from "../ProposedTag";
 
 /** The triage verdict as the manager reads it; a manager override wins over the AI's verdict. */
 export function verdictOf(
@@ -198,15 +196,18 @@ export function RequestSheet({
   const junk = verdict === "junk";
   const overview = t?.status === "ok" ? t.result.summary : [needsOverview(r)];
 
+  const [focusChat, setFocusChat] = useState(0);
   const discuss = () => {
     setChatOpen(true);
-    // wait for the chat to mount, then focus it without moving the window
-    requestAnimationFrame(() => {
-      const box = document.getElementById(`chat-${r0.id}`);
-      box?.scrollIntoView({ block: "nearest" });
-      box?.focus({ preventScroll: true });
-    });
+    setFocusChat((n) => n + 1);
   };
+  // once the chat is open (rendered), focus its box without moving the window
+  useEffect(() => {
+    if (!focusChat || !chatOpen) return;
+    const box = document.getElementById(`chat-${r0.id}`);
+    box?.scrollIntoView({ block: "nearest" });
+    box?.focus({ preventScroll: true });
+  }, [focusChat, chatOpen, r0.id]);
   const holdFrom = cost?.hold.tables.length ? cost.hold.from : null;
 
   return (
@@ -534,8 +535,16 @@ export function RequestSheet({
             <button
               type="button"
               className="primary"
-              disabled={!fit?.ok || junk}
-              title={junk ? "Triaged as junk" : !fit?.ok ? "It doesn't fit that night" : undefined}
+              disabled={!fit?.ok || junk || !!proposal}
+              title={
+                proposal
+                  ? "Apply or discard the change proposed in chat first"
+                  : junk
+                    ? "Triaged as junk"
+                    : !fit?.ok
+                      ? "It doesn't fit that night"
+                      : undefined
+              }
               onClick={() => fit?.ok && requestsActions.accept(r, fit.build.tables)}
             >
               Accept

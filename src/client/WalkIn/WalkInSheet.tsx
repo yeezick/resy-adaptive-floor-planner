@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ProposedTag } from "../requests/RequestSheet";
+import { ProposedTag } from "../ProposedTag";
 import { requestsActions, useRequests } from "../requests/store";
 import { NIGHTS } from "../nights";
 import { NEEDS as REQUEST_NEEDS, SERVICE } from "../../domain/requests";

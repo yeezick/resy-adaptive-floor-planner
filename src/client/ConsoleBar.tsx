@@ -52,7 +52,7 @@ export function heldCount(room: Room, s: Pick<RequestsState, "book" | "decisions
   const ids = new Set(room.tables.filter((t) => t.status === "reserved").map((t) => t.id));
   for (const r of s.book?.requests ?? []) {
     if (r.bookRoomId !== room.id) continue;
-    const d = decisionOf(s as RequestsState, r.id);
+    const d = decisionOf(s, r.id);
     if (d.kind === "accepted") for (const id of d.tables) ids.add(id);
   }
   return ids.size;

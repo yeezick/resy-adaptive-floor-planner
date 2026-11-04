@@ -547,6 +547,26 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     await expect(sheet.locator(".fit-pill")).toContainText("capacity fit ✓");
   });
 
+  test("request-chat: Discard drops the proposal; Accept waits for it", async ({ page }) => {
+    await page.goto("/?scenario=request-chat");
+    const sheet = page.locator(".request-sheet");
+    const diff = sheet.getByRole("group", { name: "Change proposed in chat" });
+    await expect(sheet.getByRole("button", { name: "Accept" })).toBeDisabled();
+    await diff.getByRole("button", { name: "Discard" }).click();
+    await expect(diff).toHaveCount(0);
+    await expect(sheet.getByRole("button", { name: "Accept" })).toBeEnabled();
+    await expect(sheet.locator(".fit-pill")).toContainText("capacity fit ✓");
+  });
+
+  test("request-chat: a manual edit while a proposal waits replaces it", async ({ page }) => {
+    await page.goto("/?scenario=request-chat");
+    const sheet = page.locator(".request-sheet");
+    await expect(sheet.getByRole("group", { name: "Change proposed in chat" })).toBeVisible();
+    await sheet.getByLabel("Table range: first").fill("70");
+    await expect(sheet.getByRole("group", { name: "Change proposed in chat" })).toHaveCount(0);
+    await expect(sheet.locator(".changed-line")).toContainText("Changed by hand");
+  });
+
   for (const id of [
     "party-22-agent",
     "party-22-accepted",
@@ -637,6 +657,7 @@ test.describe("manager copy carries no fixture ids", () => {
 });
 
 test.describe("planner app shell", () => {
+  test.use({ viewport: { width: 1180, height: 820 } });
   test("the page never scrolls; Discuss doesn't move the window", async ({ page }) => {
     await page.route("**/api/requests/*/triage", (route) => route.abort());
     await page.goto("/?scenario=party-22-agent");
@@ -646,8 +667,8 @@ test.describe("planner app shell", () => {
       vh,
     );
     await page.getByRole("button", { name: "Discuss" }).click();
-    await page.waitForTimeout(400);
-    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    await expect(page.getByRole("textbox", { name: "Message about this request" })).toBeFocused();
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
     await expect(page.locator(".console-bar")).toBeInViewport();
   });
 

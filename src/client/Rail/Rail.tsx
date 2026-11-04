@@ -2,7 +2,6 @@ import { useMemo, useState, type ReactNode } from "react";
 import {
   clock12,
   LARGE_PARTY,
-  partyName,
   planBuilds,
   times12,
   toHHMM,
@@ -12,9 +11,11 @@ import {
 import { buildHighlight } from "../BuildPlan/BuildPlan";
 import type { Highlight, HighlightControls } from "../highlight";
 import { PHASE_LABEL, seatedParties, type DoneEntry, type WaitEntry } from "../lib/service";
-import { ProposedTag, SOURCE_LABEL, SOURCE_SHORT, VerdictChip } from "../requests/RequestSheet";
+import { SOURCE_LABEL, SOURCE_SHORT, VerdictChip } from "../requests/RequestSheet";
+import { ProposedTag } from "../ProposedTag";
 import { decisionOf, pendingCount, useRequests } from "../requests/store";
 import { tableNo } from "../../domain/wording";
+import { partyName } from "../lib/names";
 
 interface Props {
   room: Room;

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { namesIn, partyName, surname } from "./names";
 
@@ -23,6 +24,25 @@ describe("party names", () => {
     expect(new Set(ids.map((id) => partyName(id))).size).toBe(ids.length);
     expect(["F1", "f1"].map((id) => partyName(id))).toHaveLength(2);
     expect(partyName("f1")).not.toBe(partyName("F1"));
+  });
+
+  it("every fixture night's bookings get distinct names; a request id never shares one with a booking", () => {
+    for (const night of [
+      "book-fri",
+      "book-thu",
+      "demo-night",
+      "dinner-peak",
+      "heavy-saturday",
+      "next-day",
+    ]) {
+      const ids = (
+        JSON.parse(readFileSync(`fixtures/rooms/${night}.json`, "utf8")) as {
+          reservations: { id: string }[];
+        }
+      ).reservations.map((r) => r.id);
+      expect(new Set(ids.map((id) => partyName(id))).size).toBe(ids.length);
+    }
+    expect(partyName("Q7")).not.toBe(partyName("D7"));
   });
 
   it("other ids pass through", () => {

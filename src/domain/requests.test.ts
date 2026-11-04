@@ -8,7 +8,6 @@ import {
   draftReply,
   needsOverview,
   parseRequestBook,
-  requestHeader,
   requestWhen,
   SOURCE_LABEL,
   SOURCES,
@@ -49,12 +48,6 @@ describe("request fixture", () => {
       "AI agent",
       "Walk-in at the host stand",
     ]);
-  });
-
-  it("heads the card with name, size, time and a countdown", () => {
-    const q2 = byId("Q2");
-    expect(requestHeader(q2, 210)).toBe("Sam Whitaker, party of 22 · Fri 18:30 (in 3h 30m)");
-    expect(requestHeader(q2, null)).toBe("Sam Whitaker, party of 22 · Fri 18:30");
   });
 
   it("a host-stand walk-in is a valid request of any size, with a default name and note", () => {

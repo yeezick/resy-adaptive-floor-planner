@@ -101,14 +101,6 @@ export function draftReply(r: GuestRequest, fit: RequestFit): string {
   return `Hi ${first}, thanks for asking about a party of ${r.partySize} on ${when}. Unfortunately we can't fit a group that size that night. Could another night work?`;
 }
 
-/** Card header: "Dana Ruiz, party of 22 · Fri 18:30 (in 3h 30m)". `minutesAway` is from that night's clock. */
-export function requestHeader(r: GuestRequest, minutesAway: number | null): string {
-  const when = `${r.day} ${r.time}`;
-  return `${r.contact}, party of ${r.partySize} · ${when}${
-    minutesAway === null ? "" : ` (${countdown(minutesAway)})`
-  }`;
-}
-
 /**
  * A request taken at the host stand: the host types the size, time, needs and a name. It goes through the same
  * capacity fit and cost as an online request. The note is the host's own words (never logged).
@@ -159,7 +151,21 @@ export function needsOverview(r: GuestRequest): string {
   return text ? `${text.charAt(0).toUpperCase()}${text.slice(1)}.` : "No special needs given.";
 }
 
-/** The fictional week the demo nights sit in (requests name only a weekday). */
+/**
+ * The fictional week the demo nights sit in (requests name only a weekday). Tied to the fixtures: if the fixture
+ * nights move to another week, change this with them.
+ */
+export const DEMO_WEEK_ISO: Record<GuestRequest["day"], string> = {
+  Mon: "2026-11-02",
+  Tue: "2026-11-03",
+  Wed: "2026-11-04",
+  Thu: "2026-11-05",
+  Fri: "2026-11-06",
+  Sat: "2026-11-07",
+  Sun: "2026-11-08",
+};
+
+/** The same week as the manager reads a date ("Nov 6"). */
 export const DEMO_WEEK: Record<GuestRequest["day"], string> = {
   Mon: "Nov 2",
   Tue: "Nov 3",
