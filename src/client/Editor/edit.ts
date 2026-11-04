@@ -20,7 +20,9 @@ function freeSpot(room: Room, w: number, h: number, start: { x: number; y: numbe
         const pad = { x: box.x - 0.5, y: box.y - 0.5, w: w + 1, h: h + 1 };
         if (!room.tables.some((t) => intersects(pad, t))) return box;
       }
-  return { x: start.x, y: start.y, w, h };
+  // nothing free near the start: extend the canvas — place it past the right-most table, never on top of one
+  const right = Math.max(0, ...room.tables.map((t) => t.x + t.w));
+  return { x: snap(right + 2), y: snap(Math.max(0, start.y)), w, h };
 }
 
 export function addTable(room: Room, near: { x: number; y: number }): { room: Room; id: string } {
