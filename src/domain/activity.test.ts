@@ -74,6 +74,12 @@ describe("buildActivity", () => {
     expect(
       buildActivity([e], [{ refId: "Q1", at, kind: "declined", reason: "policy" }])[0]?.decision,
     ).toMatchObject({ kind: "declined", reason: "policy" });
+    // a decline can carry the manager's own note (shown in this session's log)
+    const note = "Kitchen closed for a private event";
+    expect(
+      buildActivity([e], [{ refId: "Q1", at, kind: "declined", reason: "other", note }])[0]
+        ?.decision,
+    ).toEqual({ kind: "declined", at, reason: "other", note });
     expect(
       buildActivity([e], [{ refId: "Q1", at, kind: "replied", edited: true }])[0]?.decision.kind,
     ).toBe("edited");

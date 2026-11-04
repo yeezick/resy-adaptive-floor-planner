@@ -28,7 +28,7 @@ function friday22() {
 }
 
 describe("impacts of saying yes (pros and cons, solver only)", () => {
-  it("lists the Friday 22-top's pros and cons, with covers lost labelled est.", () => {
+  it("lists the Friday 22-top's pros and cons, with the walk-in capacity held labelled est.", () => {
     const { room, fit, f } = friday22();
     const { pros, cons } = impactsOf(room, { fit: f, needs: q2.needs, moved: fit.moved });
     expect(pros[0]).toBe("+22 covers in one booking");
@@ -36,7 +36,8 @@ describe("impacts of saying yes (pros and cons, solver only)", () => {
       true,
     );
     expect(cons).toContain(`Tables held ${f.hold.from}–18:30`);
-    expect(cons).toContain(`~${f.hold.coversLost} covers lost over one turn (est.)`);
+    expect(cons).toContain(`Holds up to ~${f.hold.coversLost} walk-in covers over one turn (est.)`);
+    expect(cons.join(" ")).not.toContain("covers lost");
     expect(cons.some((c) => /^Sections \d+ \+ \d+ both take on the party/.test(c))).toBe(true);
   });
 
