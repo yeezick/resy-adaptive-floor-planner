@@ -59,3 +59,13 @@ export function parseTrustProxy(raw: string | undefined): number | boolean {
   if (Number.isInteger(n) && n >= 0) return n;
   throw new Error(`TRUST_PROXY must be a hop count or true/false, got "${raw}"`);
 }
+
+/**
+ * How many entries the X-Forwarded-For header holds: the count only, never the addresses. With no entries
+ * sent by the client, this is the number of proxies that appended one, i.e. the TRUST_PROXY hop count.
+ */
+export function forwardedForCount(header: string | string[] | undefined): number {
+  if (header === undefined) return 0;
+  const joined = Array.isArray(header) ? header.join(",") : header;
+  return joined.split(",").filter((e) => e.trim() !== "").length;
+}

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { checkEffort, checkModel, parseTrustProxy, validateEnv } from "./config";
+import { checkEffort, checkModel, forwardedForCount, parseTrustProxy, validateEnv } from "./config";
 import { costUsdSafe, reservationUsd } from "./pricing";
 
 const saved = { ...process.env };
@@ -50,6 +50,15 @@ describe("config", () => {
     expect(parseTrustProxy("true")).toBe(true);
     expect(parseTrustProxy("FALSE")).toBe(false);
     expect(() => parseTrustProxy("yes")).toThrow(/TRUST_PROXY/);
+  });
+
+  it("forwardedForCount counts X-Forwarded-For entries, never reading them", () => {
+    expect(forwardedForCount(undefined)).toBe(0);
+    expect(forwardedForCount("")).toBe(0);
+    expect(forwardedForCount("203.0.113.7")).toBe(1);
+    expect(forwardedForCount("203.0.113.7, 10.0.0.1")).toBe(2);
+    expect(forwardedForCount(" a ,, b , ")).toBe(2);
+    expect(forwardedForCount(["a, b", "c"])).toBe(3);
   });
 });
 

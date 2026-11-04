@@ -14,7 +14,7 @@ import {
   type CreateMessage,
 } from "./agent/loop";
 import { mergeClientRoom } from "./clientRoom";
-import { parseTrustProxy, validateEnv } from "./config";
+import { forwardedForCount, parseTrustProxy, validateEnv } from "./config";
 import { DailyBudget } from "./guards/budget";
 import { RateLimiter } from "./guards/rateLimit";
 import { hashText, logEvent } from "./log";
@@ -105,7 +105,13 @@ export function createApp(opts: AppOptions = {}) {
   app.post("/api/agent", async (req, res) => {
     if (!loggedIpShape) {
       loggedIpShape = true;
-      logEvent("client_ip_shape", { shape: ipShape(req), trustProxy, level: "debug" });
+      logEvent("client_ip_shape", {
+        shape: ipShape(req),
+        trustProxy,
+        // count only: sets TRUST_PROXY on a new host (never the addresses)
+        xffCount: forwardedForCount(req.headers["x-forwarded-for"]),
+        level: "debug",
+      });
     }
     if (!limiter.hit(req.ip ?? "unknown"))
       return sendError(res, 429, "rate_limited", "Too many requests — try again in a minute.");
