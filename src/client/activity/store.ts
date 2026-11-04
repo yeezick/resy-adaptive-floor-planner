@@ -18,6 +18,7 @@ import type { AgentResponse } from "../../shared/api";
 import { activeScenario, RECORDED_FEEDBACK } from "../scenarios";
 import { decisionOf, useRequests, type RequestsState } from "../requests/store";
 import { tableNumbers } from "../../domain/wording";
+import { demoStamp } from "../lib/demoClock";
 
 const SEED: ActivitySeed = ActivitySeed.parse(weekJson);
 
@@ -86,7 +87,7 @@ export const activityActions = {
     const m = PARTY.exec(message);
     const party = m ? Number(m[1] ?? m[2]) : null;
     const input = { sha256: await sha256(message), length: message.length };
-    const at = new Date().toISOString();
+    const at = demoStamp().iso;
     const e: AssistantEvent = res.ok
       ? {
           type: "assistant",
@@ -136,7 +137,7 @@ export const activityActions = {
       rowId,
       manager: DEMO_MANAGER,
       rating,
-      at: new Date().toISOString(),
+      at: demoStamp().iso,
     });
     // a row rated helpful has no "why not" reasons
     set(rating === "up" ? { feedback, reasons: { ...state.reasons, [rowId]: [] } } : { feedback });
@@ -157,7 +158,7 @@ export const activityActions = {
       rowId,
       manager: DEMO_MANAGER,
       note,
-      at: new Date().toISOString(),
+      at: demoStamp().iso,
     });
     set({ feedback });
     saveFeedback(feedback);
@@ -167,13 +168,12 @@ export const activityActions = {
     set({
       applied: [
         ...state.applied,
-        { refId: traceId, at: new Date().toISOString(), kind: "applied", applied },
+        { refId: traceId, at: demoStamp().iso, kind: "applied", applied },
       ],
     });
   },
 };
 
-/** "Tue 09:12" → this week's date at that time (local), as ISO. */
 /** "Tue 10:03" → that moment in the fixtures' demo week (the requests name only a weekday). */
 export function weekdayToIso(label: string): string {
   const [day, hm] = label.split(" ");
@@ -267,6 +267,8 @@ export function liveEvents(s: RequestsState): {
       actions.push({ refId: r.id, at: d.iso, kind: "declined", reason: d.reason });
     else if (d.kind === "replied")
       actions.push({ refId: r.id, at: d.iso, kind: "replied", edited: d.edited });
+    const sent = s.replies[r.id];
+    if (sent) actions.push({ refId: r.id, at: sent.iso, kind: "replied", edited: sent.edited });
     const o = s.overrides[r.id];
     if (o) actions.push({ refId: r.id, at: o.iso, kind: "overridden", verdict: o.verdict });
   }

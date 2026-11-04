@@ -3,7 +3,7 @@
 import { holdStartFor, partyFits } from "../../domain";
 import { checkRequest, SERVICE, toReservation } from "../../domain/requests";
 import type { Room } from "../../domain";
-import { decisionOf, type RequestsState } from "../requests/store";
+import { currentRequest, decisionOf, type RequestsState } from "../requests/store";
 import { surname } from "./names";
 
 export interface PlanHold {
@@ -15,11 +15,13 @@ export interface PlanHold {
 
 export function planHolds(
   room: Room,
-  s: Pick<RequestsState, "book" | "decisions">,
+  s: Pick<RequestsState, "book" | "decisions"> & Partial<Pick<RequestsState, "adjust">>,
 ): Map<string, PlanHold> {
   const out = new Map<string, PlanHold>();
-  for (const r of s.book?.requests ?? []) {
-    if (r.bookRoomId !== room.id) continue;
+  for (const asked of s.book?.requests ?? []) {
+    if (asked.bookRoomId !== room.id) continue;
+    // the request as accepted: with the manager's applied changes (time, size)
+    const r = currentRequest({ adjust: s.adjust ?? {} }, asked);
     const d = decisionOf(s, r.id);
     if (d.kind !== "accepted") continue;
     const without = { ...room, reservations: room.reservations.filter((x) => x.id !== r.id) };

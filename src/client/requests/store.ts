@@ -8,6 +8,7 @@ import { activeScenario, RECORDED_CHAT, RECORDED_TRIAGE } from "../scenarios";
 import type { Reservation } from "../../domain";
 import type { RequestChatResult, TriageResult } from "../../shared/api";
 import {
+  adjusted,
   baseConstraints,
   changeDelta,
   checkAdjusted,
@@ -22,6 +23,8 @@ import {
   postTriage,
   type ClientError,
 } from "../api";
+import { demoIso, demoStamp, receivedBy } from "../lib/demoClock";
+import { NIGHTS } from "../nights";
 
 export type DeclineReason = "fit" | "policy" | "other";
 
@@ -77,6 +80,8 @@ export interface RequestsState {
   changedBy: Record<string, "chat" | "controls">;
   /** The manager's correction of an AI triage verdict, per request ("Wrong? Mark as junk"). */
   overrides: Record<string, { verdict: "real" | "junk"; iso: string }>;
+  /** "Message guest → Mark as sent": the reply is logged, and the request stays open for Accept or Decline. */
+  replies: Record<string, { at: string; iso: string; edited: boolean }>;
   /** Set by Accept: the planner opens this night and shows the party's plan. */
   openPlan: { roomId: string; requestId: string; seq: number; view: "plan" | "request" } | null;
 }
@@ -95,6 +100,7 @@ let state: RequestsState = {
   overrides: {},
   proposals: {},
   changedBy: {},
+  replies: {},
   openPlan: null,
 };
 const listeners = new Set<() => void>();
@@ -114,11 +120,18 @@ function set(next: Partial<RequestsState>): void {
   for (const l of listeners) l();
 }
 
-/** Wall-clock time of a manager action, as "Tue 10:41". */
-function stamp(): string {
-  const d = new Date();
-  const day = d.toLocaleDateString("en-US", { weekday: "short" });
-  return `${day} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+/**
+ * When the AI triage of a fixture request ran, on the demo clock: when the request arrived (the recorded call
+ * took about a second).
+ */
+function triagedAt(r: GuestRequest): string {
+  return demoIso(r.receivedAt);
+}
+
+/** The demo's recorded triage for a fixture request (no model call), or null for one with no recording. */
+function recorded(r: GuestRequest): TriageState | null {
+  const rec = RECORDED_TRIAGE[r.id];
+  return rec ? { status: "ok", result: { ...rec, cached: true }, at: triagedAt(r) } : null;
 }
 
 async function triage(r: GuestRequest): Promise<void> {
@@ -128,13 +141,16 @@ async function triage(r: GuestRequest): Promise<void> {
     triage: {
       ...state.triage,
       [r.id]: res.ok
-        ? { status: "ok", result: res.data, at: new Date().toISOString() }
-        : { status: "error", error: res.error, at: new Date().toISOString() },
+        ? { status: "ok", result: res.data, at: triagedAt(r) }
+        : { status: "error", error: res.error, at: triagedAt(r) },
     },
   });
 }
 
-/** Load the requests once and triage each on arrival. */
+/**
+ * Load the requests once. The demo's fixture requests open with their recorded triage (the same output every
+ * time, no model call); any request without a recording is triaged live on arrival.
+ */
 export function startRequests(): void {
   if (started) return;
   started = true;
@@ -142,7 +158,13 @@ export function startRequests(): void {
     if (!res.ok) return set({ error: res.error });
     set({ book: res.data });
     if (activeScenario()) return void applyScenario(res.data);
-    for (const r of res.data.requests) void triage(r);
+    const triageMap: Record<string, TriageState> = {};
+    for (const r of res.data.requests) {
+      const rec = recorded(r);
+      if (rec) triageMap[r.id] = rec;
+    }
+    set({ triage: { ...state.triage, ...triageMap } });
+    for (const r of res.data.requests) if (!triageMap[r.id]) void triage(r);
   });
 }
 
@@ -153,14 +175,8 @@ export function startRequests(): void {
 async function applyScenario(book: RequestBook): Promise<void> {
   const sc = activeScenario();
   if (!sc) return;
-  const at = new Date().toISOString();
   const triageMap: Record<string, TriageState> = {};
-  for (const r of book.requests) {
-    const rec = RECORDED_TRIAGE[r.id];
-    triageMap[r.id] = rec
-      ? { status: "ok", result: { ...rec, cached: true }, at }
-      : { status: "loading" };
-  }
+  for (const r of book.requests) triageMap[r.id] = recorded(r) ?? { status: "loading" };
   set({ triage: triageMap });
   const r = sc.request ? book.requests.find((x) => x.id === sc.request?.id) : undefined;
   if (!sc.request || !r) return;
@@ -172,7 +188,7 @@ async function applyScenario(book: RequestBook): Promise<void> {
     set({
       decisions: {
         ...state.decisions,
-        [r.id]: { kind: "accepted", at: stamp(), iso: at, tables: fit.build.tables },
+        [r.id]: { kind: "accepted", ...demoStamp(), tables: fit.build.tables },
       },
       accepted: { ...state.accepted, [r.bookRoomId]: [toReservation(r)] },
       openPlan: { roomId: r.bookRoomId, requestId: r.id, seq: ++seq, view: "plan" },
@@ -245,7 +261,7 @@ export const requestsActions = {
     set({
       decisions: {
         ...state.decisions,
-        [r.id]: { kind: "accepted", at: stamp(), iso: new Date().toISOString(), tables },
+        [r.id]: { kind: "accepted", ...demoStamp(), tables },
       },
       accepted: { ...state.accepted, [r.bookRoomId]: [...list, toReservation(r)] },
       openPlan: { roomId: r.bookRoomId, requestId: r.id, seq: ++seq, view: "plan" },
@@ -256,22 +272,24 @@ export const requestsActions = {
     set({
       decisions: {
         ...state.decisions,
-        [r.id]: { kind: "declined", at: stamp(), iso: new Date().toISOString(), reason },
+        [r.id]: { kind: "declined", ...demoStamp(), reason },
       },
     });
   },
+  /** The reply is marked sent: logged, and the request stays open (Accept and Decline still apply). */
   reply(r: GuestRequest, edited: boolean) {
     logDecision(r.id, { kind: "replied", edited });
-    set({
-      decisions: {
-        ...state.decisions,
-        [r.id]: { kind: "replied", at: stamp(), iso: new Date().toISOString(), edited },
-      },
-    });
+    set({ replies: { ...state.replies, [r.id]: { ...demoStamp(), edited } } });
+  },
+  /** Undo "Mark as sent" (the reply only; a later decision is undone on its own). */
+  unsend(r: GuestRequest) {
+    logDecision(r.id, { kind: "reopened" });
+    const { [r.id]: _gone, ...replies } = state.replies;
+    set({ replies });
   },
   /** The manager says the AI triage got it wrong: one tap, shown on the card and logged as an override. */
   overrideTriage(id: string, verdict: "real" | "junk") {
-    set({ overrides: { ...state.overrides, [id]: { verdict, iso: new Date().toISOString() } } });
+    set({ overrides: { ...state.overrides, [id]: { verdict, iso: demoStamp().iso } } });
   },
   /** Undo a decision (back to pending); an accepted party leaves that night's book. */
   reopen(r: GuestRequest) {
@@ -322,7 +340,7 @@ export const requestsActions = {
     const current = state.proposals[r.id]?.constraints ?? state.adjust[r.id] ?? baseConstraints(r);
     const turn: ChatTurn = {
       id,
-      at: new Date().toISOString(),
+      at: demoStamp().iso,
       message,
       status: "loading",
       before: current,
@@ -391,9 +409,29 @@ export function decisionOf(s: Pick<RequestsState, "decisions">, id: string): Dec
   return s.decisions[id] ?? { kind: "pending" };
 }
 
+/** The request as it stands now: the guest's ask with the manager's applied changes (chat or controls). */
+export function currentRequest(s: Pick<RequestsState, "adjust">, r: GuestRequest): GuestRequest {
+  const c = s.adjust[r.id];
+  return c ? adjusted(r, c) : r;
+}
+
+/**
+ * The requests a night's floor can know about: those received by its clock. A request that arrives later in the
+ * week (e.g. Fri 14:40) is not on the Thursday live floor. Off the floor (no night), all of them.
+ */
+export function requestsBy(
+  s: Pick<RequestsState, "book">,
+  night?: { roomId: string; clock: string },
+): GuestRequest[] {
+  const all = s.book?.requests ?? [];
+  const day = night ? NIGHTS[night.roomId]?.day : undefined;
+  if (!night || !day) return all;
+  return all.filter((r) => receivedBy(r.receivedAt, day, night.clock));
+}
+
 /** Requests still waiting for a manager: the console badge. Junk counts too until someone dismisses it. */
-export function pendingCount(s: RequestsState): number {
-  return (s.book?.requests ?? []).filter((r) => decisionOf(s, r.id).kind === "pending").length;
+export function pendingCount(s: RequestsState, night?: { roomId: string; clock: string }): number {
+  return requestsBy(s, night).filter((r) => decisionOf(s, r.id).kind === "pending").length;
 }
 
 function subscribe(l: () => void): () => void {
@@ -428,6 +466,7 @@ export function resetRequestsStore(): void {
     overrides: {},
     proposals: {},
     changedBy: {},
+    replies: {},
     openPlan: null,
   };
 }

@@ -80,7 +80,7 @@ export function TonightPanel({
       {applied && !proposal && (
         <div className="applied-bar small" role="status">
           <span>
-            Applied to <strong>{nightLabel}</strong>
+            Crew plan applied to <strong>{nightLabel}</strong>
           </span>
           {onUndoApply && (
             <button type="button" className="link-btn" onClick={onUndoApply}>
@@ -340,8 +340,13 @@ function Proposal({
 
       {!readOnly && (
         <div className="sheet-actions apply-stack">
-          <button type="button" className="primary apply-night" onClick={onApply}>
-            Apply to {nightLabel}
+          <button
+            type="button"
+            className="primary apply-night"
+            title={`Apply the joins and moves to ${nightLabel}`}
+            onClick={onApply}
+          >
+            Apply crew plan
           </button>
           <button type="button" onClick={onEdit}>
             Open editor

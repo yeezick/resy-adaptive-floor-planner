@@ -69,7 +69,7 @@
     {
       "id": "Q6",
       "source": "walk-in",
-      "receivedAt": "Sat 14:40",
+      "receivedAt": "Fri 14:40",
       "day": "Sat",
       "bookRoomId": "demo-night",
       "time": "20:30",
@@ -77,7 +77,7 @@
       "occasion": "anniversary",
       "needs": ["quiet"],
       "contact": "Lee Okafor",
-      "message": "Stopped by the host stand at 14:40 to ask for 10 tonight around 8:30 for their parents' anniversary. Would like somewhere quieter. Can wait at the bar a little if needed."
+      "message": "Stopped by the host stand at 14:40 to ask for 10 tomorrow around 8:30 for their parents' anniversary. Would like somewhere quieter. Can wait at the bar a little if needed."
     }
   ]
 }
