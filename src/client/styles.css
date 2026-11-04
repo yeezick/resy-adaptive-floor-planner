@@ -3915,3 +3915,24 @@ button[aria-pressed="true"]:not(.primary):not(.fb-thumb) {
   margin: 0;
   color: var(--muted);
 }
+.what-sub {
+  display: block;
+  font-size: 12px;
+}
+.activity-table td.actor {
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--muted);
+}
+.fb-ack {
+  flex-basis: 100%;
+}
+.link-btn.row-what {
+  text-decoration: none;
+}
+.link-btn.row-what:hover {
+  text-decoration: underline;
+}
+.activity-counts .totals-note {
+  grid-column: 1 / -1;
+}
