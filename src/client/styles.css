@@ -4143,3 +4143,9 @@ html.planner-shell .console > .preview-bar .link-btn {
   float: none;
   margin-left: auto;
 }
+/* Layout editor on a touch screen: a taller canvas */
+@media (pointer: coarse) {
+  .editor .floor-scroll {
+    --floor-h: max(560px, calc(100vh - 220px));
+  }
+}
