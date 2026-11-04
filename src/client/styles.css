@@ -657,7 +657,8 @@ h3.section-title {
 .row,
 .row-btn {
   display: grid;
-  grid-template-columns: 40px 24px minmax(0, 1fr);
+  /* first column fits a 12-hour time ("10:45 PM") on one line */
+  grid-template-columns: 58px 24px minmax(0, 1fr);
   gap: 6px;
   align-items: start;
   padding: 6px 12px;
@@ -688,6 +689,7 @@ h3.section-title {
 .row-time {
   font-weight: 650;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .row-party {
   font-weight: 650;
@@ -1240,6 +1242,7 @@ table.data.compact td {
   color: var(--accent);
   font-weight: 650;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 .rec-reason {
   margin: 6px 0;
@@ -1789,6 +1792,7 @@ table.data .num {
   font-size: 10.5px;
   font-weight: 650;
   color: var(--accent);
+  white-space: nowrap;
 }
 
 /* Room tabs */
@@ -2007,6 +2011,7 @@ table.data .num {
 .crew-time {
   font-variant-numeric: tabular-nums;
   font-weight: 650;
+  white-space: nowrap;
 }
 .buildplan-details {
   border-top: 1px solid var(--border);
