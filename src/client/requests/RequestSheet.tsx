@@ -37,10 +37,12 @@ import {
   type AdjustedFit,
   type ChatConstraints,
 } from "../../domain/requestChat";
-import { listAnd, storagePhrase } from "../../domain/wording";
+import { bookedVsWalkIns, coverTrade, listAnd, storagePhrase } from "../../domain/wording";
 import { RequestChat } from "./RequestChat";
 import { SourceFeedback } from "../activity/SourceFeedback";
+import { RequestReview } from "../Review/RequestReview";
 import {
+  currentRequest,
   decisionOf,
   requestsActions,
   useRequests,
@@ -174,6 +176,19 @@ export function RequestSheet({
     [room, fit, readyAt],
   );
   const [reply, setReply] = useState<string | null>(null);
+  // Accept opens "Review and confirm" first; its one button holds the tables and applies the crew plan
+  const [reviewing, setReviewing] = useState(false);
+  // what a proposed chat change would do to covers and the hold (before → after, in the diff)
+  const impactOf = (req: GuestRequest, f: typeof fit) => {
+    if (!room || !f?.ok) return null;
+    const withR = { ...room, reservations: [...room.reservations, toReservation(req)] };
+    const pf = partyFits(withR, f.plan.builds, SERVICE.from, {
+      privateOnly: req.privateRoom ? [req.id] : [],
+    }).find((x) => x.reservationId === req.id);
+    if (!pf) return null;
+    const trade = coverTrade(pf.partySize, pf.hold.coversLost);
+    return `${bookedVsWalkIns(trade)}${pf.hold.tables.length ? ` · held ${times12(`${pf.hold.from}–${pf.hold.until}`)}` : ""}`;
+  };
   // The chat about this request: closed until Discuss (or until it has turns, e.g. a reopened request).
   const [chatOpen, setChatOpen] = useState(() => (s.chat[r0.id]?.length ?? 0) > 0);
   // Large parties already planned for the night whose tables change, named, with from → to tables.
@@ -233,6 +248,21 @@ export function RequestSheet({
     reason === null
       ? "Pick a reason to decline"
       : `Decline: ${reason === "fit" ? "no capacity fit" : reason}`;
+
+  if (reviewing && room && decision.kind === "pending")
+    return (
+      <div className="request-sheet decision">
+        <RequestReview
+          request={r0}
+          room={room}
+          now={now}
+          fromRequest={overview.map((l) => normalTimes(l))}
+          impact={impactOf(r, fit)}
+          onBack={() => setReviewing(false)}
+          onAccept={(tables) => requestsActions.accept(currentRequest(s, r0), tables)}
+        />
+      </div>
+    );
 
   return (
     <div className="request-sheet decision">
@@ -369,6 +399,10 @@ export function RequestSheet({
             result={proposedAdj}
             onApply={() => requestsActions.applyProposal(r0.id)}
             onDiscard={() => requestsActions.discardProposal(r0.id)}
+            impact={{
+              before: impactOf(r, fit),
+              after: impactOf(proposedAdj.request, proposedAdj.fit),
+            }}
           />
         )}
         {constraints && changeList(r0, constraints).length > 0 && (
@@ -483,7 +517,7 @@ export function RequestSheet({
 
       {decision.kind === "pending" && room && (
         <div className="req-chat-wrap" hidden={!chatOpen}>
-          <RequestChat request={r0} result={proposedAdj ?? adj} />
+          <RequestChat request={r0} result={proposedAdj ?? adj} room={room} fit={fit} cost={cost} />
           <button type="button" className="link-btn small" onClick={() => setChatOpen(false)}>
             Hide chat
           </button>
@@ -636,7 +670,7 @@ export function RequestSheet({
                         ? "It doesn't fit that night"
                         : undefined
                 }
-                onClick={() => fit?.ok && requestsActions.accept(r, fit.build.tables)}
+                onClick={() => fit?.ok && setReviewing(true)}
               >
                 Accept
               </button>
@@ -689,6 +723,7 @@ function ChatDiff({
   result,
   onApply,
   onDiscard,
+  impact,
 }: {
   request: GuestRequest;
   before: ChatConstraints;
@@ -697,6 +732,8 @@ function ChatDiff({
   result: AdjustedFit;
   onApply: () => void;
   onDiscard: () => void;
+  /** Covers and hold window before → after the change (null where it doesn't fit). */
+  impact?: { before: string | null; after: string | null };
 }) {
   const rows: string[] = [];
   const range = (c: ChatConstraints) =>
@@ -718,15 +755,21 @@ function ChatDiff({
     <div className="chat-diff" role="group" aria-label="Change proposed in chat">
       <p className="chat-diff-title small">
         <span className="ai-label">
-          <span aria-hidden="true">✦</span> Proposed in chat
+          <span aria-hidden="true">✦</span> Proposed changes
         </span>{" "}
-        <span className="muted">· nothing changes until you apply it</span>
+        <span className="muted">· nothing changes until you apply them</span>
       </p>
-      <ul className="chat-diff-rows small">
+      <ol className="chat-diff-rows small">
         {rows.map((x) => (
           <li key={x}>{x}</li>
         ))}
-      </ul>
+      </ol>
+      {impact && (impact.before || impact.after) && impact.before !== impact.after && (
+        <p className="chat-diff-impact small">
+          <span className="muted">Covers and hold: </span>
+          {impact.before ?? "no fit"} → {impact.after ?? "no fit"}
+        </p>
+      )}
       <p className="chat-diff-check small">
         <span className="muted">Capacity check: </span>
         {word(fitBefore)} →{" "}
