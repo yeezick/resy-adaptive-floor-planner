@@ -146,11 +146,13 @@ export function TableShape({ table: t, selected, lit, badge, dim, dragging, ...h
 
 function badgeWords(b: string): string {
   if (b === "now") return "free now";
+  if (b === "free") return "free by the hold start";
   if (b === "blocked") return "blocked this service";
+  if (/[AP]M$/.test(b)) return `busy until about ${b.slice(1)} (estimated from meal phase)`;
   return `free in about ${b.replace(/[~m]/g, "")} minutes (estimated from meal phase)`;
 }
 
-/** Readiness bubble on the table's top edge: green "now", red "~25m" until free (est.). */
+/** Readiness bubble on the table's top edge: green "now" / "free", red "~25m" or "~5:20 PM" (est.). */
 function ReadyBubble({ table: t, text }: { table: Table; text: string }) {
   const px = usePx();
   const font = px(9);
@@ -160,7 +162,10 @@ function ReadyBubble({ table: t, text }: { table: Table; text: string }) {
   const x = t.x + t.w / 2 - w / 2;
   const y = t.y - h * 0.55;
   return (
-    <g className={`ready-bubble ${text === "now" ? "is-now" : "is-wait"}`} aria-hidden="true">
+    <g
+      className={`ready-bubble ${text === "now" || text === "free" ? "is-now" : "is-wait"}`}
+      aria-hidden="true"
+    >
       <rect x={x} y={y} width={w} height={h} rx={h / 2} />
       <text x={x + w / 2} y={y + h / 2} fontSize={font}>
         {text}

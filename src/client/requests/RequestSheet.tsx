@@ -5,7 +5,9 @@ import {
   times12,
   joinReadiness,
   partyFits,
-  readinessBadge,
+  readinessChip,
+  readinessTarget,
+  tableReady,
   readinessPill,
   tableNo,
   tablesPhrase,
@@ -105,9 +107,11 @@ export function RequestSheet({
       }).find((f) => f.reservationId === r.id) ?? null
     );
   }, [room, fit, r]);
+  // A future request is projected to its hold start; a request for now shows live minutes.
+  const readyAt = room && cost ? readinessTarget(r.time, room.clock, cost.hold.from) : null;
   const ready = useMemo(
-    () => (room && fit?.ok ? joinReadiness(room, fit.build.tables) : null),
-    [room, fit],
+    () => (room && fit?.ok ? joinReadiness(room, fit.build.tables, readyAt) : null),
+    [room, fit, readyAt],
   );
   const [reply, setReply] = useState<string | null>(null);
   useEffect(() => {
@@ -128,8 +132,9 @@ export function RequestSheet({
           ]
         : [`No capacity fit: ${fit.reason}`],
       fit.ok ? fit.build.tables : [],
+      readyAt,
     );
-  }, [fit, cost, r.id]);
+  }, [fit, cost, r.id, readyAt]);
   const junk = t?.status === "ok" && t.result.verdict === "junk" && !t.result.escalated;
   const overview = t?.status === "ok" ? t.result.summary : [needsOverview(r)];
 
@@ -241,20 +246,26 @@ export function RequestSheet({
             {ready && ready.tables.length > 0 && (
               <ul className="ready-list" aria-label="Tables in the join, and when each is free">
                 {ready.tables.map((t) => {
-                  const b = readinessBadge(t);
+                  const b = readinessChip(t, ready);
                   return (
                     <li key={t.id}>
                       <span className="ready-no">{tableNo(t.id)}</span>
                       <span className="muted">
                         {t.phase ?? (t.status === "reserved" ? "open, held later" : t.status)}
                       </span>
-                      <span className={`ready-chip ${b === "now" ? "is-now" : "is-wait"}`}>
+                      <span className={`ready-chip ${tableReady(t, ready) ? "is-now" : "is-wait"}`}>
                         {b}
                       </span>
                     </li>
                   );
                 })}
-                {!ready.ready && <li className="muted ready-key">~Xm = until free (est.)</li>}
+                {!ready.ready && (
+                  <li className="muted ready-key">
+                    {ready.at === null
+                      ? "~Xm = until free (est.)"
+                      : `projected to the hold start, ${clock12(ready.at)}; est. from meal phase`}
+                  </li>
+                )}
               </ul>
             )}
             {cost && room && (
@@ -307,6 +318,7 @@ export function RequestSheet({
             <button
               type="button"
               className="ask-ai"
+              title="Discuss this request with the AI Planner"
               disabled={!room}
               onClick={() => {
                 const box = document.getElementById(`chat-${r0.id}`);
@@ -314,7 +326,7 @@ export function RequestSheet({
                 box?.focus({ preventScroll: true });
               }}
             >
-              Ask AI Planner
+              <Sparkle /> Discuss
             </button>
           </div>
           <p className="muted small">Accept opens {r.day}'s plan with the party in it.</p>
@@ -378,5 +390,15 @@ export function RequestSheet({
         </div>
       )}
     </div>
+  );
+}
+
+/** The AI affordance: a four-point sparkle in the accent colour (decorative; the button says "Discuss"). */
+function Sparkle() {
+  return (
+    <svg className="sparkle" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <path d="M8 1.5c.4 2.9 1.7 4.2 4.6 4.6-2.9.4-4.2 1.7-4.6 4.6-.4-2.9-1.7-4.2-4.6-4.6 2.9-.4 4.2-1.7 4.6-4.6Z" />
+      <path d="M12.6 10.2c.2 1.3.8 1.9 2.1 2.1-1.3.2-1.9.8-2.1 2.1-.2-1.3-.8-1.9-2.1-2.1 1.3-.2 1.9-.8 2.1-2.1Z" />
+    </svg>
   );
 }

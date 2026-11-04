@@ -193,9 +193,10 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
     "Accept",
     "Decline",
     "Message guest",
-    "Ask AI Planner",
+    "Discuss",
   ]);
-  await sheet.getByRole("button", { name: "Ask AI Planner" }).click();
+  await expect(sheet.locator(".ask-ai svg.sparkle")).toBeVisible();
+  await sheet.getByRole("button", { name: "Discuss" }).click();
   await expect(sheet.getByRole("textbox", { name: "Message about this request" })).toBeFocused();
   await page.getByRole("button", { name: /Accept/ }).click();
   await expect(page.locator(".room-select select")).toHaveValue("book-fri");
@@ -245,6 +246,28 @@ test("during service, a proposed join shows each table's readiness (green now, r
   await expect(list).toContainText("until free (est.)");
   await expect(page.locator("svg.floor.lit-fit .ready-bubble.is-wait").first()).toBeVisible();
   await expect(page.locator("svg.floor.lit-fit .is-lit").first()).toBeVisible();
+});
+
+test("a later request on a live floor is projected to its hold start, not live minutes", async ({
+  page,
+}) => {
+  await openFloor(page);
+  await page.locator(".room-select select").selectOption("dinner-peak");
+  await expect(page.locator(".room-name")).toBeVisible();
+  await hostButton(page, "+ Walk-in").click();
+  await page.locator(".walkin .size-more input").fill("10");
+  const stand = page.getByRole("region", { name: "Large party at the host stand" });
+  await stand.getByRole("combobox").selectOption("21:45");
+  await stand.getByRole("textbox").fill("Ari Dalton");
+  await stand.getByRole("button", { name: "Check capacity fit →" }).click();
+  const sheet = page.locator(".request-sheet");
+  await expect(sheet.locator(".fit-pill")).toHaveText(
+    /^capacity fit ✓ · (Ready|ready to set up at ~\d{1,2}:\d\d [AP]M)$/,
+  );
+  const list = sheet.getByRole("list", { name: "Tables in the join, and when each is free" });
+  for (const chip of await list.locator(".ready-chip").allTextContents())
+    expect(chip).toMatch(/^(free by \d{1,2}:\d\d [AP]M|busy until ~\d{1,2}:\d\d [AP]M \(est\.\))$/);
+  await expect(list.locator(".ready-chip", { hasText: /^~\d+m$/ })).toHaveCount(0);
 });
 
 test("in-request chat: a message becomes constraints, the planner re-runs, manual controls match", async ({
@@ -415,6 +438,11 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     await expect(sheet.locator(".req-overview")).toContainText("Family reunion");
     await expect(sheet.locator(".impacts")).toContainText("Accept: +22 covers");
     await expect(sheet.locator(".impacts")).toContainText("= net −2");
+    // a future request: readiness is projected to the hold start (5:00 PM), not live minutes
+    await expect(sheet.locator(".fit-pill")).toHaveText("capacity fit ✓ · Ready");
+    const list = sheet.getByRole("list", { name: "Tables in the join, and when each is free" });
+    await expect(list.locator(".ready-chip").first()).toHaveText("free by 5:00 PM");
+    await expect(page.locator("svg.floor .ready-bubble.is-now").first()).toHaveText("free");
     await expect(page.locator(".room-select select")).toHaveValue("book-fri");
   });
 
