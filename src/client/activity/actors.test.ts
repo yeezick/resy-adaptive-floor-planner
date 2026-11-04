@@ -24,3 +24,14 @@ describe("activity actors", () => {
     expect(r && actorsOf(r)[0]).toBe("AI Planner");
   });
 });
+
+describe("feedback reasons", () => {
+  it("are dropped when a 👎 row is re-rated 👍", async () => {
+    const { activityActions, getActivityReasons } = await import("./store");
+    activityActions.rate("row-x", "down");
+    activityActions.toggleReason("row-x", "Missed need");
+    expect(getActivityReasons()["row-x"]).toEqual(["Missed need"]);
+    activityActions.rate("row-x", "up");
+    expect(getActivityReasons()["row-x"]).toEqual([]);
+  });
+});
