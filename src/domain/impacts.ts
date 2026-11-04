@@ -3,6 +3,7 @@
 import type { PartyFit } from "./fit";
 import { sectionLoad } from "./phases";
 import type { Room } from "./types";
+import { tableNumbers } from "./wording";
 
 export interface Impacts {
   pros: string[];
@@ -49,7 +50,11 @@ export function impactsOf(
     );
 
   if (f.hold.tables.length) {
-    cons.push(`Tables held ${f.hold.from}–${f.hold.until}`);
+    cons.push(
+      f.hold.runs.length > 1
+        ? `Tables held until ${f.hold.until}: ${f.hold.runs.map((r) => `${tableNumbers(r.tables)} from ${r.from}`).join(", ")}`
+        : `Tables held ${f.hold.from}–${f.hold.until}`,
+    );
     cons.push(`~${f.hold.coversLost} covers lost over one turn (est.)`);
   } else pros.push("Spare tables from storage only: nothing on the floor is held");
 

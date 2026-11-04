@@ -14,8 +14,13 @@ export interface Hold {
   tables: string[];
   /** The same tables by room, as runs: "Garden Room tables 57–61". */
   byArea: string[];
-  /** When the tables stop taking new bookings: a party seated after this could not leave before the build. */
+  /** When the first of the tables stops taking new bookings (the earliest of `runs`). */
   from: string;
+  /**
+   * The tables grouped by when each one's hold starts, earliest first. A table an earlier party is still
+   * seated at is held only from when that party leaves, so one party's tables can start at different times.
+   */
+  runs: { from: string; tables: string[]; byArea: string[] }[];
   /** The party's arrival. */
   until: string;
   seats: number;
@@ -65,6 +70,7 @@ export function holdFor(
   let seatMinutes = 0;
   let from = buildStart;
   let slots = 0;
+  const startOf = new Map<string, number>();
   for (const id of tables) {
     const t = tableById(room, id) as Table;
     const prior = earlier
@@ -75,14 +81,21 @@ export function holdFor(
       Math.max(toMinutes(serviceFrom), buildStart - TURN_MIN, ...prior),
     );
     from = Math.min(from, start);
+    startOf.set(id, start);
     seats += t.seats;
     seatMinutes += t.seats * (buildStart - start);
     slots = Math.max(slots, Math.floor((buildStart - start) / SLOT_MIN));
   }
+  const starts = [...new Set(startOf.values())].sort((x, y) => x - y);
+  const runs = starts.map((m) => {
+    const ids = tables.filter((id) => startOf.get(id) === m);
+    return { from: toHHMM(m), tables: ids, byArea: tablesByArea(room, ids) };
+  });
   return {
     tables,
     byArea: tablesByArea(room, tables),
     from: toHHMM(from),
+    runs,
     until: b.time,
     seats,
     slotsBlocked: slots,
@@ -162,6 +175,58 @@ export function partyFits(
   return sorted.map((b, i) =>
     partyFit(room, b, serviceFrom, sorted.slice(0, i), { privateOnly: priv.has(b.reservationId) }),
   );
+}
+
+/** When the hold on one table starts ("19:00"), or null when the party doesn't hold it. */
+export function holdStartFor(h: Hold, id: string): string | null {
+  return h.runs.find((r) => r.tables.includes(id))?.from ?? null;
+}
+
+export interface HoldConflict {
+  table: string;
+  /** The party whose hold (or setup) starts too early. */
+  reservationId: string;
+  from: string;
+  /** The earlier party still seated at the table, and until when (arrival + one turn). */
+  seatedId: string;
+  seatedUntil: string;
+}
+
+/**
+ * Holds that start while an earlier party is still seated at the same table (arrival + one turn).
+ * Pass `starts` to also check setup starts (the crew rebuild time per party).
+ */
+export function holdConflicts(
+  fits: readonly PartyFit[],
+  starts: Readonly<Record<string, string>> = {},
+): HoldConflict[] {
+  const out: HoldConflict[] = [];
+  for (const f of fits) {
+    for (const run of f.hold.runs.length
+      ? f.hold.runs
+      : [{ from: f.hold.from, tables: f.tables, byArea: [] }]) {
+      const setup = starts[f.reservationId];
+      for (const id of run.tables) {
+        const begin = Math.min(
+          toMinutes(run.from),
+          setup ? toMinutes(setup) : Number.POSITIVE_INFINITY,
+        );
+        for (const e of fits) {
+          if (e === f || !e.tables.includes(id) || toMinutes(e.time) >= toMinutes(f.time)) continue;
+          const until = toMinutes(e.time) + TURN_MIN;
+          if (begin < until)
+            out.push({
+              table: id,
+              reservationId: f.reservationId,
+              from: toHHMM(begin),
+              seatedId: e.reservationId,
+              seatedUntil: toHHMM(until),
+            });
+        }
+      }
+    }
+  }
+  return out;
 }
 
 /** One line for a card: "Held 17:00–19:00 · 6 slots · ~13 covers lost". */

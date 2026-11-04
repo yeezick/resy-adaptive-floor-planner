@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import bookFriJson from "../../fixtures/rooms/book-fri.json";
-import { partyFits } from "./fit";
+import { holdConflicts, holdStartFor, partyFits, type PartyFit } from "./fit";
 import { impactsOf } from "./impacts";
 import {
   checkRequest,
@@ -73,5 +73,63 @@ describe("named moves", () => {
     });
     expect(out.cons).toContain("Moves X (12) from tables 63–66 to tables 77–80");
     expect(out.cons.join(" ")).not.toMatch(/other large part/);
+  });
+});
+
+describe("hold starts per table (a later party never holds a table an earlier party still sits at)", () => {
+  function fridayPlan() {
+    const { room, fit } = friday22();
+    const withR = { ...room, reservations: [...room.reservations, toReservation(q2)] };
+    return partyFits(withR, fit.plan.builds, SERVICE.from);
+  }
+
+  it("keeps the 22-top's hold at 5:00–6:30 PM on one run of tables, covers lost 24", () => {
+    const f = fridayPlan().find((x) => x.reservationId === "Q2") as PartyFit;
+    expect(f.hold.from).toBe("17:00");
+    expect(f.hold.until).toBe("18:30");
+    expect(f.hold.coversLost).toBe(24);
+    expect(f.hold.runs).toHaveLength(1);
+  });
+
+  it("holds the 9:00 PM 24-top's shared Garden Room tables only from when the 22-top leaves", () => {
+    const fits = fridayPlan();
+    const q2fit = fits.find((x) => x.reservationId === "Q2") as PartyFit;
+    const late = fits.find((x) => x.reservationId === "F4") as PartyFit;
+    const shared = late.tables.filter((id) => q2fit.tables.includes(id));
+    expect(shared.length).toBeGreaterThan(0);
+    for (const id of shared) expect(holdStartFor(late.hold, id)).toBe("20:00");
+    expect(late.hold.runs.map((r) => r.from)).toEqual(["19:00", "20:00"]);
+    expect(holdConflicts(fits)).toEqual([]);
+  });
+
+  it("says so in the cons when the hold starts at different times", () => {
+    const { room, fit } = friday22();
+    const late = fridayPlan().find((x) => x.reservationId === "F4") as PartyFit;
+    const { cons } = impactsOf(room, { fit: late, needs: [], moved: fit.moved });
+    expect(cons).toContain("Tables held until 21:00: 67–69 from 19:00, 57–61 from 20:00");
+  });
+
+  it("flags a hold or setup that starts while an earlier party is still seated", () => {
+    const fits = fridayPlan();
+    const late = fits.find((x) => x.reservationId === "F4") as PartyFit;
+    const early = {
+      ...late,
+      hold: {
+        ...late.hold,
+        runs: [{ ...(late.hold.runs[1] as PartyFit["hold"]["runs"][number]), from: "19:00" }],
+      },
+    };
+    const bad = holdConflicts(fits.map((f) => (f === late ? early : f)));
+    expect(bad.length).toBeGreaterThan(0);
+    expect(bad[0]).toMatchObject({
+      reservationId: "F4",
+      seatedId: "Q2",
+      from: "19:00",
+      seatedUntil: "20:00",
+    });
+    expect(holdConflicts(fits, { F4: "19:30" })[0]).toMatchObject({
+      from: "19:30",
+      seatedUntil: "20:00",
+    });
   });
 });
