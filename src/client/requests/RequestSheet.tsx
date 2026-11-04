@@ -306,16 +306,20 @@ export function RequestSheet({
         <h2 className="req-title">
           {r.contact} · party of {r.partySize} · {requestWhen(r, now)}
         </h2>
-        <div className="muted small">received {times12(r.receivedAt)}</div>
       </div>
 
       <section className="req-block req-card ai-card" aria-label="Request">
-        <div className="req-card-top">
-          <div className="field req-via small">
+        <div className="field req-via small">
+          {/* the triage verdict rides on the label line, so the value line keeps the full width */}
+          <span className="req-via-head">
             <span className="field-label muted">Request</span>
+            <VerdictChip t={t} override={override} />
+          </span>
+          {/* who and through what, then when it arrived */}
+          <span className="req-via-line">
             <span className="field-value">{requestVia(r)}</span>
-          </div>
-          <VerdictChip t={t} override={override} />
+            <span className="muted"> · received {times12(r.receivedAt)}</span>
+          </span>
         </div>
         <ul className="req-overview" aria-label="What the party needs">
           <li>{normalTimes(summary)}</li>
