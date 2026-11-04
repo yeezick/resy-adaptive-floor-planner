@@ -1,3 +1,4 @@
+import { Thumb } from "./Thumb";
 import { DEMO_MANAGER, feedbackOf } from "../../domain/feedback";
 import { activityActions, FEEDBACK_REASONS, useFeedback, useFeedbackReasons } from "./store";
 
@@ -31,7 +32,7 @@ export function SourceFeedback({
         title="Helpful"
         onClick={() => activityActions.rate(rowId, "up")}
       >
-        👍
+        <Thumb />
       </button>
       <button
         type="button"
@@ -41,7 +42,7 @@ export function SourceFeedback({
         title="Not helpful"
         onClick={() => activityActions.rate(rowId, "down")}
       >
-        👎
+        <Thumb down />
       </button>
       {fb?.rating === "down" && (
         <span className="fb-reasons">
