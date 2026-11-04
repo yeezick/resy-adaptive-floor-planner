@@ -3722,3 +3722,63 @@ button.text-btn {
 .net-basis {
   display: block;
 }
+
+/* After Accept: the accepted party first, then one crew row per build */
+.accepted-card {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.accepted-title {
+  font-size: 17px;
+  font-weight: 650;
+}
+.accepted-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  margin: 0;
+}
+.accepted-grid dt {
+  color: var(--muted);
+}
+.accepted-grid dd {
+  margin: 0;
+}
+.undo-accept {
+  align-self: flex-start;
+}
+.applied-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  border-radius: 7px;
+  background: var(--surface-2);
+}
+.tonight details.generate > summary {
+  cursor: pointer;
+  margin-top: 4px;
+}
+.unplaced-line {
+  margin: 0 0 8px;
+  padding: 6px 10px;
+  border-left: 3px solid var(--warn);
+  background: var(--warn-soft);
+  border-radius: 0 7px 7px 0;
+}
+.crew-line {
+  margin-top: 2px;
+  color: var(--text);
+}
+.layouts-details > summary,
+.buildplan-details > summary {
+  cursor: pointer;
+  color: var(--muted);
+}

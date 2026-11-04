@@ -102,7 +102,7 @@ test("generate tonight's layout places parties and explains what can't fit", asy
   await page.getByRole("button", { name: "Generate tonight's layout" }).click();
   await expect(page.locator(".proposal")).toBeVisible();
   await expect(page.locator('[aria-label="Crew build list"]')).toBeVisible();
-  await expect(page.locator('[aria-label="No capacity fit"]')).toBeVisible();
+  await expect(page.locator(".unplaced-line")).toContainText(/needs? a table:/);
 });
 
 test("tonight's reasons and crew steps show guest names, not party ids", async ({ page }) => {
@@ -116,9 +116,8 @@ test("tonight's reasons and crew steps show guest names, not party ids", async (
   await page.getByRole("button", { name: "Generate tonight's layout" }).click();
   const crew = page.locator('[aria-label="Crew build list"]');
   await expect(crew).toBeVisible();
-  for (const d of await crew.locator("details").all()) await d.locator("summary").click();
-  const reasons = await page.locator(".proposal .rec-reason").allInnerTexts();
-  const steps = await crew.locator(".steps li").allInnerTexts();
+  const reasons = await page.locator(".proposal .unplaced-line").allInnerTexts();
+  const steps = await crew.locator(".crew li").allInnerTexts();
   expect(reasons.length + steps.length).toBeGreaterThan(0);
   for (const t of [...reasons, ...steps]) expect(t).not.toMatch(/\b[DEFHNPQR]\d{1,4}\b/);
 });
@@ -126,6 +125,7 @@ test("tonight's reasons and crew steps show guest names, not party ids", async (
 test("editor opens the base layout and inspects a table", async ({ page }) => {
   await openFloor(page);
   await hostButton(page, "Shift setup").click();
+  await page.getByText("Layouts ▸").click();
   await page
     .locator(".layout-list li")
     .first()
@@ -234,8 +234,9 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
   await page.getByRole("button", { name: /Accept/ }).click();
   await expect(page.locator(".room-select select")).toHaveValue("book-fri");
   await expect(page.locator(".proposal")).toBeVisible();
-  await expect(page.locator(".card.is-focus")).toContainText("Whitaker");
-  await expect(page.locator(".fit-card.is-focus")).toContainText("Whitaker");
+  await expect(page.locator(".accepted-card")).toContainText(
+    "Whitaker · 22 · Fri 6:30 PM — Accepted",
+  );
 });
 
 test("a large walk-in at the host stand gets the same capacity fit and cost", async ({ page }) => {
@@ -351,8 +352,8 @@ test("in-request chat: a message becomes constraints, the planner re-runs, manua
   await expect(sheet.locator(".impacts")).toContainText("Accept: +26 covers");
   await expect(sheet.locator(".crew-note")).toContainText("Also: high chair.");
   // manual parity: the same table range from the controls, no chat needed
-  await chat.getByLabel("Tables from").fill("30");
-  await chat.getByLabel("to", { exact: true }).fill("50");
+  await chat.getByLabel("Table range: first").fill("30");
+  await chat.getByLabel("last", { exact: true }).fill("50");
   await expect(sheet.locator(".cant-fit-line")).toContainText("No capacity fit in tables 30–50");
   await expect(sheet.locator(".cant-fit-line")).toContainText("Closest:");
   await expect(sheet).not.toContainText(/\bT\d/);
@@ -502,7 +503,9 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     await page.goto("/?scenario=party-22-accepted");
     await expect(page.locator(".proposal")).toBeVisible();
     await expect(page.locator('[aria-label="Crew build list"]')).toBeVisible();
-    await expect(page.locator(".fit-card.is-focus")).toContainText("Whitaker");
+    await expect(page.locator(".accepted-card")).toContainText(
+      "Whitaker · 22 · Fri 6:30 PM — Accepted",
+    );
   });
 
   test("walkin-8-peak: the assistant with ranked options at 7:10 PM", async ({ page }) => {
@@ -519,7 +522,7 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     const log = chat.getByRole("list", { name: "AI Planner chat" });
     await expect(log).toContainText("find another space between tables 30–50");
     await expect(log).toContainText("tables 30–50 →");
-    await expect(chat.getByLabel("Tables from")).toHaveValue("30");
+    await expect(chat.getByLabel("Table range: first")).toHaveValue("30");
     await expect(page.locator(".request-sheet")).toContainText("Closest:");
   });
 
@@ -664,4 +667,32 @@ test.describe("decision card", () => {
       await expect(page.locator(".req-block.ai-card")).toContainText("AI triage");
     });
   }
+});
+
+test.describe("after accept", () => {
+  test("party-22-accepted: Apply names the night, keeps the plan, and Undo restores it", async ({
+    page,
+  }) => {
+    await page.goto("/?scenario=party-22-accepted");
+    const panel = page.locator(".side-col");
+    await expect(panel.locator(".accepted-card")).toContainText("Crew starts");
+    const placedTile = panel
+      .locator(".stat", { hasText: "Large parties placed" })
+      .locator(".stat-value");
+    const placed = await placedTile.innerText();
+    const rows = await panel.locator(".crew > li").count();
+    // one crew row per build, no per-party change cards
+    await expect(panel.locator(".party-changes")).toHaveCount(0);
+    await panel.getByRole("button", { name: "Apply to Fri · planning from 3:00 PM" }).click();
+    await expect(panel.locator(".applied-bar")).toContainText(
+      "Applied to Fri · planning from 3:00 PM",
+    );
+    await expect(page.locator(".cb-sub")).not.toContainText("Tonight —");
+    await expect(placedTile).toHaveText(placed);
+    await expect(panel.locator(".crew > li")).toHaveCount(rows);
+    await panel.locator(".applied-bar").getByRole("button", { name: "Undo" }).click();
+    await expect(page.locator(".cb-sub")).toContainText("Base layout");
+    await panel.getByRole("button", { name: "Undo accept" }).click();
+    await expect(page.locator(".request-sheet .req-actions")).toContainText("Accept");
+  });
 });
