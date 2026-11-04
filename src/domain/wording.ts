@@ -152,11 +152,6 @@ export function signed(n: number): string {
   return n > 0 ? `+${n}` : n < 0 ? `−${-n}` : "0";
 }
 
-/** "Accept: +22 covers (the party) · −13 covers lost to the hold (est.) = net +9". */
-export function acceptLine(t: CoverTrade): string {
-  return `Accept: +${t.gain} covers (the party) · −${t.lost} covers lost to the hold (est.) = net ${signed(t.net)}`;
-}
-
 export const DECLINE_LINE = "Decline: 0 · request leaves Resy";
 
 /**
