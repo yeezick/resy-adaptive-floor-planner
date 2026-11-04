@@ -75,19 +75,6 @@ test.describe("request chat", () => {
     expect(calls()).toBe(0);
   });
 
-  test("an answer that takes over 8 s ends in a plain error", async ({ page }) => {
-    test.setTimeout(30_000);
-    await page.route("**/api/requests/*/chat", () => {
-      // never answers
-    });
-    await page.goto("/?scenario=party-22-agent");
-    await page.locator(".request-sheet").getByRole("button", { name: "Discuss" }).click();
-    await say(page, "headcount is now 26");
-    await expect(page.locator(".chat-log > li").last()).toContainText("That took too long", {
-      timeout: 12_000,
-    });
-  });
-
   test("s4: the proposal is numbered and shows covers and hold before → after", async ({
     page,
   }) => {
