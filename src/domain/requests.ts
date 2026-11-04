@@ -101,14 +101,6 @@ export function draftReply(r: GuestRequest, fit: RequestFit): string {
   return `Hi ${first}, thanks for asking about a party of ${r.partySize} on ${when}. Unfortunately we can't fit a group that size that night. Could another night work?`;
 }
 
-/** Card header: "Dana Ruiz, party of 22 · Fri 18:30 (in 3h 30m)". `minutesAway` is from that night's clock. */
-export function requestHeader(r: GuestRequest, minutesAway: number | null): string {
-  const when = `${r.day} ${r.time}`;
-  return `${r.contact}, party of ${r.partySize} · ${when}${
-    minutesAway === null ? "" : ` (${countdown(minutesAway)})`
-  }`;
-}
-
 /**
  * A request taken at the host stand: the host types the size, time, needs and a name. It goes through the same
  * capacity fit and cost as an online request. The note is the host's own words (never logged).
