@@ -157,3 +157,129 @@
   margin-left: 6px;
   color: var(--muted);
 }
+
+/* One request card: Request · summary · Needs · Guest message · the rule's recommendation · one rating row */
+.req-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.req-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.request-sheet.decision .req-card .req-overview {
+  margin: 0;
+}
+.req-needs .field-value {
+  font-size: 14px;
+  line-height: 1.35;
+}
+.req-needs .access-icon {
+  vertical-align: -2px;
+  margin-right: 6px;
+  color: var(--accent);
+}
+.req-message .field-value {
+  font-size: 13px;
+  line-height: 1.35;
+  quotes: "“" "”";
+}
+.req-decision {
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.req-decision .take-it {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--text);
+}
+.req-decision .cant-fit-line {
+  margin: 0;
+}
+.req-decision .fit-pill {
+  display: inline-block;
+  white-space: nowrap;
+  vertical-align: 2px;
+  font-weight: 500;
+}
+.req-card .triage-row {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 0 8px;
+}
+.req-card .triage-row .spacer {
+  flex: 1;
+}
+.req-card .triage-row .source-fb,
+.req-card .triage-row .override {
+  display: inline-flex;
+  align-items: center;
+}
+.req-card .triage-row .more-toggle,
+.req-card .triage-row .junk-btn {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  font-size: 13px;
+}
+@media (pointer: coarse) {
+  .req-card .triage-row .more-toggle,
+  .req-card .triage-row .junk-btn {
+    min-height: 44px;
+    min-width: 44px;
+    justify-content: center;
+  }
+}
+/* More: Plan, Pros, Cons, covers, footnote — one column at every width */
+.req-more {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+}
+.req-more p {
+  margin: 0;
+}
+.req-more ul.field-value {
+  margin: 0;
+  padding-left: 16px;
+}
+.req-more ul.field-value li {
+  margin: 2px 0;
+}
+.req-more .field-label.is-pro,
+.req-more .field-label.is-con {
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.req-more .field-label.is-pro {
+  color: var(--ok);
+}
+.req-more .field-label.is-con {
+  color: var(--fail);
+}
+.req-more .covers-summary {
+  border-top: 0;
+  padding-top: 0;
+}
+.req-more .covers-summary .net-hero {
+  font-size: 14px;
+}
+.req-more .crew-foot {
+  font-size: 12px;
+}
+
+/* label on its own line, value next (Changed in chat · Original request) */
+.req-card .changed-line,
+.req-card .original-fit {
+  align-items: flex-start;
+  justify-content: flex-start;
+}

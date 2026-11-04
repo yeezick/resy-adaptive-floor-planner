@@ -19,12 +19,15 @@ test("the capacity check reads booked covers vs walk-in capacity, and recommends
   page,
 }) => {
   const sheet = await openS1(page);
+  // the rule's line is on the card; the covers comparison is one tap away, inside More
+  await expect(sheet.locator(".take-it .take-it-text")).toHaveText(
+    "Take it: a booked 22 beats uncertain walk-ins",
+  );
+  await sheet.getByRole("button", { name: "More ▸" }).click();
   await expect(sheet.locator(".net-hero")).toHaveText("+22 booked vs up to ~24 possible walk-ins");
+  await expect(sheet.locator(".net-held")).toHaveText("· held 5:00–6:30 PM");
   await expect(sheet.locator(".capacity-line")).toHaveText(
     "Booked +22 (guaranteed) · Walk-in capacity held: up to ~24 (only if every held seat would turn) · Reservations moved 1 · cancelled 0",
-  );
-  await expect(sheet.locator(".take-it")).toHaveText(
-    "Take it: a booked 22 beats uncertain walk-ins",
   );
   // no "net −2" headline and no "covers lost" anywhere on the sheet
   await expect(sheet).not.toContainText("Net −2");
@@ -41,24 +44,24 @@ test("a request with no capacity fit gets no 'Take it' line", async ({ page }) =
   await expect(sheet.locator(".take-it")).toHaveCount(0);
 });
 
-test("each card is short: one triage line and one capacity summary, the rest behind More ▸", async ({
+test("one card: a short summary, Needs and the guest message up front, the rest behind More ▸", async ({
   page,
 }) => {
   const sheet = await openS1(page);
-  const triage = sheet.locator(".ai-card");
-  await expect(triage.locator(".req-overview li")).toHaveCount(1);
-  await expect(triage.locator(".req-overview")).toContainText("Family reunion");
+  const card = sheet.locator(".req-card");
+  await expect(sheet.locator(".req-block:not(.req-chat)")).toHaveCount(1);
+  await expect(card.locator(".req-overview li")).toHaveCount(1);
+  await expect(card.locator(".req-overview")).toContainText("Family reunion");
   // one font step larger than the 14px body text
-  const size = await triage
+  const size = await card
     .locator(".req-overview")
     .evaluate((e) => parseFloat(getComputedStyle(e).fontSize));
   expect(size).toBeGreaterThanOrEqual(16);
-  await expect(sheet.getByRole("list", { name: "Pros" })).toBeHidden();
-  await sheet.locator(".fit-more > summary").click();
+  await expect(card.locator(".req-needs")).toContainText("Step-free access");
+  await expect(card.getByRole("button", { name: "Mark as junk" })).toBeVisible();
+  await expect(sheet.getByRole("list", { name: "Pros" })).toHaveCount(0);
+  await card.getByRole("button", { name: "More ▸" }).click();
   await expect(sheet.getByRole("list", { name: "Pros" })).toBeVisible();
-  await triage.getByText("More ▸").click();
-  await expect(triage).toContainText("Step-free access");
-  await expect(triage.getByRole("button", { name: "Mark as junk" })).toBeVisible();
 });
 
 test("the footer is one row: Decline · Message · Discuss · Accept, Accept the only filled button", async ({
@@ -111,7 +114,7 @@ test("at iPad width the Accept preview sits on its own line above the buttons", 
   expect(preview && row && preview.y + preview.height).toBeLessThanOrEqual(row?.y ?? 0);
 });
 
-test("at 1180 × 820 the covers line and the 'Take it' rule show without scrolling", async ({
+test("at 1180 × 820 the header, Request, Needs, guest message, 'Take it' and Accept show without scrolling", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1180, height: 820 });
@@ -119,17 +122,32 @@ test("at 1180 × 820 the covers line and the 'Take it' rule show without scrolli
   const footerTop = (await sheet.locator(".decision-footer").boundingBox())?.y ?? 0;
   for (const l of [
     sheet.locator(".req-title"),
-    sheet.locator(".fit-pill"),
-    sheet.locator(".net-hero"),
-    sheet.locator(".capacity-line"),
+    sheet.locator(".req-via"),
+    sheet.locator(".req-needs"),
+    sheet.locator(".req-message"),
     sheet.locator(".take-it"),
+    sheet.locator(".fit-pill"),
     sheet.getByRole("button", { name: "Accept" }),
   ])
     await expect(l).toBeInViewport({ ratio: 1 });
-  for (const sel of [".net-hero", ".capacity-line", ".take-it"]) {
+  for (const sel of [".req-via", ".req-needs", ".req-message", ".take-it"]) {
     const b = await sheet.locator(sel).boundingBox();
     expect(b && b.y + b.height, sel).toBeLessThanOrEqual(footerTop);
   }
+  // nothing scrolls: not the page, not the sheet
+  const scroll = await page.evaluate(() => {
+    const side = document.querySelector(".side-col") as HTMLElement;
+    const inner = [...side.querySelectorAll<HTMLElement>("*")].filter(
+      (e) =>
+        e.scrollHeight > e.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(e).overflowY),
+    );
+    return {
+      page: document.documentElement.scrollHeight - window.innerHeight,
+      inner: inner.map((e) => e.className),
+    };
+  });
+  expect(scroll.page).toBeLessThanOrEqual(0);
+  expect(scroll.inner).toEqual([]);
 });
 
 test("Decline takes an optional note: saved with the decision and shown on /activity", async ({
