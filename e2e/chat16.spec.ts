@@ -88,13 +88,13 @@ test.describe("request chat: one reply per turn", () => {
     page,
   }) => {
     await openChat(page, {
-      "What's the latest we could seat them and still use the Library?": chatBody({
+      "Could they come a bit later and still use the Library?": chatBody({
         clarify: "Which arrival time should I test against the Library, for example 19:30?",
       }),
       "Headcount is now 26": chatBody({ partySize: 26 }),
       "can we push it to 19:00?": chatBody({ time: "19:00" }),
     });
-    await say(page, "What's the latest we could seat them and still use the Library?");
+    await say(page, "Could they come a bit later and still use the Library?");
     await expect(replies(page).nth(0)).toHaveText(
       "Which arrival time should I test against the Library, for example 7:30 PM?",
     );
@@ -136,6 +136,18 @@ test.describe("request chat: one reply per turn", () => {
     );
     await expect(page.getByText("use the controls on the card")).toHaveCount(0);
   });
+});
+
+test("“latest we could seat them and keep the Library” is answered from the capacity check, no model call", async ({
+  page,
+}) => {
+  const { seen } = await openChat(page);
+  await say(page, "What's the latest we could seat them and still use the Library?");
+  await expect(replies(page).nth(0)).toContainText(
+    /^Latest seating that keeps the Library: \d{1,2}:\d\d [AP]M/,
+  );
+  await expect(replies(page).nth(0)).not.toContainText(/\b\d{2}:\d\d\b/);
+  expect(seen).toEqual([]);
 });
 
 test.describe("waiting for the AI", () => {
