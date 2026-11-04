@@ -27,7 +27,10 @@ test("not-affiliated banner is on every page", async ({ page }) => {
 test("floor shows the meal-phase key and seated tables", async ({ page }) => {
   await openFloor(page);
   await page.getByRole("tab", { name: "Dining room" }).click();
-  const key = page.getByLabel("Meal phase key").first();
+  // iPad: the meal-phase key folds into "Key" under the floor
+  if (!(await page.locator(".floor-sub .phase-strip").isVisible()))
+    await page.locator(".legend-key > summary").click();
+  const key = page.locator(".phase-strip:visible").first();
   await expect(key).toBeVisible();
   for (const phase of ["Seated", "Drinks", "Apps", "Entrées", "Dessert", "Check"]) {
     await expect(key).toContainText(phase);
@@ -648,7 +651,7 @@ test.describe("manager copy carries no fixture ids", () => {
     const sheet = page.locator(".request-sheet");
     await expect(sheet.locator(".verdict").first()).toHaveText("Looks real");
     await expect(sheet.locator(".how-made .metrics")).toBeHidden();
-    await sheet.getByText("Triage detail ▸").click();
+    await sheet.getByText("Detail ▸").click();
     await sheet.getByText("How this was made").click();
     await expect(sheet.locator(".how-made .metrics")).toContainText("triage.v");
     await sheet.getByRole("button", { name: "Mark as junk" }).click();
@@ -724,7 +727,7 @@ test.describe("after accept", () => {
     const panel = page.locator(".side-col");
     await expect(panel.locator(".accepted-card")).toContainText("Crew starts");
     const placedTile = panel
-      .locator(".stat", { hasText: "Large parties placed" })
+      .locator(".stat", { hasText: "Parties of 8+ placed" })
       .locator(".stat-value");
     const placed = await placedTile.innerText();
     const rows = await panel.locator(".crew > li").count();
@@ -866,5 +869,49 @@ test.describe("host parity", () => {
     await expect(page.locator(".row-request .row-source").first()).toBeVisible();
     const booked = page.locator("#rail-booked .row").first();
     await expect(booked.locator(".row-table")).toHaveText(/^(tables? [\d–, and]+|unassigned)$/);
+  });
+});
+
+test.describe("host polish, part 3", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/requests/*/triage", (route) => route.abort());
+    await page.route("**/api/agent", (route) => route.abort());
+  });
+
+  test("walk-in: one quote first; Seat or waitlist always in view", async ({ page }) => {
+    await openFloor(page);
+    await hostButton(page, "+ Walk-in").click();
+    await page.locator(".size-grid").getByRole("button", { name: "4", exact: true }).click();
+    await expect(page.locator(".quote-big")).toBeInViewport();
+    await expect(page.locator(".walkin-footer button.primary")).toBeInViewport();
+  });
+
+  test("party-22-agent: 👍 / 👎 sit next to the AI triage; 👎 offers reasons", async ({ page }) => {
+    await page.goto("/?scenario=party-22-agent");
+    const fb = page.getByRole("group", { name: "Rate this AI triage" });
+    await fb.getByRole("button", { name: "Not helpful" }).click();
+    await fb.getByRole("button", { name: "Missed need" }).click();
+    await expect(fb.getByRole("button", { name: "Missed need" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  test("party-22-agent: the draft reply only promises an answer time", async ({ page }) => {
+    await page.goto("/?scenario=party-22-agent");
+    await page.getByRole("button", { name: "Message guest" }).click();
+    await expect(page.locator(".reply textarea")).toHaveValue(/will confirm by 4:00 PM/);
+  });
+
+  test("table details: who and when first, then Finish, then tools", async ({ page }) => {
+    await openFloor(page);
+    await page.locator('svg.floor g[data-id="T3"]').focus();
+    await page.keyboard.press("Enter");
+    const card = page.locator(".table-card");
+    await expect(card.locator("header")).toContainText(/party of \d+/);
+    await expect(card).not.toContainText("Joinable");
+    const finish = await card.locator(".finish-btn").boundingBox();
+    const phase = await card.locator(".phase-control").boundingBox();
+    expect(finish && phase && finish.y < phase.y).toBe(true);
   });
 });
