@@ -73,6 +73,12 @@ describe("times12", () => {
     expect(times12("~45m · tables 30–50 · 1:4 · T57")).toBe("~45m · tables 30–50 · 1:4 · T57");
   });
 
+  it("leaves times already written for people alone (only zero-padded HH:MM is converted)", () => {
+    expect(times12("can move from 6:00 to 6:30 PM; fixed at 7:30pm")).toBe(
+      "can move from 6:00 to 6:30 PM; fixed at 7:30pm",
+    );
+  });
+
   it("does not touch times inside longer digit runs", () => {
     expect(times12("id 119:000")).toBe("id 119:000");
   });
