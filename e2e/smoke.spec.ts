@@ -758,3 +758,18 @@ test.describe("declutter", () => {
     );
   });
 });
+
+test("activity-log reads as an ops log: actor column, plain words, no engineering strings by default", async ({
+  page,
+}) => {
+  await page.route("**/api/requests/*/triage", (route) => route.abort());
+  await page.goto("/?scenario=activity-log");
+  const table = page.locator(".activity-table");
+  await expect(table.locator("thead")).toContainText("What happened");
+  await expect(table.locator("thead")).toContainText("Actor");
+  await expect(table.locator("thead")).not.toContainText("Cost");
+  await expect(table).toContainText("AI Planner → Capacity check → Manager");
+  await expect(table).toContainText("Capacity check rejected 1 AI option");
+  const body = await page.locator(".activity").innerText();
+  expect(body).not.toMatch(/sha256|validator|claude-|\$0\.\d{4} ·|triage\.v|agent\.v/);
+});
