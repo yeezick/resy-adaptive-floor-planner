@@ -16,5 +16,9 @@ describe("published deterministic checks (public/evals/checks.json)", () => {
       "request-chat",
     ]);
     for (const g of c.groups) expect(g.passed).toBe(g.total);
+    // the request chat's golden scenarios, with the adversarial ones counted apart
+    expect(c.chatScenarios?.passing).toBe(c.chatScenarios?.total);
+    expect(c.chatScenarios?.adversarialPassing).toBe(c.chatScenarios?.adversarial);
+    expect(c.chatScenarios?.adversarial).toBeGreaterThanOrEqual(5);
   });
 });
