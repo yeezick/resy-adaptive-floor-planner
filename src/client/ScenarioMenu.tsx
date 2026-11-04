@@ -8,16 +8,17 @@ export function ScenarioMenu() {
   const current = activeScenario();
   return (
     <details className="scenario-menu">
-      <summary>Scenarios{current ? <span className="muted"> · {current.id}</span> : null}</summary>
+      <summary>
+        Scenarios
+        {current ? <span className="sr-only"> · {current.title}</span> : null}{" "}
+        <span aria-hidden="true">▾</span>
+      </summary>
       <ul role="list" aria-label="Demo scenarios">
         {SCENARIOS.map((s, i) => (
           <li key={s.id}>
             <a href={scenarioUrl(s.id)} aria-current={current?.id === s.id ? "page" : undefined}>
               <span className="scenario-n">{i + 1}</span>
-              <span>
-                {s.title}
-                <span className="mono muted small"> {scenarioUrl(s.id)}</span>
-              </span>
+              <span>{s.title}</span>
             </a>
           </li>
         ))}

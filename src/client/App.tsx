@@ -19,8 +19,8 @@ export function App() {
           <Link href="/">Floor</Link>
           <Link href="/activity">Activity</Link>
           <Link href="/evals">Evals</Link>
+          <ScenarioMenu />
         </nav>
-        <ScenarioMenu />
         <ThemeToggle />
       </header>
       <main>
