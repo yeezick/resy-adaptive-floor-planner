@@ -6,6 +6,7 @@ import {
   applyMove,
   applySplit,
   comboOf,
+  ELAPSED_EST_MIN,
   findTablesForParty,
   joinReadiness,
   joinBadge,
@@ -40,7 +41,14 @@ import { planHolds } from "./lib/holds";
 import { Rail } from "./Rail/Rail";
 import { RequestSheet } from "./requests/RequestSheet";
 import { ProposedTag } from "./ProposedTag";
-import { pendingCount, requestsActions, useRequests } from "./requests/store";
+import {
+  currentRequest,
+  decisionOf,
+  pendingCount,
+  requestsActions,
+  useRequests,
+} from "./requests/store";
+import { setDemoNight } from "./lib/demoClock";
 import { ReservationSheet } from "./WalkIn/ReservationSheet";
 import { WalkInSheet, type WalkInDraft } from "./WalkIn/WalkInSheet";
 import { tablesPhrase } from "../domain/wording";
@@ -98,6 +106,21 @@ export function Planner({
   const [edited, setEdited] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [hover, setHover] = useState<Highlight | null>(null);
+  // A hover counts only once the pointer has moved: when a panel redraws under a still cursor (e.g. after
+  // Accept), the row that lands under it must not take over the floor from the party in focus.
+  const [hoverArmed, setHoverArmed] = useState(!focus);
+  const [armedFor, setArmedFor] = useState(focus);
+  if (armedFor !== focus) {
+    setArmedFor(focus);
+    setHoverArmed(false);
+    setHover(null);
+  }
+  useEffect(() => {
+    if (hoverArmed) return;
+    const arm = () => setHoverArmed(true);
+    window.addEventListener("pointermove", arm, { once: true });
+    return () => window.removeEventListener("pointermove", arm);
+  }, [hoverArmed]);
   const [pinned, setPinned] = useState<Highlight | null>(null);
   const [mode, setMode] = useState<PanelMode>(
     focusView === "request"
@@ -112,6 +135,8 @@ export function Planner({
     focusView === "request" ? (focus ?? null) : null,
   );
   const requests = useRequests();
+  // every stamp the demo writes reads the clock of the night on screen
+  useEffect(() => setDemoNight(room.id, room.clock), [room.id, room.clock]);
   // The planner is a fixed-height app shell: rail, floor and sheet scroll on their own, the console bar stays.
   useEffect(() => {
     document.documentElement.classList.add("planner-shell");
@@ -121,6 +146,8 @@ export function Planner({
   const [railOpen, setRailOpen] = useState(false);
   // Tables whose meal phase the host set by hand (the rest come from the simulated POS feed).
   const [phaseByHost, setPhaseByHost] = useState<ReadonlySet<string>>(new Set());
+  // When the host first changes a table's phase, its "seated ~N min ago" is kept as it was.
+  const [seatedAgo, setSeatedAgo] = useState<ReadonlyMap<string, number>>(new Map());
   const [railFor, setRailFor] = useState(false);
   const request = requests.book?.requests.find((r) => r.id === openRequest) ?? null;
 
@@ -154,19 +181,25 @@ export function Planner({
       : null;
   // Opening an accepted request's night: show (and outline) that party's tables.
   const shownPlan = proposal ?? applied?.proposal ?? null;
-  const focusTables = useMemo(
-    () =>
-      shownPlan && focusRequest
-        ? [
-            ...new Set(
-              shownPlan.changes
-                .filter((c) => c.reservationId === focusRequest)
-                .flatMap((c) => c.tables),
-            ),
-          ]
-        : [],
-    [shownPlan, focusRequest],
-  );
+  const focusDecision = focusRequest ? decisionOf(requests, focusRequest) : null;
+  const focusTables = useMemo(() => {
+    if (!focusRequest) return [];
+    const changed = shownPlan
+      ? [
+          ...new Set(
+            shownPlan.changes
+              .filter((c) => c.reservationId === focusRequest)
+              .flatMap((c) => c.tables),
+          ),
+        ]
+      : [];
+    // nothing to move for the party: show the tables Accept held
+    return changed.length
+      ? changed
+      : focusDecision?.kind === "accepted"
+        ? focusDecision.tables
+        : [];
+  }, [shownPlan, focusRequest, focusDecision]);
   const focusTab = focusTables.length
     ? tabForTables(shownPlan?.variant ?? room, focusTables)
     : "first";
@@ -197,12 +230,13 @@ export function Planner({
       ? {
           key: `req-${request?.id}`,
           ids: reqTables,
-          label: `${request ? surname(request.contact) : ""} · party of ${request?.partySize} · ${readinessPill(reqReady)}`,
+          label: `${request ? surname(request.contact) : ""} · party of ${request ? currentRequest(requests, request).partySize : ""} · ${readinessPill(reqReady)}`,
           source: "fit",
           badges: Object.fromEntries(reqReady.tables.map((t) => [t.id, joinBadge(t, reqReady)])),
         }
       : null;
-  const highlight = hover ?? pinned ?? suggested ?? focusHighlight ?? reqHighlight;
+  const highlight =
+    (hoverArmed ? hover : null) ?? pinned ?? suggested ?? focusHighlight ?? reqHighlight;
   const controls: HighlightControls = {
     pinnedKey: pinned?.key ?? null,
     onHover: setHover,
@@ -290,6 +324,7 @@ export function Planner({
       { id: `D${nextId.current++}`, partySize: size, tables: ids, finishedAt: room.clock },
     ]);
     setSelected((s) => s.filter((id) => !ids.includes(id)));
+    setSeatedAgo((m) => new Map([...m].filter(([id]) => !ids.includes(id))));
   };
   const reset = () => {
     setRoom(fixture);
@@ -309,7 +344,7 @@ export function Planner({
     setRailFor(hasSheet);
     if (!hasSheet && railOpen) setRailOpen(false);
   }
-  const openCount = pendingCount(requests);
+  const openCount = pendingCount(requests, { roomId: room.id, clock: room.clock });
   return (
     <div className={`console${hasSheet ? " has-sheet" : ""}${railOpen ? " rail-open" : ""}`}>
       <ConsoleBar
@@ -323,9 +358,19 @@ export function Planner({
       />
       {proposal && (
         <div className="preview-bar" role="status">
-          <strong>Previewing the night's layout</strong> ·{" "}
-          {times12(`${proposal.window.from}–${proposal.window.to}`)} · nothing changes until you
-          apply it
+          {focusDecision?.kind === "accepted" ? (
+            <>
+              <strong>Accept already held {tablesPhrase(focusDecision.tables)}.</strong> Previewing
+              the crew plan for {times12(`${proposal.window.from}–${proposal.window.to}`)} · nothing
+              else changes until you apply it
+            </>
+          ) : (
+            <>
+              <strong>Previewing the night's layout</strong> ·{" "}
+              {times12(`${proposal.window.from}–${proposal.window.to}`)} · nothing changes until you
+              apply it
+            </>
+          )}
           <button type="button" className="link-btn" onClick={() => setProposal(null)}>
             Exit preview
           </button>
@@ -453,12 +498,21 @@ export function Planner({
               onFinish={finish}
               holds={holds}
               phaseByHost={phaseByHost}
+              seatedAgo={seatedAgo}
               onPhase={(ids, phase) => {
+                const before = new Map(seatedAgo);
+                for (const id of ids) {
+                  const t = room.tables.find((x) => x.id === id);
+                  if (t && !before.has(id)) before.set(id, ELAPSED_EST_MIN[t.phase ?? "seated"]);
+                }
                 const r = run(
                   () => setPhase(room, ids, phase),
                   `${tablesPhrase(ids)} set to ${PHASE_LABEL[phase].toLowerCase()}`,
                 );
-                if (r.ok) setPhaseByHost((s) => new Set([...s, ...ids]));
+                if (r.ok) {
+                  setPhaseByHost((s) => new Set([...s, ...ids]));
+                  setSeatedAgo(before);
+                }
               }}
             />
             {selected.length > 0 && (
