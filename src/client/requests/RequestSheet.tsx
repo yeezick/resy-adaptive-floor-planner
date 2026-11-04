@@ -150,7 +150,8 @@ export function RequestSheet({
   const fit = useMemo(() => adj?.fit ?? (room ? checkRequest(room, r0) : null), [adj, room, r0]);
   const elapsed = useElapsedMinutes();
   // the reply promises only an answer time: one hour after the floor clock of the request's night
-  const confirmBy = roomRes?.ok ? toHHMM(toMinutes(roomRes.data.clock) + 60) : undefined;
+  const confirmMin = roomRes?.ok ? toMinutes(roomRes.data.clock) + 60 : null;
+  const confirmBy = confirmMin !== null && confirmMin < 24 * 60 ? toHHMM(confirmMin) : undefined;
   const draft = useMemo(
     () => (fit ? times12(draftReply(r, fit, confirmBy)) : ""),
     [fit, r, confirmBy],
