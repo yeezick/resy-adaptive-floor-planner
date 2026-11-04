@@ -114,7 +114,7 @@ export function ConsoleBar({
           aria-pressed={mode === "assistant"}
           onClick={() => onMode("assistant")}
         >
-          AI Planner <span className="proposed-dot" title="Proposed feature" aria-hidden="true" />
+          AI Planner
         </button>
       </div>
       <div className="cb-right">

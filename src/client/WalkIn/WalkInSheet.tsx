@@ -202,8 +202,7 @@ export function WalkInSheet({
 
       <section aria-label="Suggested tables" className="suggested">
         <h3 className="section-title">
-          Suggested <ProposedTag />{" "}
-          <span className="muted">· outlined on the floor · tap one to pick it</span>
+          Suggested <span className="muted">· outlined on the floor · tap one to pick it</span>
         </h3>
         {suggestions.length === 0 ? (
           <p className="muted small">{fit.note ?? "Nothing fits right now."}</p>
@@ -230,7 +229,7 @@ export function WalkInSheet({
                     onMouseLeave={() => highlight.onHover(null)}
                   >
                     <span className="sugg-head">
-                      <span className="ai-chip">Suggested</span>
+                      <span className="tag">Suggested</span>
                       <strong>{tablesPhrase(o.tables)}</strong>
                       <span className={o.waitMin === 0 ? "ok-text eta" : "muted eta"}>
                         {etaText(room, o)}

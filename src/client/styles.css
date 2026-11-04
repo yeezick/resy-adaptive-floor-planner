@@ -2571,8 +2571,8 @@ button.primary:disabled {
   letter-spacing: 0.02em;
   padding: 1px 7px;
   border-radius: 999px;
-  border: 1px dashed var(--accent);
-  color: var(--accent);
+  border: 1px dashed var(--border-strong);
+  color: var(--muted);
   white-space: nowrap;
 }
 .badge {
@@ -3611,4 +3611,114 @@ html.planner-shell .floor-col > .legend {
 /* absolutely positioned helpers (screen-reader tables) stay inside their column */
 html.planner-shell .console-body > * {
   position: relative;
+}
+
+/* Decision card: what the manager decides on first, actions pinned to the bottom of the sheet */
+.request-sheet.decision {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.request-sheet.decision .req-head {
+  display: block;
+}
+.request-sheet.decision .req-title {
+  font-size: 17px;
+  line-height: 1.3;
+}
+.ai-card {
+  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+  background: color-mix(in srgb, var(--accent) 6%, var(--surface));
+}
+.ai-label {
+  color: var(--accent-ink);
+}
+.req-overview {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 14px;
+}
+.fit-summary {
+  margin: 0;
+  font-size: 14px;
+}
+.impacts-net {
+  margin: 4px 0 2px;
+}
+.net-hero {
+  font-size: 17px;
+  font-weight: 700;
+}
+.net-hero.is-neg {
+  color: var(--warn);
+}
+.details.more > summary,
+details.more > summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.feedforward {
+  margin: 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--border-strong);
+  background: var(--surface-2);
+  border-radius: 0 7px 7px 0;
+}
+.req-chat-wrap > summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+.decision-footer {
+  position: sticky;
+  bottom: -10px;
+  margin: 0 -12px -10px;
+  padding: 10px 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  z-index: 3;
+}
+.decision-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+}
+.decision-footer .btn-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  align-self: stretch;
+}
+.decision-footer .btn-row button {
+  white-space: nowrap;
+}
+.triage-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 14px;
+}
+.triage-row details[open] {
+  flex-basis: 100%;
+}
+.triage-row details > p,
+.triage-row details > .how-made {
+  margin: 4px 0 0;
+}
+.decision-footer .spacer {
+  flex: 1;
+}
+button.text-btn {
+  background: transparent;
+  border-color: transparent;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+/* AI Planner options: one ring shape everywhere (solid), periwinkle only for AI output */
+.floor.lit-ai .is-lit .ring {
+  stroke-dasharray: none;
+}
+.net-basis {
+  display: block;
 }

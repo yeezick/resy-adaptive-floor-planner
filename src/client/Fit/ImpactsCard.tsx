@@ -4,6 +4,7 @@ import {
   coverTrade,
   DECLINE_LINE,
   impactsOf,
+  signed,
   type Build,
   type PartyFit,
   times12,
@@ -20,17 +21,32 @@ export function ImpactsCard({
   build,
   needs,
   moved,
+  movedDetail = [],
 }: {
   room: Room;
   f: PartyFit;
   build: Build;
   needs: readonly string[];
   moved: readonly string[];
+  /** Named moves ("Moves Okafor (10) from tables 63–66 to tables 27–29"), shown in place of the count. */
+  movedDetail?: readonly string[];
 }) {
-  const { pros, cons } = impactsOf(room, { fit: f, needs, moved });
+  const impacts = impactsOf(room, { fit: f, needs, moved });
+  const cons = movedDetail.length
+    ? [...movedDetail, ...impacts.cons.filter((c) => !/other large part/.test(c))]
+    : impacts.cons;
+  const pros = impacts.pros;
   const trade = coverTrade(f.partySize, f.hold.coversLost);
   return (
     <div className="impacts" aria-label="Impacts of saying yes">
+      <p className="impacts-net">
+        <strong className={`net-hero${trade.net < 0 ? " is-neg" : ""}`}>
+          Net {signed(trade.net)} covers (est.)
+        </strong>
+        <span className="net-basis muted small">
+          {acceptLine(trade)} · {DECLINE_LINE}
+        </span>
+      </p>
       <h4 className="impacts-title small">Impacts of saying yes</h4>
       <div className="impacts-cols">
         <div className="impacts-col is-pro">
@@ -52,16 +68,7 @@ export function ImpactsCard({
           </ul>
         </div>
       </div>
-      <p className="impacts-net small">
-        <strong className={trade.net < 0 ? "warn-text" : undefined}>{acceptLine(trade)}</strong>
-        <span className="muted"> · {DECLINE_LINE}</span>
-      </p>
       <p className="small">Crew: build time ~{buildMinutes(build)} min (est.)</p>
-      {f.aisle.rejected.map((r) => (
-        <p key={r.tables.join()} className="fit-reject small">
-          Rejected: {times12(r.reason)}
-        </p>
-      ))}
     </div>
   );
 }
