@@ -15,7 +15,7 @@ import { defaultTab, intersects, roomTabs, viewBox, type Box, type ViewPreset } 
 import { OffscreenCue, useScrollView } from "./OffscreenCue";
 import { FloorLegend } from "./Legend";
 import { PxPerUnit, useMeasuredPpu, usePx } from "./scale";
-import { PartyBubbles, TableShape } from "./TableShape";
+import { TableShape } from "./TableShape";
 import "./floor15.css";
 
 interface Props {
@@ -32,8 +32,6 @@ interface Props {
   fitKey?: string;
   /** Tables held by accepted large-party plans for this night. */
   held?: ReadonlySet<string>;
-  /** Size of the party on each table (seated, held or booked), shown as a small bubble. */
-  parties?: ReadonlyMap<string, number>;
 }
 
 interface Drag {
@@ -62,7 +60,6 @@ export function FloorPlan({
   initialTab,
   fitKey,
   held,
-  parties,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -387,7 +384,6 @@ export function FloorPlan({
                     dim={dimOthers && !lit.has(t.id)}
                     dragging={drag?.id === t.id && drag.moved}
                     held={(held?.has(t.id) ?? false) || t.status === "reserved"}
-                    party={parties?.get(t.id)}
                     onPointerDown={(e) => onTableDown(e, t)}
                     onPointerMove={(e) => onTableMove(e, t)}
                     onPointerUp={(e) => onTableUp(e, t)}
@@ -395,8 +391,6 @@ export function FloorPlan({
                     onKeyDown={(e) => onTableKey(e, t)}
                   />
                 ))}
-
-                {parties && <PartyBubbles tables={tables} parties={parties} />}
 
                 {changes && <ChangeOverlay room={room} changes={changes} />}
               </g>
