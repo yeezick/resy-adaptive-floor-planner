@@ -89,13 +89,13 @@ export function checkRequest(room: Room, r: GuestRequest): RequestFit {
  * A reply the manager edits before sending. Template text from the fit check only: it never promises a booking
  * and never names a table.
  */
-export function draftReply(r: GuestRequest, fit: RequestFit): string {
+export function draftReply(r: GuestRequest, fit: RequestFit, confirmBy?: string): string {
   const first = r.contact.split(" ")[0] ?? r.contact;
   const when = `${r.day} at ${r.time}`;
   if (fit.ok)
-    return `Hi ${first}, thanks for asking about a party of ${r.partySize} on ${when}. We may be able to host you${
+    return `Hi ${first}, thanks for asking about a party of ${r.partySize} on ${when}. We're checking a table plan for ${r.partySize}${
       r.privateRoom ? " in a private room" : ""
-    }. Could you confirm the final headcount and any dietary needs? We'll check the details and come back to you.`;
+    } and will confirm${confirmBy ? ` by ${confirmBy}` : " soon"}. Could you let us know the final headcount and any dietary needs?`;
   if (fit.nextFit)
     return `Hi ${first}, thanks for asking about a party of ${r.partySize} on ${when}. We're full for a group that size at ${r.time}, but we could host you from ${fit.nextFit}. Would that work?`;
   return `Hi ${first}, thanks for asking about a party of ${r.partySize} on ${when}. Unfortunately we can't fit a group that size that night. Could another night work?`;

@@ -12,6 +12,8 @@ import {
   tableNo,
   tablesPhrase,
   planBuilds,
+  toHHMM,
+  toMinutes,
   type Room,
 } from "../../domain";
 import { ImpactsCard } from "../Fit/ImpactsCard";
@@ -26,7 +28,7 @@ import {
   type GuestRequest,
 } from "../../domain/requests";
 import { fetchRoom } from "../api";
-import { duration, usd } from "../lib/format";
+import { duration, normalTimes, usd } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
 import { useElapsedMinutes } from "../lib/useDemoClock";
 import {
@@ -38,6 +40,7 @@ import {
 } from "../../domain/requestChat";
 import { listAnd } from "../../domain/wording";
 import { RequestChat } from "./RequestChat";
+import { SourceFeedback } from "../activity/SourceFeedback";
 import {
   decisionOf,
   requestsActions,
@@ -146,7 +149,13 @@ export function RequestSheet({
   const changedBy = s.changedBy[r0.id];
   const fit = useMemo(() => adj?.fit ?? (room ? checkRequest(room, r0) : null), [adj, room, r0]);
   const elapsed = useElapsedMinutes();
-  const draft = useMemo(() => (fit ? times12(draftReply(r, fit)) : ""), [fit, r]);
+  // the reply promises only an answer time: one hour after the floor clock of the request's night
+  const confirmMin = roomRes?.ok ? toMinutes(roomRes.data.clock) + 60 : null;
+  const confirmBy = confirmMin !== null && confirmMin < 24 * 60 ? toHHMM(confirmMin) : undefined;
+  const draft = useMemo(
+    () => (fit ? times12(draftReply(r, fit, confirmBy)) : ""),
+    [fit, r, confirmBy],
+  );
   const cost = useMemo(() => {
     if (!room || !fit?.ok) return null;
     const withR = { ...room, reservations: [...room.reservations, toReservation(r)] };
@@ -231,7 +240,7 @@ export function RequestSheet({
         </div>
         <ul className="req-overview" aria-label="What the party needs">
           {overview.map((line) => (
-            <li key={line}>{line}</li>
+            <li key={line}>{normalTimes(line)}</li>
           ))}
         </ul>
         {t?.status === "host" && (
@@ -249,6 +258,9 @@ export function RequestSheet({
           </div>
         )}
         <div className="triage-row small">
+          {t?.status === "ok" && !override && (
+            <SourceFeedback rowId={`row-${t.result.traceId}`} what="AI triage" compact />
+          )}
           {(verdict === "real" || verdict === "junk") && (
             <span className="override">
               <span className="muted">
@@ -266,7 +278,7 @@ export function RequestSheet({
             </span>
           )}
           <details className="how-made">
-            <summary>Triage detail ▸</summary>
+            <summary>Detail ▸</summary>
             {t?.status === "ok" && (
               <p>
                 <span className="muted">Why: </span>
@@ -557,7 +569,18 @@ export function RequestSheet({
           </div>
           {proposal && (
             <p className="muted small accept-why">
-              Apply or discard the change proposed in chat to accept.
+              Apply or discard the change proposed in chat to accept.{" "}
+              <button
+                type="button"
+                className="link-btn"
+                onClick={() =>
+                  document
+                    .querySelector(".chat-diff")
+                    ?.scrollIntoView({ block: "nearest", behavior: "smooth" })
+                }
+              >
+                Review change ↑
+              </button>
             </p>
           )}
         </div>

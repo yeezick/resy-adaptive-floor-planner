@@ -155,6 +155,8 @@ export function WalkInSheet({
   const toggleNeed = (n: Need) =>
     onDraft({ ...draft, needs: needs.includes(n) ? needs.filter((x) => x !== n) : [...needs, n] });
 
+  const day = NIGHTS[room.id]?.day ?? "";
+  const shownQuote = busy.length ? pickWait : quote;
   return (
     <div className="walkin">
       <fieldset className="field-block">
@@ -187,22 +189,20 @@ export function WalkInSheet({
         </div>
       </fieldset>
 
-      <fieldset className="field-block">
-        <legend>Needs (optional)</legend>
-        <div className="chips">
-          {NEEDS.map((n) => (
-            <button
-              key={n}
-              type="button"
-              className="chip"
-              aria-pressed={needs.includes(n)}
-              onClick={() => toggleNeed(n)}
-            >
-              {n}
-            </button>
-          ))}
+      <div className="quote-hero" aria-live="polite">
+        <div>
+          <span className="quote-big">
+            {live === 0 && !busy.length
+              ? "Free now"
+              : live === null
+                ? `No table fits now · quote ~${shownQuote} min (est.)`
+                : `Quote ~${shownQuote} min (est.)`}
+          </span>
         </div>
-      </fieldset>
+        <div className="muted small">
+          usual {day ? `${day} ` : ""}~{typical} min (est.) · live, from table phases
+        </div>
+      </div>
 
       <HostStandRequest room={room} size={size} needs={needs} />
 
@@ -235,18 +235,19 @@ export function WalkInSheet({
                     onMouseLeave={() => highlight.onHover(null)}
                   >
                     <span className="sugg-head">
-                      <span className="tag">Suggested</span>
                       <strong>{tablesPhrase(o.tables)}</strong>
                       <span className={o.waitMin === 0 ? "ok-text eta" : "muted eta"}>
-                        {etaText(room, o)}
+                        {o.waitMin === 0 ? "free now" : `free ~${o.waitMin} min (est.)`}
                       </span>
                     </span>
                     <span className="small muted">
-                      {o.seats} seats · {o.area} · section {o.sections.join("/")}
+                      {o.seats !== size ? `${o.seats} seats · ` : ""}
+                      {o.waitMin === 0 ? "" : `${etaText(room, o).split(" — ")[1] ?? ""} · `}
+                      section {o.sections.join("/")}
                       {o.tradeoffs[0] ? ` · ${o.tradeoffs[0]}` : ""}
                     </span>
                     {o.extraChairs > 0 && (
-                      <span className="pill pill-warn">
+                      <span className="pill">
                         +{o.extraChairs} chair{o.extraChairs === 1 ? "" : "s"} from storage
                       </span>
                     )}
@@ -257,6 +258,23 @@ export function WalkInSheet({
           </ul>
         )}
       </section>
+
+      <fieldset className="field-block">
+        <legend>Needs (optional)</legend>
+        <div className="chips">
+          {NEEDS.map((n) => (
+            <button
+              key={n}
+              type="button"
+              className="chip"
+              aria-pressed={needs.includes(n)}
+              onClick={() => toggleNeed(n)}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+      </fieldset>
 
       <section className="picked" aria-live="polite">
         <div className="small">
@@ -274,30 +292,19 @@ export function WalkInSheet({
         {problem && selected.length > 0 && <div className="small warn-text">{problem}</div>}
       </section>
 
-      <div className="quote small">
-        <div>
-          <span className="muted">Typical for party of {size}</span> <strong>~{typical} min</strong>
-          <span className="muted"> (synthetic ladder)</span>
-        </div>
-        <div>
-          <span className="muted">Live, from table phases</span>{" "}
-          <strong>{live === null ? "no fit" : live === 0 ? "now" : `~${live} min`}</strong>
-        </div>
-      </div>
-
-      <div className="btn-row sheet-actions">
+      <div className="btn-row sheet-actions walkin-footer">
         {canSeat && (
           <button type="button" className="primary" onClick={() => onSeat(selected, size)}>
-            Seat party of {size} at {tablesPhrase(selected)}
+            Seat at {tablesPhrase(selected)}
           </button>
         )}
         {!draft.waitId && (
           <button
             type="button"
             className={canSeat ? undefined : "primary"}
-            onClick={() => onWaitlist(busy.length ? pickWait : quote)}
+            onClick={() => onWaitlist(shownQuote)}
           >
-            Add to waitlist · ~{busy.length ? pickWait : quote} min (est.)
+            Add to waitlist · ~{shownQuote} min (est.)
           </button>
         )}
       </div>

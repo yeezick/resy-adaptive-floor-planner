@@ -15,3 +15,11 @@ export function duration(ms: number): string {
 export function waitLabel(min: number): string {
   return min === 0 ? "free now" : `~${min} min`;
 }
+
+/** "7pm" / "7:30pm" in model text → "7:00 PM" / "7:30 PM", the app's one time format (display only). */
+export function normalTimes(text: string): string {
+  return text.replace(
+    /\b(1[0-2]|[1-9])(?::([0-5]\d))?\s?(am|pm)\b/gi,
+    (_m, h: string, m: string | undefined, ap: string) => `${h}:${m ?? "00"} ${ap.toUpperCase()}`,
+  );
+}

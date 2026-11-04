@@ -7,7 +7,7 @@ import {
   type ActivityRow,
   type RowDecision,
 } from "../../domain/activity";
-import { duration, usd } from "../lib/format";
+import { duration, normalTimes, usd } from "../lib/format";
 import { ProposedTag } from "../ProposedTag";
 import { startRequests, useRequests } from "../requests/store";
 import {
@@ -18,7 +18,7 @@ import {
   type FeedbackRecord,
   type Rating,
 } from "../../domain/feedback";
-import { activityActions, useActivity, useFeedback } from "./store";
+import { activityActions, useActivity, useFeedback, useFeedbackReasons } from "./store";
 import { SOURCE_LABEL as REQUEST_SOURCE } from "../../domain/requests";
 import { clock12, times12 } from "../../domain/time";
 import { namesIn } from "../lib/names";
@@ -60,7 +60,8 @@ export function actorsOf(r: ActivityRow): string[] {
       ? "AI triage"
       : "AI Planner",
   ];
-  if (r.flags.includes("validator-reject")) out.push("Capacity check");
+  if (r.kind === "request-chat" || (r.source === "host" && r.flags.includes("validator-reject")))
+    out.push("Capacity check");
   if (r.flags.includes("override") || (r.decision.kind !== "pending" && r.decision.kind !== "none"))
     out.push("Manager");
   return out;
@@ -70,7 +71,9 @@ export function actorsOf(r: ActivityRow): string[] {
 function rejectLine(r: ActivityRow): string {
   const m = r.record.aiOutput.map((x) => /rejected (\d+)/.exec(x)).find(Boolean);
   const n = m ? Number(m[1]) : 1;
-  return `Capacity check rejected ${n} AI option${n === 1 ? "" : "s"}`;
+  return r.source === "host"
+    ? `Capacity check rejected ${n} AI option${n === 1 ? "" : "s"}`
+    : `${n} AI triage answer${n === 1 ? "" : "s"} failed the format check and ${n === 1 ? "was" : "were"} retried`;
 }
 
 /** A row has AI output to rate (a failed call has none). */
@@ -270,7 +273,7 @@ export function ActivityPage() {
                       }}
                     >
                       <span className={`kind kind-${r.kind}`}>{KIND_LABEL[r.kind]}</span>{" "}
-                      {times12(namesIn(r.what))}
+                      {normalTimes(times12(namesIn(r.what)))}
                       {r.flags.includes("validator-reject") && (
                         <span className="what-sub muted">{rejectLine(r)}</span>
                       )}
@@ -398,6 +401,9 @@ function Count({ label, value, warn }: { label: string; value: number; warn?: bo
 }
 
 function RecordPanel({ r, onClose }: { r: ActivityRow; onClose: () => void }) {
+  const down = feedbackOf(useFeedback(), r.id, DEMO_MANAGER)?.rating === "down";
+  const allReasons = useFeedbackReasons()[r.id] ?? [];
+  const reasons = down ? allReasons : [];
   return (
     <aside className="record" aria-label="Full record">
       <div className="panel-head">
@@ -460,6 +466,12 @@ function RecordPanel({ r, onClose }: { r: ActivityRow; onClose: () => void }) {
           <DecisionChip d={r.decision} />{" "}
           {"at" in r.decision && <span className="muted">{fmtAt(r.decision.at)}</span>}
         </p>
+        {reasons.length > 0 && (
+          <>
+            <h3 className="section-title">Why not helpful</h3>
+            <p>{reasons.join(" · ")}</p>
+          </>
+        )}
         <h3 className="section-title">Cost and latency</h3>
         <p className="muted">
           {usd(r.costUsd)} · {r.latencyMs ? duration(r.latencyMs) : "—"} · {r.model}
