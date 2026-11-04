@@ -21,6 +21,7 @@ import {
 import { activityActions, useActivity, useFeedback } from "./store";
 import { SOURCE_LABEL as REQUEST_SOURCE } from "../../domain/requests";
 import { clock12, times12 } from "../../domain/time";
+import { namesIn } from "../../domain/names";
 
 const KIND_LABEL: Record<ActivityKind, string> = {
   request: "Request triage",
@@ -31,7 +32,7 @@ const KIND_LABEL: Record<ActivityKind, string> = {
   refusal: "Refusal",
   "request-chat": "AI Planner chat",
 };
-const SOURCE_LABEL = { ...REQUEST_SOURCE, host: "Host (AI Planner)" } as const;
+const SOURCE_LABEL = { ...REQUEST_SOURCE, host: "Host" } as const;
 
 const TYPES: { id: NonNullable<ActivityFilter["type"]>; label: string }[] = [
   { id: "request", label: "Request triage" },
@@ -40,7 +41,7 @@ const TYPES: { id: NonNullable<ActivityFilter["type"]>; label: string }[] = [
   { id: "escalation", label: "Escalations" },
   { id: "recommendation", label: "Recommendations" },
   { id: "assistant-question", label: "Questions" },
-  { id: "validator-reject", label: "Validator rejects" },
+  { id: "validator-reject", label: "Capacity check rejects" },
   { id: "refusal", label: "Refusals" },
 ];
 const DECISIONS: { id: RowDecision["kind"]; label: string }[] = [
@@ -51,6 +52,31 @@ const DECISIONS: { id: RowDecision["kind"]; label: string }[] = [
   { id: "pending", label: "Pending" },
   { id: "none", label: "Nothing to decide" },
 ];
+
+/** Who acted on a row, in order: the AI step, then Capacity check (if it rejected an option), then a person. */
+export function actorsOf(r: ActivityRow): string[] {
+  const out = [
+    r.kind === "request" || (r.kind === "escalation" && r.source !== "host")
+      ? "AI triage"
+      : "AI Planner",
+  ];
+  if (r.flags.includes("validator-reject")) out.push("Capacity check");
+  if (r.flags.includes("override") || (r.decision.kind !== "pending" && r.decision.kind !== "none"))
+    out.push("Manager");
+  return out;
+}
+
+/** "Capacity check rejected 1 AI option" from the row's record. */
+function rejectLine(r: ActivityRow): string {
+  const m = r.record.aiOutput.map((x) => /rejected (\d+)/.exec(x)).find(Boolean);
+  const n = m ? Number(m[1]) : 1;
+  return `Capacity check rejected ${n} AI option${n === 1 ? "" : "s"}`;
+}
+
+/** A row has AI output to rate (a failed call has none). */
+function isAiOutput(r: ActivityRow): boolean {
+  return r.model !== "—" && !/failed/i.test(r.what);
+}
 
 export function fmtAt(iso: string): string {
   const d = new Date(iso);
@@ -212,14 +238,12 @@ export function ActivityPage() {
           <thead>
             <tr>
               <th scope="col">Time</th>
+              <th scope="col">Actor</th>
               <th scope="col">Source</th>
               <th scope="col">Party · date</th>
-              <th scope="col">What the AI Planner did</th>
+              <th scope="col">What happened</th>
               <th scope="col">Manager decision</th>
               <th scope="col">Feedback</th>
-              <th scope="col" className="num">
-                Cost · latency
-              </th>
             </tr>
           </thead>
           <tbody>
@@ -227,6 +251,7 @@ export function ActivityPage() {
               <Fragment key={r.id}>
                 <tr className={open === r.id ? "is-open" : undefined} onClick={() => setOpen(r.id)}>
                   <td className="mono">{fmtAt(r.at)}</td>
+                  <td className="actor">{actorsOf(r).join(" → ")}</td>
                   <td>{SOURCE_LABEL[r.source]}</td>
                   <td>
                     {r.partySize ? `${r.partySize}` : "—"}
@@ -243,26 +268,27 @@ export function ActivityPage() {
                       }}
                     >
                       <span className={`kind kind-${r.kind}`}>{KIND_LABEL[r.kind]}</span>{" "}
+                      {times12(namesIn(r.what))}
                       {r.flags.includes("validator-reject") && (
-                        <span className="kind kind-reject">validator reject</span>
-                      )}{" "}
-                      {times12(r.what)}
+                        <span className="what-sub muted">{rejectLine(r)}</span>
+                      )}
                     </button>
                   </td>
                   <td>
                     <DecisionChip d={r.decision} />
                   </td>
                   <td>
-                    <FeedbackCell
-                      fb={feedbackOf(feedback, r.id, DEMO_MANAGER)}
-                      onRate={(rating) => {
-                        activityActions.rate(r.id, rating);
-                        setNoteFor(r.id);
-                      }}
-                    />
-                  </td>
-                  <td className="num mono">
-                    {usd(r.costUsd)} · {r.latencyMs ? duration(r.latencyMs) : "—"}
+                    {isAiOutput(r) ? (
+                      <FeedbackCell
+                        fb={feedbackOf(feedback, r.id, DEMO_MANAGER)}
+                        onRate={(rating) => {
+                          activityActions.rate(r.id, rating);
+                          setNoteFor(r.id);
+                        }}
+                      />
+                    ) : (
+                      <span className="muted small">—</span>
+                    )}
                   </td>
                 </tr>
                 {noteFor === r.id && (
@@ -316,7 +342,7 @@ function FeedbackCell({
       {thumb("up", "👍", "Helpful")}
       {thumb("down", "👎", "Not helpful")}
       {fb && (
-        <span className="fb-rated small">
+        <span className="fb-rated small" title="Saved to this log only (prototype)">
           rated
           {fb.notes.length ? ` · ${fb.notes.length} note${fb.notes.length === 1 ? "" : "s"}` : ""}
         </span>
@@ -339,7 +365,7 @@ function NoteBox({ rowId, onDone }: { rowId: string; onDone: () => void }) {
       }}
     >
       <label className="small" htmlFor={`fb-note-${rowId}`}>
-        Add a note (optional) — saved as a hash only, like guest text
+        Add a note (optional) — kept as a fingerprint in this prototype
       </label>
       <input
         id={`fb-note-${rowId}`}
@@ -355,6 +381,9 @@ function NoteBox({ rowId, onDone }: { rowId: string; onDone: () => void }) {
       <button type="button" className="link-btn" onClick={onDone}>
         Skip
       </button>
+      <span className="muted small fb-ack" role="status">
+        Rating saved to this log only (prototype).
+      </span>
     </form>
   );
 }
@@ -386,8 +415,12 @@ function RecordPanel({ r, onClose }: { r: ActivityRow; onClose: () => void }) {
           {r.record.inputs.map(([k, v]) => (
             <div key={k} className="kv-row">
               <dt>{k}</dt>
-              <dd className={v.startsWith("sha256") ? "mono" : undefined}>
-                {v.startsWith("sha256") ? v : times12(v)}
+              <dd title={v.startsWith("sha256") ? v : undefined}>
+                {v.startsWith("sha256 not-sent")
+                  ? "Guest message not stored (privacy)"
+                  : v.startsWith("sha256")
+                    ? "Not stored (privacy): fingerprint only"
+                    : times12(namesIn(v))}
               </dd>
             </div>
           ))}
@@ -398,7 +431,7 @@ function RecordPanel({ r, onClose }: { r: ActivityRow; onClose: () => void }) {
             <li key={x}>{times12(x)}</li>
           ))}
         </ul>
-        <h3 className="section-title">Solver options</h3>
+        <h3 className="section-title">Capacity check</h3>
         {r.record.solverOptions.length ? (
           <ul className="plain">
             {r.record.solverOptions.map((x) => (
@@ -419,6 +452,7 @@ function RecordPanel({ r, onClose }: { r: ActivityRow; onClose: () => void }) {
           <DecisionChip d={r.decision} />{" "}
           {"at" in r.decision && <span className="muted">{fmtAt(r.decision.at)}</span>}
         </p>
+        <h3 className="section-title">Cost and latency</h3>
         <p className="muted">
           {usd(r.costUsd)} · {r.latencyMs ? duration(r.latencyMs) : "—"} · {r.model}
         </p>
