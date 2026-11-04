@@ -11,7 +11,7 @@ function nextId(room: Room): () => string {
   return () => `T${++n}`;
 }
 
-export function freeSpot(room: Room, w: number, h: number, start: { x: number; y: number }) {
+function freeSpot(room: Room, w: number, h: number, start: { x: number; y: number }) {
   for (let ring = 0; ring < 30; ring++)
     for (let dx = -ring; dx <= ring; dx++)
       for (let dy = -ring; dy <= ring; dy++) {
