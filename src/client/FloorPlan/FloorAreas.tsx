@@ -1,11 +1,20 @@
 import { sectionLoad, type Area, type Room } from "../../domain";
-import { dividers, sectionBoxes, suites } from "./geometry";
+import { dividers, sectionBoxes, suites, type Box } from "./geometry";
 import { usePx } from "./scale";
 
 const CHAR_W = 0.58;
 
 /** Non-interactive room structure: areas, suites, divider walls and section outlines. */
-export function FloorAreas({ room, openDividers }: { room: Room; openDividers: Set<string> }) {
+export function FloorAreas({
+  room,
+  openDividers,
+  view,
+}: {
+  room: Room;
+  openDividers: Set<string>;
+  /** The part of the floor on screen: a room name that would be cut off at its edge moves or is left out. */
+  view?: Box;
+}) {
   const px = usePx();
   const caption = Math.max(1.15, px(11));
   const walls = dividers(room);
@@ -30,7 +39,7 @@ export function FloorAreas({ room, openDividers }: { room: Room; openDividers: S
       ))}
 
       {room.areas.map((a) => (
-        <AreaShape key={a.id} area={a} open={openRooms.has(a.name)} caption={caption} />
+        <AreaShape key={a.id} area={a} open={openRooms.has(a.name)} caption={caption} view={view} />
       ))}
 
       {sectionBoxes(room).map(({ section, box }) => {
@@ -62,7 +71,17 @@ export function FloorAreas({ room, openDividers }: { room: Room; openDividers: S
   );
 }
 
-function AreaShape({ area: a, open, caption }: { area: Area; open: boolean; caption: number }) {
+function AreaShape({
+  area: a,
+  open,
+  caption,
+  view,
+}: {
+  area: Area;
+  open: boolean;
+  caption: number;
+  view?: Box;
+}) {
   const cx = a.x + a.w / 2;
   const cy = a.y + a.h / 2;
   const fits = (text: string) => text.length * CHAR_W * caption < a.w - 1;
@@ -106,15 +125,19 @@ function AreaShape({ area: a, open, caption }: { area: Area; open: boolean; capt
           </text>
         </g>
       );
-    default:
+    default: {
+      const labelY = areaLabelY(a, caption, view);
       return (
         <g>
           <rect className="area" x={a.x} y={a.y} width={a.w} height={a.h} rx={0.6} />
-          <text className="area-label" x={a.x + 0.2} y={a.y - 0.6} fontSize={caption}>
-            {a.name}
-          </text>
+          {labelY !== null && (
+            <text className="area-label" x={a.x + 0.2} y={labelY} fontSize={caption}>
+              {a.name}
+            </text>
+          )}
         </g>
       );
+    }
   }
 }
 
@@ -135,4 +158,19 @@ function LoadBadge({ room, section, x, y }: { room: Room; section: number; x: nu
       </text>
     </g>
   );
+}
+
+/**
+ * Where a room's name goes: just above the room, else just inside its top edge, whichever is wholly on screen;
+ * null when neither is (a room peeking in at the edge of another room's view shows no cut-off name).
+ */
+export function areaLabelY(a: Area, caption: number, view?: Box): number | null {
+  const above = a.y - 0.6;
+  if (!view) return above;
+  const fits = (baseline: number) =>
+    baseline - caption * 0.85 >= view.y && baseline + caption * 0.3 <= view.y + view.h;
+  if (fits(above)) return above;
+  const inside = a.y + 0.4 + caption * 0.85;
+  if (inside + caption * 0.3 <= a.y + a.h && fits(inside)) return inside;
+  return null;
 }

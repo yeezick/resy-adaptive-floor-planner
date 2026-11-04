@@ -15,6 +15,8 @@ interface Props {
   dragging: boolean;
   /** Held by an accepted large-party plan (neutral dashed outline + "Held"; never "blocked"). */
   held?: boolean;
+  /** Size of the party on this table (seated, held or booked): a small bubble in the bottom-right corner. */
+  party?: number;
   onPointerDown: (e: PointerEvent<SVGGElement>) => void;
   onPointerMove: (e: PointerEvent<SVGGElement>) => void;
   onPointerUp: (e: PointerEvent<SVGGElement>) => void;
@@ -62,6 +64,7 @@ export function TableShape({
   dim,
   dragging,
   held = false,
+  party,
   ...handlers
 }: Props) {
   const c = tableColors(t);
@@ -132,7 +135,7 @@ export function TableShape({
       tabIndex={0}
       role="button"
       aria-pressed={selected}
-      aria-label={`${describe(t)}${held ? ", held for a large party" : ""}${badge ? `, ${badgeWords(badge)}` : ""}`}
+      aria-label={`${describe(t)}${held ? ", held for a large party" : ""}${party && t.status !== "occupied" ? `, party of ${party} planned here` : ""}${badge ? `, ${badgeWords(badge)}` : ""}`}
       {...handlers}
     >
       <HitArea table={t} />
@@ -185,9 +188,10 @@ function ReadyBubble({ table: t, text, kind }: { table: Table; text: string; kin
   const font = px(9);
   const h = font * 1.45;
   const w = Math.max(h, text.length * font * CHAR_W + font * 0.8);
-  // centred on the top edge, so bubbles on a row of joined tables don't collide
+  // centred on the top edge, so bubbles on a row of joined tables don't collide; mostly above the edge, so
+  // it never runs over the table number
   const x = t.x + t.w / 2 - w / 2;
-  const y = t.y - h * 0.55;
+  const y = t.y - h * 0.95;
   return (
     <g
       className={`ready-bubble ${kind ?? (text === "now" || text === "free" ? "is-now" : "is-wait")}`}
@@ -197,6 +201,53 @@ function ReadyBubble({ table: t, text, kind }: { table: Table; text: string; kin
       <text x={x + w / 2} y={y + h / 2} fontSize={font}>
         {text}
       </text>
+    </g>
+  );
+}
+
+/**
+ * Tiles smaller than this on screen show no party bubble (whole-room views), so it never covers the number;
+ * a seated tile carries a phase word too, so it needs more room.
+ */
+const PARTY_MIN_PX = 26;
+const PARTY_MIN_PX_SEATED = 40;
+
+/**
+ * The size of the party on each table (seated, held or booked), in the tile's bottom-right corner (10 px text
+ * on screen, inverted colours): distinct from the seat count under the number. Drawn above every tile, so a
+ * neighbouring tile never hides it. Tables are read by their own label (aria); this layer is decoration.
+ */
+export function PartyBubbles({
+  tables,
+  parties,
+}: {
+  tables: readonly Table[];
+  parties: ReadonlyMap<string, number>;
+}) {
+  const px = usePx();
+  const ppu = usePpu();
+  const font = px(10);
+  const h = font * 1.5;
+  return (
+    <g className="party-bubbles" aria-hidden="true">
+      {tables.map((t) => {
+        const size = parties.get(t.id);
+        const min = t.status === "occupied" ? PARTY_MIN_PX_SEATED : PARTY_MIN_PX;
+        if (!size || Math.min(t.w, t.h) * ppu < min) return null;
+        const text = String(size);
+        const w = Math.max(h, text.length * font * CHAR_W + font * 0.7);
+        // just past the corner, clear of the number, the seat count and the phase word
+        const x = t.x + t.w - w * 0.6;
+        const y = t.y + t.h - h * 0.6;
+        return (
+          <g key={t.id} className="party-bubble" data-table={t.id}>
+            <rect x={x} y={y} width={w} height={h} rx={h / 2} />
+            <text x={x + w / 2} y={y + h / 2} fontSize={font}>
+              {text}
+            </text>
+          </g>
+        );
+      })}
     </g>
   );
 }
