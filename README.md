@@ -56,9 +56,8 @@ Beneath them, the card weighs yes against no, in covers (a negative net is shown
   spare table from storage, 5 per divider opened, 1 per 4 chairs carried, and never under 10. The same constants set
   the crew list's time windows. Labour cost stays out of the prototype.
 
-The actions, in order: **Accept · Decline** (with a reason) **· Message guest · Discuss** (the AI affordance, a sparkle in the accent
-colour; it jumps to the
-in-request chat). Every chat change is also a manual control.
+The actions, in order: **Accept · Decline** (with a reason) **· Message guest · Discuss** (the AI affordance, a
+sparkle in the accent colour; it jumps to the in-request chat). Every chat change is also a manual control.
 
 Times a manager reads are 12-hour AM/PM ("build by 6:00 PM", "held 5:00–6:30 PM"). The domain, the API and the
 evals keep 24-hour "HH:MM"; the screen converts it (`clock12` / `times12` in `src/domain/time.ts`), and an e2e check
