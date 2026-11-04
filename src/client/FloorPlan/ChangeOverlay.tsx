@@ -156,7 +156,7 @@ export function ChangeOverlay({ room, changes }: { room: Room; changes: readonly
           box={g.box}
           text={
             joined(g.party) > g.tables.length
-              ? `${joined(g.party)} tables joined (${g.tables.length} moved)`
+              ? `${joined(g.party)} tables joined · ${g.tables.length} to move`
               : g.tables.length > 1
                 ? `${g.tables.length} moved`
                 : "moved"

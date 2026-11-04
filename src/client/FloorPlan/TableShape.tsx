@@ -2,7 +2,7 @@ import { useContext, type KeyboardEvent, type PointerEvent } from "react";
 import { clock12, estimateFreeTime, type Table } from "../../domain";
 import { PHASE_ABBR } from "../lib/service";
 import { AlwaysShowIds, usePpu, usePx } from "./scale";
-import { phaseBar, tableColors } from "./colors";
+import { LATE_PHASES, phaseBar, tableColors } from "./colors";
 import { tableNo } from "../../domain/wording";
 
 interface Props {
@@ -318,11 +318,24 @@ function TableLabels({ table: t, color }: { table: Table; color: string }) {
   const cy = t.y + t.h / 2;
   const shownPx = Math.min(t.w, t.h) * ppu;
   const compact = !alwaysIds && shownPx < ID_MIN_PX;
-  const inner = t.shape === "diamond" ? t.w * 0.5 : t.shape === "round" ? t.w * 0.72 : t.w * 0.86;
+  // words stay well inside the tile so neighbouring tiles' words never run together
+  const inner = t.shape === "diamond" ? t.w * 0.5 : t.shape === "round" ? t.w * 0.66 : t.w * 0.72;
   // table number ~20 px bold at Fit (never below 12 px; numbers are never dropped)
   const idFont = Math.max(px(12), Math.min(px(20), Math.min(t.w, t.h) * 0.42));
   const occupied = t.status === "occupied";
-  const word = occupied ? PHASE_ABBR[t.phase ?? "seated"] : String(t.seats);
+  // an about-to-free tile too small for "free ~Nm" underneath shows its time inside instead of the phase
+  const free = estimateFreeTime(t).minutes;
+  const lateSmall =
+    occupied &&
+    t.w * ppu < LABEL_MIN_PX &&
+    free !== null &&
+    free <= FREE_SOON_MIN &&
+    LATE_PHASES.includes(t.phase ?? "seated");
+  const word = lateSmall
+    ? `~${free}m`
+    : occupied
+      ? PHASE_ABBR[t.phase ?? "seated"]
+      : String(t.seats);
   const fitFont = inner / (word.length * CHAR_W);
   const wordFont = Math.min(fitFont, px(12));
   // A phase word must fit inside the shape at a readable size, on a table big enough to hold it.

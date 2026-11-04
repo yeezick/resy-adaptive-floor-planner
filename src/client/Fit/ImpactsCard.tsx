@@ -43,7 +43,6 @@ export function ImpactsCard({
           {acceptLine(trade)} · {DECLINE_LINE}
         </span>
       </p>
-      <h4 className="impacts-title small">Impacts of saying yes</h4>
       <div className="impacts-cols">
         <div className="impacts-col is-pro">
           <h5 className="small">Pros</h5>
