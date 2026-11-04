@@ -45,6 +45,15 @@ describe("triageProblems", () => {
     );
     expect(triageProblems(out({ summary: ["A table for 12 people.", "x"] }), req)).toEqual([]);
   });
+  it("rejects a summary with a placeholder left in it", () => {
+    expect(
+      triageProblems(out({ summary: ["Team dinner; time is flexible unknown.", "x"] }), req),
+    ).toContain(
+      "leaves a placeholder (unknown, n/a) in the summary — say what the guest wrote or leave it out",
+    );
+    expect(triageProblems(out({ summary: ["Occasion: N/A.", "x"] }), req)).toHaveLength(1);
+    expect(triageProblems(out({ summary: ["Time is fixed at 7:30 PM.", "x"] }), req)).toEqual([]);
+  });
   it("rejects a booking claim", () =>
     expect(triageProblems(out({ summary: ["Group of 12 is booked.", "ok"] }), req)[0]).toMatch(
       /booked/,
