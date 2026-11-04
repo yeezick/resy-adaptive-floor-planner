@@ -27,6 +27,9 @@ test("planner controls are at least 44 × 44 under a coarse pointer", async ({ p
     ".room-tabs button",
     ".seg button",
     ".decision-footer .btn-row button",
+    ".topbar .scenario-menu summary",
+    ".decision-footer .ask-ai",
+    ".request-sheet .how-made > summary",
   ]) {
     const all = await sizes(page, sel);
     expect(all.length, sel).toBeGreaterThan(0);
@@ -53,4 +56,18 @@ test("Use / Edit and the activity thumbs are at least 44 × 44", async ({ page }
     expect(s.w).toBeGreaterThanOrEqual(MIN);
     expect(s.h).toBeGreaterThanOrEqual(MIN);
   }
+});
+
+test("table details: Seat walk-in here and Finish are at least 44 tall", async ({ page }) => {
+  await page.goto("/");
+  await page.locator('svg.floor g[data-id="T3"]').focus();
+  await page.keyboard.press("Enter");
+  for (const s of await sizes(page, ".table-card .finish-btn"))
+    expect(s.h).toBeGreaterThanOrEqual(MIN);
+  await page.getByRole("button", { name: "Close" }).click();
+  await page.locator('svg.floor g[data-id="T10"]').focus();
+  await page.keyboard.press("Enter");
+  const seat = await sizes(page, ".table-card .seat-here-btn");
+  expect(seat.length).toBeGreaterThan(0);
+  for (const s of seat) expect(s.h).toBeGreaterThanOrEqual(MIN);
 });
