@@ -25,11 +25,59 @@ export const SOURCE_SHORT: Record<RequestSource, string> = {
   "walk-in": "At host stand",
 };
 
+/** Who sent a request and through what, as the manager reads it: "AI agent · MCP". Optional (older data has none). */
+export const REQUEST_BY = ["agent", "guest", "staff", "partner"] as const;
+export const REQUEST_CHANNELS = [
+  "mcp",
+  "chat_app",
+  "api",
+  "resy_app",
+  "resy_web",
+  "phone",
+  "email",
+  "walk_in",
+] as const;
+export const RequestVia = z
+  .object({
+    by: z.enum(REQUEST_BY),
+    channel: z.enum(REQUEST_CHANNELS),
+    /** The app or client the sender named ("iOS", "ChatGPT"), when known. */
+    app: z.string().min(1).max(30).optional(),
+  })
+  .strict();
+export type RequestVia = z.infer<typeof RequestVia>;
+
+const BY_LABEL: Record<RequestVia["by"], string> = {
+  agent: "AI agent",
+  guest: "Guest",
+  staff: "Staff",
+  partner: "Partner",
+};
+const CHANNEL_LABEL: Record<RequestVia["channel"], string> = {
+  mcp: "MCP",
+  chat_app: "chat app",
+  api: "API",
+  resy_app: "Resy app",
+  resy_web: "resy.com",
+  phone: "phone",
+  email: "email",
+  walk_in: "host stand",
+};
+
+/** The Request field: "<who> · <channel>", e.g. "AI agent · chat app (ChatGPT)"; "not recorded" when unknown. */
+export function requestVia(r: { via?: RequestVia | undefined }): string {
+  const v = r.via;
+  if (!v) return "not recorded";
+  return `${BY_LABEL[v.by]} · ${CHANNEL_LABEL[v.channel]}${v.app ? ` (${v.app})` : ""}`;
+}
+
 export const GuestRequest = z
   .object({
     id: z.string().regex(/^Q\d{1,4}$/),
     /** Where it came from: the booking app's request form, an AI agent booking for a guest, or the host stand. */
     source: z.enum(SOURCES),
+    /** Who sent it and through what (optional; older data has none and reads "not recorded"). */
+    via: RequestVia.optional(),
     receivedAt: z.string().regex(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) ([01]\d|2[0-3]):[0-5]\d$/),
     day: z.enum(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]),
     /** The room fixture holding that night's book. */
@@ -119,6 +167,7 @@ export function walkInRequest(input: {
   return GuestRequest.parse({
     id: input.id,
     source: "walk-in",
+    via: { by: "staff", channel: "walk_in" },
     receivedAt: `${input.day} ${input.clock}`,
     day: input.day,
     bookRoomId: input.bookRoomId,

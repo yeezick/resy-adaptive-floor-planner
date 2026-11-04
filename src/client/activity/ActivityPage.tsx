@@ -248,7 +248,7 @@ export function ActivityPage() {
             <tr>
               <th scope="col">Time</th>
               <th scope="col">Actor</th>
-              <th scope="col">Source</th>
+              <th scope="col">Request</th>
               <th scope="col">Party · date</th>
               <th scope="col">What happened</th>
               <th scope="col">Manager decision</th>
@@ -261,7 +261,7 @@ export function ActivityPage() {
                 <tr className={open === r.id ? "is-open" : undefined} onClick={() => setOpen(r.id)}>
                   <td className="mono">{fmtAt(r.at)}</td>
                   <td className="actor">{actorsOf(r).join(" → ")}</td>
-                  <td>{SOURCE_LABEL[r.source]}</td>
+                  <td>{r.via ?? SOURCE_LABEL[r.source]}</td>
                   <td>
                     {r.partySize ? `${r.partySize}` : "—"}
                     {r.when ? ` · ${times12(r.when)}` : ""}
