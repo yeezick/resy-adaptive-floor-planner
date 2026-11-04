@@ -1,4 +1,4 @@
-import type { Room } from "../../domain";
+import { times12, type Room } from "../../domain";
 import type { LayoutsApi } from "./useLayouts";
 
 interface Props {
@@ -21,7 +21,7 @@ export function LayoutsList({ layouts, onEdit }: Props) {
                 <span className="muted small">
                   {l.kind === "base" ? "base · always restorable" : "one-day variant"}
                   {l.date ? ` · ${l.date}` : ""}
-                  {l.shift ? ` · ${l.shift}` : ""}
+                  {l.shift ? ` · ${times12(l.shift)}` : ""}
                 </span>
                 {l.note && <span className="muted small">{l.note}</span>}
               </div>

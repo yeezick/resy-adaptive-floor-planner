@@ -1,5 +1,14 @@
 import { useMemo, useState } from "react";
-import { LARGE_PARTY, planBuilds, tableById, toMinutes, type Build, type Room } from "../../domain";
+import {
+  clock12,
+  LARGE_PARTY,
+  planBuilds,
+  tableById,
+  times12,
+  toMinutes,
+  type Build,
+  type Room,
+} from "../../domain";
 import { normaliseDivider } from "../FloorPlan/geometry";
 import type { Highlight, HighlightControls } from "../highlight";
 import { Storage } from "./Storage";
@@ -14,7 +23,7 @@ export function buildHighlight(b: Build): Highlight {
   return {
     key: `build-${b.reservationId}`,
     ids: b.tables,
-    label: `${b.time} party of ${b.partySize}: ${b.rows.map((r) => r.join("+")).join(" | ")}`,
+    label: `${clock12(b.time)} party of ${b.partySize}: ${b.rows.map((r) => r.join("+")).join(" | ")}`,
     dividers: b.dividersOpened.map(normaliseDivider),
   };
 }
@@ -72,7 +81,7 @@ export function BuildPlan({ room, highlight }: Props) {
 
           {plan.builds.length === 0 && plan.unplaced.length === 0 && (
             <div className="state-card small">
-              No parties of {LARGE_PARTY}+ booked between {from} and {to}.
+              No parties of {LARGE_PARTY}+ booked between {clock12(from)} and {clock12(to)}.
               {room.reservations.length === 0 && " This room has no reservations loaded."}
             </div>
           )}
@@ -92,7 +101,7 @@ export function BuildPlan({ room, highlight }: Props) {
                     <strong>
                       {u.reservationId} · party of {u.partySize}
                     </strong>
-                    <div className="muted small">{u.reason}</div>
+                    <div className="muted small">{times12(u.reason)}</div>
                   </li>
                 ))}
               </ul>
@@ -138,10 +147,10 @@ function BuildCard({
       onBlur={() => highlight.onHover(null)}
     >
       <header className="rec-head">
-        <span className="rank">{b.time}</span>
+        <span className="rank">{clock12(b.time)}</span>
         <strong>Party of {b.partySize}</strong>
         <span className="muted">
-          {b.seats} seats · build by {b.buildBy}
+          {b.seats} seats · build by {clock12(b.buildBy)}
         </span>
       </header>
       <ul className="build-rows small">
@@ -165,7 +174,7 @@ function BuildCard({
         <summary>Steps</summary>
         <ol className="steps">
           {b.steps.map((s) => (
-            <li key={s}>{s}</li>
+            <li key={s}>{times12(s)}</li>
           ))}
         </ol>
       </details>

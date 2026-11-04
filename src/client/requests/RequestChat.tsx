@@ -8,7 +8,7 @@ import {
 } from "../../domain/requestChat";
 import { NEEDS, SERVICE, type GuestRequest } from "../../domain/requests";
 import { listAnd } from "../../domain/wording";
-import { toHHMM, toMinutes } from "../../domain/time";
+import { clock12, times12, toHHMM, toMinutes } from "../../domain/time";
 import { requestsActions, useRequests } from "./store";
 import { ProposedTag } from "./RequestSheet";
 
@@ -83,7 +83,7 @@ export function RequestChat({
             <p className={`chat-out small${t.status === "error" ? " warn-text" : ""}`}>
               {t.status === "loading" || t.outcome === undefined
                 ? "Checking the plan…"
-                : `${t.changed?.length ? `${listAnd(t.changed)} → ` : ""}${t.outcome}`}
+                : times12(`${t.changed?.length ? `${listAnd(t.changed)} → ` : ""}${t.outcome}`)}
               {t.result && (
                 <span className="muted">
                   {" "}
@@ -172,7 +172,9 @@ export function RequestChat({
             onChange={(e) => setC({ time: e.target.value === r.time ? null : e.target.value })}
           >
             {(SLOTS.includes(r.time) ? SLOTS : [r.time, ...SLOTS]).map((t) => (
-              <option key={t}>{t}</option>
+              <option key={t} value={t}>
+                {clock12(t)}
+              </option>
             ))}
           </select>
         </label>
@@ -208,7 +210,7 @@ export function RequestChat({
       {changed.length > 0 && (
         <p className="small">
           <span className="muted">Changed: </span>
-          {changed.join(" · ")} ·{" "}
+          {times12(changed.join(" · "))} ·{" "}
           <button
             type="button"
             className="link-btn"

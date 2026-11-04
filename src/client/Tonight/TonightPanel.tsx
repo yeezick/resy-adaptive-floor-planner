@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  clock12,
   generateTonight,
+  times12,
   toMinutes,
   type LayoutChange,
   type Room,
@@ -112,7 +114,7 @@ export function TonightPanel({
 }
 
 function tonightLabel(p: TonightProposal): string {
-  return `Tonight ${p.window.from}–${p.window.to}`;
+  return `Tonight ${times12(`${p.window.from}–${p.window.to}`)}`;
 }
 
 function Proposal({
@@ -136,7 +138,7 @@ function Proposal({
     <div className="proposal">
       <div className="totals">
         <Tile label="Covers booked" value={String(s.coversBooked)} />
-        <Tile label={`Peak · ${s.peakCovers.at}`} value={String(s.peakCovers.covers)} />
+        <Tile label={`Peak · ${clock12(s.peakCovers.at)}`} value={String(s.peakCovers.covers)} />
         <Tile
           label="Seats on floor"
           value={String(s.seatsOnFloor)}
@@ -191,8 +193,10 @@ function Proposal({
           <p className="muted small">The rest of the plan still stands.</p>
           {p.infeasible.map((x) => (
             <div key={x.reservationId} className="cant-fit">
-              <strong>{x.reservationId}</strong> <span className="small">{x.reason}</span>
-              {x.partial && <div className="small muted">Best partial option: {x.partial}</div>}
+              <strong>{x.reservationId}</strong> <span className="small">{times12(x.reason)}</span>
+              {x.partial && (
+                <div className="small muted">Best partial option: {times12(x.partial)}</div>
+              )}
             </div>
           ))}
         </section>
@@ -248,11 +252,11 @@ function Proposal({
                   {g.id === focusId && <span className="pill pill-accent">just accepted</span>}
                   <span className="muted">party of {g.size}</span>
                 </div>
-                {g.reason && <p className="small rec-reason">{g.reason}</p>}
+                {g.reason && <p className="small rec-reason">{times12(g.reason)}</p>}
                 <ul className="steps small">
                   {g.changes.map((c, i) => (
                     <li key={i} className={`chg chg-${c.kind}`}>
-                      {c.text}
+                      {times12(c.text)}
                     </li>
                   ))}
                 </ul>
@@ -275,9 +279,7 @@ function Proposal({
               }
             >
               <div className="crew-head">
-                <span className="crew-time">
-                  {c.start}–{c.end}
-                </span>
+                <span className="crew-time">{times12(`${c.start}–${c.end}`)}</span>
                 <strong>
                   {c.reservationId} · {c.partySize}
                 </strong>
@@ -291,7 +293,7 @@ function Proposal({
                 <summary>{c.actions.length} steps</summary>
                 <ol className="steps">
                   {c.actions.map((a) => (
-                    <li key={a}>{a}</li>
+                    <li key={a}>{times12(a)}</li>
                   ))}
                 </ol>
               </details>

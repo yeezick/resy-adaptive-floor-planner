@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { Room } from "../domain";
+import { clock12, type Room } from "../domain";
 import { NIGHTS } from "./nights";
 import type { ActionResult } from "./Planner";
 
@@ -72,8 +72,8 @@ export function ConsoleBar({
         </div>
         {roomSelect}
       </div>
-      <div className="cb-clock" aria-label={`Service clock ${room.clock}`}>
-        {room.clock}
+      <div className="cb-clock" aria-label={`Service clock ${clock12(room.clock)}`}>
+        {clock12(room.clock)}
       </div>
       <dl className="cb-stats">
         <Stat k="Covers seated" v={c.covers} />

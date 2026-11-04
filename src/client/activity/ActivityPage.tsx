@@ -20,6 +20,7 @@ import {
 } from "../../domain/feedback";
 import { activityActions, useActivity, useFeedback } from "./store";
 import { SOURCE_LABEL as REQUEST_SOURCE } from "../../domain/requests";
+import { clock12, times12 } from "../../domain/time";
 
 const KIND_LABEL: Record<ActivityKind, string> = {
   request: "Request triage",
@@ -55,7 +56,7 @@ export function fmtAt(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   const day = d.toLocaleDateString("en-US", { weekday: "short" });
-  return `${day} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  return `${day} ${clock12(`${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`)}`;
 }
 
 export function DecisionChip({ d }: { d: RowDecision }) {
@@ -219,7 +220,7 @@ export function ActivityPage() {
                   <td>{SOURCE_LABEL[r.source]}</td>
                   <td>
                     {r.partySize ? `${r.partySize}` : "—"}
-                    {r.when ? ` · ${r.when}` : ""}
+                    {r.when ? ` · ${times12(r.when)}` : ""}
                   </td>
                   <td>
                     <button
@@ -235,7 +236,7 @@ export function ActivityPage() {
                       {r.flags.includes("validator-reject") && (
                         <span className="kind kind-reject">validator reject</span>
                       )}{" "}
-                      {r.what}
+                      {times12(r.what)}
                     </button>
                   </td>
                   <td>
@@ -375,28 +376,34 @@ function RecordPanel({ r, onClose }: { r: ActivityRow; onClose: () => void }) {
           {r.record.inputs.map(([k, v]) => (
             <div key={k} className="kv-row">
               <dt>{k}</dt>
-              <dd className={v.startsWith("sha256") ? "mono" : undefined}>{v}</dd>
+              <dd className={v.startsWith("sha256") ? "mono" : undefined}>
+                {v.startsWith("sha256") ? v : times12(v)}
+              </dd>
             </div>
           ))}
         </dl>
         <h3 className="section-title">AI output</h3>
         <ul className="plain">
           {r.record.aiOutput.map((x) => (
-            <li key={x}>{x}</li>
+            <li key={x}>{times12(x)}</li>
           ))}
         </ul>
         <h3 className="section-title">Solver options</h3>
         {r.record.solverOptions.length ? (
           <ul className="plain">
             {r.record.solverOptions.map((x) => (
-              <li key={x}>{x}</li>
+              <li key={x}>{times12(x)}</li>
             ))}
           </ul>
         ) : (
           <p className="muted">None — no tables were proposed.</p>
         )}
         <h3 className="section-title">What was applied</h3>
-        <p>{r.record.applied ?? "Nothing. The AI never books or seats; only a person can."}</p>
+        <p>
+          {r.record.applied
+            ? times12(r.record.applied)
+            : "Nothing. The AI never books or seats; only a person can."}
+        </p>
         <h3 className="section-title">Manager decision</h3>
         <p>
           <DecisionChip d={r.decision} />{" "}

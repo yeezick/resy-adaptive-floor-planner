@@ -6,6 +6,7 @@ import {
   impactsOf,
   type Build,
   type PartyFit,
+  times12,
   type Room,
 } from "../../domain";
 
@@ -36,14 +37,18 @@ export function ImpactsCard({
           <h5 className="small">Pros</h5>
           <ul aria-label="Pros">
             {pros.map((p) => (
-              <li key={p}>{p}</li>
+              <li key={p}>{times12(p)}</li>
             ))}
           </ul>
         </div>
         <div className="impacts-col is-con">
           <h5 className="small">Cons</h5>
           <ul aria-label="Cons">
-            {cons.length ? cons.map((c) => <li key={c}>{c}</li>) : <li className="muted">None</li>}
+            {cons.length ? (
+              cons.map((c) => <li key={c}>{times12(c)}</li>)
+            ) : (
+              <li className="muted">None</li>
+            )}
           </ul>
         </div>
       </div>
@@ -54,7 +59,7 @@ export function ImpactsCard({
       <p className="small">Crew: build time ~{buildMinutes(build)} min (est.)</p>
       {f.aisle.rejected.map((r) => (
         <p key={r.tables.join()} className="fit-reject small">
-          Rejected: {r.reason}
+          Rejected: {times12(r.reason)}
         </p>
       ))}
     </div>

@@ -1,5 +1,7 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  clock12,
+  times12,
   applyCombine,
   applyMove,
   applySplit,
@@ -266,9 +268,9 @@ export function Planner({
       />
       {proposal && (
         <div className="preview-bar" role="status">
-          <ProposedTag /> <strong>Previewing tonight's layout</strong> · {proposal.window.from}–
-          {proposal.window.to} · ghosts and arrows show what moves; nothing changes until you apply
-          it.
+          <ProposedTag /> <strong>Previewing tonight's layout</strong> ·{" "}
+          {times12(`${proposal.window.from}–${proposal.window.to}`)} · ghosts and arrows show what
+          moves; nothing changes until you apply it.
           <button type="button" className="link-btn" onClick={() => setProposal(null)}>
             Exit preview
           </button>
@@ -380,7 +382,7 @@ export function Planner({
                       ...room,
                       reservations: [...room.reservations, { ...r, id: `N${nextId.current++}` }],
                     }),
-                    `Booked party of ${r.partySize} at ${r.time}`,
+                    `Booked party of ${r.partySize} at ${clock12(r.time)}`,
                   );
                   if (res.ok) setMode("details");
                 }}

@@ -16,7 +16,7 @@ export function clock12(hhmm: string): string {
   return `${h % 12 === 0 ? 12 : h % 12}:${m[2]} ${h < 12 ? "AM" : "PM"}`;
 }
 
-const T = String.raw`(?<![\d:])([01]?\d|2[0-3]):([0-5]\d)(?![\d:])`;
+const T = String.raw`(?<![\d:])([01]\d|2[0-3]):([0-5]\d)(?![\d:])`;
 /** One time, or a range of two ("16:30–18:00"), matched in a single pass so output is never re-read. */
 const TIMES = new RegExp(`${T}(?:\\s?[–-]\\s?${T})?`, "g");
 

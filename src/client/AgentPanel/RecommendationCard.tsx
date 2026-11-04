@@ -13,6 +13,7 @@ import type { Highlight, HighlightControls } from "../highlight";
 import { waitLabel } from "../lib/format";
 import type { RecActions } from "./AgentPanel";
 import { plainTables, tableNo, tablesPhrase } from "../../domain/wording";
+import { times12 } from "../../domain/time";
 
 interface Props {
   rec: Recommendation;
@@ -85,11 +86,11 @@ export function RecommendationCard({ rec, hlKey, room, highlight, actions, party
           )}
         </div>
       )}
-      <p className="rec-reason">{plainTables(rec.reasoning)}</p>
+      <p className="rec-reason">{times12(plainTables(rec.reasoning))}</p>
       {rec.tradeoffs.length > 0 && (
         <ul className="tradeoffs small">
           {rec.tradeoffs.map((t, i) => (
-            <li key={i}>{plainTables(t)}</li>
+            <li key={i}>{times12(plainTables(t))}</li>
           ))}
         </ul>
       )}

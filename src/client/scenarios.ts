@@ -37,7 +37,7 @@ export const SCENARIOS: readonly Scenario[] = [
   },
   {
     id: "walkin-8-peak",
-    title: "Walk-in of 8 at 19:10 · AI Planner options",
+    title: "Walk-in of 8 at 7:10 PM · AI Planner options",
     roomId: "dinner-peak",
     panel: "assistant",
   },

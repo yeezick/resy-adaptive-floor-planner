@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { applyCombine, checkCombine, parseRoom, type Room } from "../../domain";
+import { applyCombine, checkCombine, parseRoom, times12, type Room } from "../../domain";
 
 /** A named floor layout. The base is the fixture and is never stored or overwritten. */
 export interface Layout {
@@ -126,7 +126,7 @@ function persist(roomId: string, s: Stored): void {
 
 export function tonightName(from: string, to: string, date = new Date()): string {
   const day = date.toLocaleDateString(undefined, { weekday: "short" });
-  return `Tonight — ${day} ${from}–${to}`;
+  return `Tonight — ${day} ${times12(`${from}–${to}`)}`;
 }
 
 export function useLayouts(fixture: Room): LayoutsApi {
