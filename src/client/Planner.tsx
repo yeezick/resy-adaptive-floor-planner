@@ -8,7 +8,7 @@ import {
   comboOf,
   findTablesForParty,
   joinReadiness,
-  readinessBadge,
+  joinBadge,
   readinessPill,
   tableById,
   type Room,
@@ -143,8 +143,11 @@ export function Planner({
     [mode, request, room.id, requests.fitTables],
   );
   const reqReady = useMemo(
-    () => (reqTables.length ? joinReadiness(room, reqTables) : null),
-    [room, reqTables],
+    () =>
+      reqTables.length
+        ? joinReadiness(room, reqTables, request ? (requests.fitReadyAt[request.id] ?? null) : null)
+        : null,
+    [room, reqTables, request, requests.fitReadyAt],
   );
   const reqHighlight: Highlight | null =
     reqTables.length && reqReady
@@ -153,7 +156,7 @@ export function Planner({
           ids: reqTables,
           label: `${request?.id} · party of ${request?.partySize} · ${readinessPill(reqReady)}`,
           source: "fit",
-          badges: Object.fromEntries(reqReady.tables.map((t) => [t.id, readinessBadge(t)])),
+          badges: Object.fromEntries(reqReady.tables.map((t) => [t.id, joinBadge(t, reqReady)])),
         }
       : null;
   const highlight = hover ?? pinned ?? suggested ?? focusHighlight ?? reqHighlight;

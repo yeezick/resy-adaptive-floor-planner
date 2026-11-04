@@ -5,7 +5,9 @@ import {
   times12,
   joinReadiness,
   partyFits,
-  readinessBadge,
+  readinessChip,
+  readinessTarget,
+  tableReady,
   readinessPill,
   tableNo,
   tablesPhrase,
@@ -105,9 +107,11 @@ export function RequestSheet({
       }).find((f) => f.reservationId === r.id) ?? null
     );
   }, [room, fit, r]);
+  // A future request is projected to its hold start; a request for now shows live minutes.
+  const readyAt = room && cost ? readinessTarget(r.time, room.clock, cost.hold.from) : null;
   const ready = useMemo(
-    () => (room && fit?.ok ? joinReadiness(room, fit.build.tables) : null),
-    [room, fit],
+    () => (room && fit?.ok ? joinReadiness(room, fit.build.tables, readyAt) : null),
+    [room, fit, readyAt],
   );
   const [reply, setReply] = useState<string | null>(null);
   useEffect(() => {
@@ -128,8 +132,9 @@ export function RequestSheet({
           ]
         : [`No capacity fit: ${fit.reason}`],
       fit.ok ? fit.build.tables : [],
+      readyAt,
     );
-  }, [fit, cost, r.id]);
+  }, [fit, cost, r.id, readyAt]);
   const junk = t?.status === "ok" && t.result.verdict === "junk" && !t.result.escalated;
   const overview = t?.status === "ok" ? t.result.summary : [needsOverview(r)];
 
@@ -241,20 +246,26 @@ export function RequestSheet({
             {ready && ready.tables.length > 0 && (
               <ul className="ready-list" aria-label="Tables in the join, and when each is free">
                 {ready.tables.map((t) => {
-                  const b = readinessBadge(t);
+                  const b = readinessChip(t, ready);
                   return (
                     <li key={t.id}>
                       <span className="ready-no">{tableNo(t.id)}</span>
                       <span className="muted">
                         {t.phase ?? (t.status === "reserved" ? "open, held later" : t.status)}
                       </span>
-                      <span className={`ready-chip ${b === "now" ? "is-now" : "is-wait"}`}>
+                      <span className={`ready-chip ${tableReady(t, ready) ? "is-now" : "is-wait"}`}>
                         {b}
                       </span>
                     </li>
                   );
                 })}
-                {!ready.ready && <li className="muted ready-key">~Xm = until free (est.)</li>}
+                {!ready.ready && (
+                  <li className="muted ready-key">
+                    {ready.at === null
+                      ? "~Xm = until free (est.)"
+                      : `projected to the hold start, ${clock12(ready.at)}; est. from meal phase`}
+                  </li>
+                )}
               </ul>
             )}
             {cost && room && (

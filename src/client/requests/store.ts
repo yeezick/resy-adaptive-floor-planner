@@ -66,6 +66,8 @@ export interface RequestsState {
   fits: Record<string, string[]>;
   /** Tables the fit check would use, per request (outlined on that night's floor). */
   fitTables: Record<string, string[]>;
+  /** Per request: the hold start its readiness is projected to, or null for a request for now. */
+  fitReadyAt: Record<string, string | null>;
   /** The manager's changes to a request (chat or manual controls); absent = as the guest asked. */
   adjust: Record<string, ChatConstraints>;
   chat: Record<string, ChatTurn[]>;
@@ -81,6 +83,7 @@ let state: RequestsState = {
   accepted: {},
   fits: {},
   fitTables: {},
+  fitReadyAt: {},
   adjust: {},
   chat: {},
   openPlan: null,
@@ -317,15 +320,17 @@ export const requestsActions = {
       },
     });
   },
-  noteFit(id: string, lines: string[], tables: string[]) {
+  noteFit(id: string, lines: string[], tables: string[], readyAt: string | null = null) {
     if (
       (state.fits[id] ?? []).join("\n") === lines.join("\n") &&
-      (state.fitTables[id] ?? []).join() === tables.join()
+      (state.fitTables[id] ?? []).join() === tables.join() &&
+      (state.fitReadyAt[id] ?? null) === readyAt
     )
       return;
     set({
       fits: { ...state.fits, [id]: lines },
       fitTables: { ...state.fitTables, [id]: tables },
+      fitReadyAt: { ...state.fitReadyAt, [id]: readyAt },
     });
   },
   /** Open the request's night with the request sheet open and its fit outlined. */
@@ -372,6 +377,7 @@ export function resetRequestsStore(): void {
     accepted: {},
     fits: {},
     fitTables: {},
+    fitReadyAt: {},
     adjust: {},
     chat: {},
     openPlan: null,
