@@ -2,7 +2,8 @@ import { defineConfig, devices } from "@playwright/test";
 
 // End-to-end smoke tests against the production build. No API key: the agent route is stubbed
 // in the one test that needs it, so these never spend credits.
-const PORT = 4318;
+// E2E_PORT lets two checkouts run the suite side by side.
+const PORT = Number(process.env.E2E_PORT ?? 4318);
 
 export default defineConfig({
   testDir: "e2e",
