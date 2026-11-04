@@ -27,14 +27,13 @@ test("not-affiliated banner is on every page", async ({ page }) => {
 test("floor shows the meal-phase key and seated tables", async ({ page }) => {
   await openFloor(page);
   await page.getByRole("tab", { name: "Dining room" }).click();
-  // iPad: the meal-phase key folds into "Key" under the floor
-  if (!(await page.locator(".floor-sub .phase-strip").isVisible()))
-    await page.locator(".legend-key > summary").click();
-  const key = page.locator(".phase-strip:visible").first();
+  // the meal-phase bar sits at the top of the floor on every width (abbreviations on iPad, words in the title)
+  const key = page.locator(".floor-sub .phase-strip");
   await expect(key).toBeVisible();
-  for (const phase of ["Seated", "Drinks", "Apps", "Entrées", "Dessert", "Check"]) {
-    await expect(key).toContainText(phase);
-  }
+  for (const abbr of ["SEAT", "DRK", "APP", "ENT", "DES", "CHK"])
+    await expect(key).toContainText(abbr);
+  for (const phase of ["Seated", "Drinks", "Apps", "Entrées", "Dessert", "Check"])
+    await expect(key.locator(`[title="${phase}"]`)).toHaveCount(1);
 });
 
 test("walk-in for 8 suggests tables without seating anyone", async ({ page }) => {
@@ -767,11 +766,13 @@ test.describe("declutter", () => {
   });
 
   for (const id of ["party-22-agent", "party-22-accepted", "request-chat"]) {
-    test(`${id}: planning clock — no meal-phase key, status key folded`, async ({ page }) => {
+    test(`${id}: planning clock — no meal-phase key, the key line reads Open · Held`, async ({
+      page,
+    }) => {
       await page.goto(`/?scenario=${id}`);
       await expect(page.locator(".side-col")).toBeVisible();
       await expect(page.locator(".phase-strip")).toHaveCount(0);
-      await expect(page.locator(".legend")).toBeHidden();
+      await expect(page.locator(".legend-line")).toHaveText("Open · Held");
     });
   }
 

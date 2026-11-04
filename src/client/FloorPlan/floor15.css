@@ -1,0 +1,85 @@
+/* The floor's one key: the meal-phase bar (live service) and one line under it */
+.floor-legend {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.legend-line {
+  margin: 0;
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 4px;
+}
+.legend-line .legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text);
+}
+.legend-line .swatch {
+  width: 12px;
+  height: 12px;
+}
+
+/* Party on the table: inverted pill in the tile's bottom-right corner (distinct from the seat count) */
+.floor .party-bubble rect {
+  fill: var(--text);
+  stroke: var(--surface);
+  stroke-width: 0.1;
+}
+.floor .party-bubble text {
+  fill: var(--surface);
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+}
+/* drawn above the tiles; taps go to the table underneath */
+.floor .party-bubbles {
+  pointer-events: none;
+}
+
+/* Top bar: the venue name never wraps, even with "Edited · Reset" showing */
+.console-bar .cb-title {
+  flex: none;
+}
+/* the night picker gives way first when the bar is tight (iPad with "Edited · Reset"), never the name */
+.console-bar .room-select {
+  display: flex;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+.console-bar .room-select select {
+  min-width: 120px;
+  width: 100%;
+  text-overflow: ellipsis;
+}
+@media (max-width: 1280px) {
+  .console-bar .room-select select {
+    max-width: 200px;
+  }
+  .console-bar .cb-stats {
+    gap: 12px;
+  }
+  .console-bar .cb-stats dt {
+    letter-spacing: 0.02em;
+  }
+  .console-bar .cb-right {
+    gap: 6px;
+  }
+}
+/* iPad with "Edited · Reset": the stat labels take two lines so the night picker keeps its full label */
+@media (max-width: 1280px) {
+  .console-bar:has(.cb-right .pill-accent) .cb-room {
+    flex-shrink: 0;
+  }
+  .console-bar:has(.cb-right .pill-accent) .cb-stats {
+    min-width: 0;
+  }
+  .console-bar:has(.cb-right .pill-accent) .cb-stats dt {
+    white-space: normal;
+    line-height: 1.15;
+  }
+}
