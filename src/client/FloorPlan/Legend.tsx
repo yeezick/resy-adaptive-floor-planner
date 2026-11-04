@@ -2,83 +2,42 @@ import { PHASES } from "../../domain";
 import { PHASE_ABBR, PHASE_LABEL } from "../lib/service";
 import { STATUS_STYLE } from "./colors";
 
-function Swatch({ fill, stroke, hatch }: { fill: string; stroke: string; hatch?: boolean }) {
+/**
+ * The floor's one key, at the top of the floor. A live service shows the meal-phase bar with one line under
+ * it; a planning night (nobody seated yet) shows the line with Open · Held only.
+ */
+export function FloorLegend({ live }: { live: boolean }) {
   return (
-    <span
-      className={hatch ? "swatch swatch-hatch" : "swatch"}
-      style={hatch ? { borderColor: stroke } : { background: fill, borderColor: stroke }}
-      aria-hidden="true"
-    />
-  );
-}
-
-export function Legend() {
-  return (
-    <div className="legend small" aria-label="Legend">
-      <div className="legend-group">
-        <span className="legend-title">Status</span>
+    <div className="floor-legend" aria-label="Floor key">
+      {live && <PhaseStrip />}
+      <p className="legend-line small">
         <span className="legend-item">
-          <Swatch fill={STATUS_STYLE.open.fill} stroke={STATUS_STYLE.open.stroke} /> Open
+          <span
+            className="swatch"
+            style={{ background: STATUS_STYLE.open.fill, borderColor: STATUS_STYLE.open.stroke }}
+            aria-hidden="true"
+          />
+          Open
         </span>
+        <span aria-hidden="true"> · </span>
         <span className="legend-item">
-          <Swatch fill={STATUS_STYLE.reserved.fill} stroke={STATUS_STYLE.reserved.stroke} />{" "}
-          Reserved
+          <span className="swatch swatch-held" aria-hidden="true" />
+          Held
         </span>
-        <span className="legend-item">
-          <Swatch fill="" stroke={STATUS_STYLE.blocked.stroke} hatch /> Blocked
-        </span>
-      </div>
-      <div className="legend-group">
-        <span className="legend-item">
-          <span className="swatch swatch-selected" aria-hidden="true" /> Your selection
-        </span>
-        <span className="legend-item">
-          <span className="swatch swatch-plan" aria-hidden="true" /> Capacity check (walk-in fit,
-          holds, builds)
-        </span>
-        <span className="legend-item">
-          <span className="swatch swatch-held" aria-hidden="true" /> Held for an accepted party
-        </span>
-        <span className="legend-item">
-          <span className="swatch swatch-ghost" aria-hidden="true" /> Where a table moves from
-          (preview)
-        </span>
-        <span className="legend-item">
-          <span className="swatch swatch-lit" aria-hidden="true" /> AI option (AI Planner)
-        </span>
-        <span className="legend-item">
-          <span className="swatch swatch-combo" aria-hidden="true" /> Combined
-        </span>
-        <span className="legend-item">
-          <span className="swatch swatch-diamond" aria-hidden="true" /> Diamond 4-top
-        </span>
-        <span className="legend-item">
-          <span className="swatch swatch-section" aria-hidden="true">
-            1
-          </span>{" "}
-          Server section
-        </span>
-        <span className="legend-item">
-          <span className="load-chip" aria-hidden="true">
-            3 just sat
-          </span>{" "}
-          Tables sat in the last few minutes
-        </span>
-        <span className="legend-item">
-          <span className="wall" aria-hidden="true" /> Divider closed
-        </span>
-        <span className="legend-item">
-          <span className="wall is-open" aria-hidden="true" /> Divider opened by build
-        </span>
-        <span className="legend-item">
-          <span className="swatch swatch-station" aria-hidden="true" /> Station / bar (no tables)
-        </span>
-      </div>
+        {live && (
+          <>
+            <span aria-hidden="true"> · </span>
+            <span>free ~Nm = est. until free</span>
+            <span aria-hidden="true"> · </span>
+            <span>Dessert/Check amber = about to leave</span>
+          </>
+        )}
+      </p>
     </div>
   );
 }
 
-/** Always-visible key for the phase words and colours on seated tables. */
+/** The meal-phase words and colours on seated tables. */
 export function PhaseStrip() {
   return (
     <div className="phase-strip" aria-label="Meal phase key">
@@ -89,12 +48,6 @@ export function PhaseStrip() {
           <span className="phase-strip-word"> {PHASE_LABEL[p]}</span>
         </span>
       ))}
-      <span className="phase-strip-arrow" aria-hidden="true">
-        just sat → about to leave
-      </span>
-      <span className="phase-strip-arrow">
-        free ~20m = est. until free · Dessert / Check (amber) = about to free
-      </span>
     </div>
   );
 }

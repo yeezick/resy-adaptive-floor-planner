@@ -25,7 +25,7 @@ import { ConsoleBar, type PanelMode } from "./ConsoleBar";
 import { CoversStrip } from "./CoversStrip";
 import { FloorPlan } from "./FloorPlan/FloorPlan";
 import { tabForTables } from "./FloorPlan/geometry";
-import { Legend, PhaseStrip } from "./FloorPlan/Legend";
+import { usePartiesOnTables } from "./FloorPlan/parties";
 import { SelectionBar } from "./FloorPlan/SelectionBar";
 import { TableDetails } from "./FloorPlan/TableDetails";
 import type { Highlight, HighlightControls } from "./highlight";
@@ -352,6 +352,11 @@ export function Planner({
   // Tables held by accepted large-party plans for this night (derived here; never a "blocked" status).
   const holds = useMemo(() => planHolds(room, requests), [room, requests]);
   const heldIds = useMemo(() => new Set(holds.keys()), [holds]);
+  // the party on each table (seated, held, booked): a small bubble on the tile
+  const parties = usePartiesOnTables(room, holds, {
+    proposal,
+    request: mode === "request" ? request : null,
+  });
   const hasSheet = mode !== "details" || selected.length > 0;
   // the expanded rail resets each time a sheet closes
   if (railFor !== hasSheet) {
@@ -464,28 +469,9 @@ export function Planner({
             changes={proposal?.changes}
             fitKey={hasSheet ? "sheet" : "full"}
             held={heldIds}
+            parties={parties}
           />
           <CoversStrip room={room} />
-          <details
-            className="legend-key"
-            open={
-              (room.tables.some((t) => t.status === "occupied") &&
-                typeof window !== "undefined" &&
-                window.innerWidth > 1280) ||
-              undefined
-            }
-          >
-            <summary className="small">
-              Key <span className="caret-closed">▸</span>
-              <span className="caret-open">▾</span>
-            </summary>
-            {room.tables.some((t) => t.status === "occupied") && (
-              <div className="legend-phase-ipad">
-                <PhaseStrip />
-              </div>
-            )}
-            <Legend />
-          </details>
         </section>
 
         <aside className="side-col" aria-labelledby="panel-title">

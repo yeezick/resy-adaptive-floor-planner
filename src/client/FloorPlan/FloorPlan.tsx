@@ -13,9 +13,10 @@ import type { Highlight } from "../highlight";
 import { FloorAreas } from "./FloorAreas";
 import { defaultTab, intersects, roomTabs, viewBox, type Box, type ViewPreset } from "./geometry";
 import { OffscreenCue, useScrollView } from "./OffscreenCue";
-import { PhaseStrip } from "./Legend";
+import { FloorLegend } from "./Legend";
 import { PxPerUnit, useMeasuredPpu, usePx } from "./scale";
-import { TableShape } from "./TableShape";
+import { PartyBubbles, TableShape } from "./TableShape";
+import "./floor15.css";
 
 interface Props {
   room: Room;
@@ -31,6 +32,8 @@ interface Props {
   fitKey?: string;
   /** Tables held by accepted large-party plans for this night. */
   held?: ReadonlySet<string>;
+  /** Size of the party on each table (seated, held or booked), shown as a small bubble. */
+  parties?: ReadonlyMap<string, number>;
 }
 
 interface Drag {
@@ -59,6 +62,7 @@ export function FloorPlan({
   initialTab,
   fitKey,
   held,
+  parties,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -283,7 +287,7 @@ export function FloorPlan({
         </div>
       </div>
       <div className="floor-sub">
-        {room.tables.some((t) => t.status === "occupied") && <PhaseStrip />}
+        <FloorLegend live={room.tables.some((t) => t.status === "occupied")} />
         <span
           className={`floor-highlight-tag small${
             highlight?.source === "ai" ? " is-ai" : highlight?.source === "fit" ? " is-fit" : ""
@@ -353,7 +357,7 @@ export function FloorPlan({
               </defs>
 
               <g clipPath="url(#view-clip)">
-                <FloorAreas room={room} openDividers={openDividers} />
+                <FloorAreas room={room} openDividers={openDividers} view={box} />
 
                 {changes && <ChangeUnderlay room={room} changes={changes} />}
 
@@ -371,6 +375,7 @@ export function FloorPlan({
                     dim={dimOthers && !lit.has(t.id)}
                     dragging={drag?.id === t.id && drag.moved}
                     held={(held?.has(t.id) ?? false) || t.status === "reserved"}
+                    party={parties?.get(t.id)}
                     onPointerDown={(e) => onTableDown(e, t)}
                     onPointerMove={(e) => onTableMove(e, t)}
                     onPointerUp={(e) => onTableUp(e, t)}
@@ -378,6 +383,8 @@ export function FloorPlan({
                     onKeyDown={(e) => onTableKey(e, t)}
                   />
                 ))}
+
+                {parties && <PartyBubbles tables={tables} parties={parties} />}
 
                 {changes && <ChangeOverlay room={room} changes={changes} />}
               </g>

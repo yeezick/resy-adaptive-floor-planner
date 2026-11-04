@@ -101,7 +101,8 @@ function Badge({
   const h = font * 1.4;
   const w = text.length * 0.58 * font + font;
   const x = box.x + box.w / 2 - w / 2;
-  const y = below ? box.y + box.h + 0.3 : box.y - h - 0.3;
+  // above: clear of the Held / readiness bubbles that sit on the tables' top edge
+  const y = below ? box.y + box.h + 0.3 : box.y - h - Math.max(0.3, px(15));
   return (
     <g className={`change-badge ${cls}`}>
       <rect x={x} y={y} width={w} height={h} rx={h / 2} />
