@@ -318,6 +318,7 @@ export function RequestSheet({
             <button
               type="button"
               className="ask-ai"
+              title="Discuss this request with the AI Planner"
               disabled={!room}
               onClick={() => {
                 const box = document.getElementById(`chat-${r0.id}`);
@@ -325,7 +326,7 @@ export function RequestSheet({
                 box?.focus({ preventScroll: true });
               }}
             >
-              Ask AI Planner
+              <Sparkle /> Discuss
             </button>
           </div>
           <p className="muted small">Accept opens {r.day}'s plan with the party in it.</p>
@@ -389,5 +390,15 @@ export function RequestSheet({
         </div>
       )}
     </div>
+  );
+}
+
+/** The AI affordance: a four-point sparkle in the accent colour (decorative; the button says "Discuss"). */
+function Sparkle() {
+  return (
+    <svg className="sparkle" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+      <path d="M8 1.5c.4 2.9 1.7 4.2 4.6 4.6-2.9.4-4.2 1.7-4.6 4.6-.4-2.9-1.7-4.2-4.6-4.6 2.9-.4 4.2-1.7 4.6-4.6Z" />
+      <path d="M12.6 10.2c.2 1.3.8 1.9 2.1 2.1-1.3.2-1.9.8-2.1 2.1-.2-1.3-.8-1.9-2.1-2.1 1.3-.2 1.9-.8 2.1-2.1Z" />
+    </svg>
   );
 }

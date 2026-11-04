@@ -3411,3 +3411,17 @@ button,
   flex: 1 1 260px;
   min-height: 36px;
 }
+
+/* "Discuss": the AI affordance on a request (sparkle in the accent colour) */
+.ask-ai {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.ask-ai .sparkle {
+  fill: var(--accent);
+  flex: none;
+}
+.ask-ai:disabled .sparkle {
+  fill: currentColor;
+}
