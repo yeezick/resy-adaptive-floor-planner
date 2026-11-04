@@ -3,7 +3,7 @@ import { ProposedTag } from "../requests/RequestSheet";
 import { requestsActions, useRequests } from "../requests/store";
 import { NIGHTS } from "../nights";
 import { NEEDS as REQUEST_NEEDS, SERVICE } from "../../domain/requests";
-import { toHHMM, toMinutes } from "../../domain/time";
+import { clock12, toHHMM, toMinutes } from "../../domain/time";
 import {
   checkTableSet,
   tableById,
@@ -74,7 +74,9 @@ function HostStandRequest({ room, size, needs }: { room: Room; size: number; nee
           Arrival
           <select value={at} onChange={(e) => setTime(e.target.value)}>
             {slots.map((t) => (
-              <option key={t}>{t}</option>
+              <option key={t} value={t}>
+                {clock12(t)}
+              </option>
             ))}
           </select>
         </label>

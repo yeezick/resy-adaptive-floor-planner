@@ -1,4 +1,5 @@
 import {
+  clock12,
   acceptLine,
   buildMinutes,
   coverTrade,
@@ -41,7 +42,7 @@ export function PartyFitCard({
       <div className="fit-head">
         <strong>{title ?? f.reservationId}</strong>
         <span className="muted">
-          party of {f.partySize} · {f.time} · {f.area}
+          party of {f.partySize} · {clock12(f.time)} · {f.area}
         </span>
         {focus && <span className="pill pill-accent">just accepted</span>}
       </div>
@@ -62,7 +63,7 @@ export function PartyFitCard({
         <dt>Hold</dt>
         <dd>
           {f.hold.tables.length ? f.hold.byArea.join(" · ") : "spare tables only"} held from{" "}
-          <strong>{f.hold.from}</strong> · {f.hold.slotsBlocked} slot
+          <strong>{clock12(f.hold.from)}</strong> · {f.hold.slotsBlocked} slot
           {f.hold.slotsBlocked === 1 ? "" : "s"} blocked ·{" "}
           <strong className={f.hold.coversLost ? "warn-text" : undefined}>
             ~{f.hold.coversLost} covers lost (est.)

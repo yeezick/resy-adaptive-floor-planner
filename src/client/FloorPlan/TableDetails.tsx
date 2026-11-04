@@ -1,7 +1,9 @@
 import {
   comboOf,
   ELAPSED_EST_MIN,
+  clock12,
   estimateFreeTime,
+  times12,
   tableById,
   type Room,
   type Table,
@@ -85,13 +87,13 @@ function TableCard({
         {t.reservedAt && (
           <>
             <dt>Held for</dt>
-            <dd>{t.reservedAt}</dd>
+            <dd>{clock12(t.reservedAt)}</dd>
           </>
         )}
         <dt>Free</dt>
         <dd>
           {free.minutes === null ? "not this service" : waitLabel(free.minutes)}
-          <div className="muted small">{free.basis}</div>
+          <div className="muted small">{times12(free.basis)}</div>
         </dd>
         <dt>Joinable</dt>
         <dd>{t.joinable ? "yes" : "no"}</dd>

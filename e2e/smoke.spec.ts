@@ -154,7 +154,7 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
 
   // the 30-top can't have a private room at 19:30: Accept stays disabled, the reason is one line
   await rail.locator(".row-request .row-btn").nth(2).click();
-  await expect(page.locator(".cant-fit-line")).toContainText("earliest 20:30");
+  await expect(page.locator(".cant-fit-line")).toContainText("earliest 8:30 PM");
   await expect(page.getByRole("button", { name: /Accept/ })).toBeDisabled();
   await page.getByRole("button", { name: "Decline", exact: true }).click();
   await page.getByRole("button", { name: "Decline for capacity fit" }).click();
@@ -164,7 +164,7 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
   await rail.locator(".row-request .row-btn").nth(1).click();
   const sheet = page.locator(".request-sheet");
   await expect(sheet.locator(".req-title")).toHaveText(
-    "Sam Whitaker, party of 22 · Fri 18:30 (in 3h 30m)",
+    "Sam Whitaker, party of 22 · Fri 6:30 PM (in 3h 30m)",
   );
   await expect(sheet.locator(".req-overview")).toContainText("Stub line one for Q2.");
   await expect(sheet).toContainText("AI agent (chat app or MCP)");
@@ -179,7 +179,7 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
     "Aisle clear for a wheelchair",
   );
   await expect(cost.getByRole("list", { name: "Cons" })).toContainText(
-    /Tables held \d\d:\d\d–18:30/,
+    /Tables held \d{1,2}:\d\d–6:30 PM/,
   );
   await expect(cost).toContainText(
     /Accept: \+22 covers \(the party\) · −\d+ covers lost to the hold \(est\.\) = net [+−]?\d+/,
@@ -216,7 +216,9 @@ test("a large walk-in at the host stand gets the same capacity fit and cost", as
   await stand.getByRole("textbox").fill("Kim Lee");
   await stand.getByRole("button", { name: "Check capacity fit →" }).click();
   const sheet = page.locator(".request-sheet");
-  await expect(sheet.locator(".req-title")).toHaveText("Kim Lee, party of 14 · Sat 21:00 (in 6h)");
+  await expect(sheet.locator(".req-title")).toHaveText(
+    "Kim Lee, party of 14 · Sat 9:00 PM (in 6h)",
+  );
   await expect(sheet).toContainText("Walk-in at the host stand");
   await expect(sheet).toContainText("At the stand");
   await expect(sheet.getByRole("region", { name: "Capacity fit" })).toBeVisible();
@@ -407,7 +409,7 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     await page.goto("/?scenario=party-22-agent");
     const sheet = page.locator(".request-sheet");
     await expect(sheet.locator(".req-title")).toHaveText(
-      "Sam Whitaker, party of 22 · Fri 18:30 (in 3h 30m)",
+      "Sam Whitaker, party of 22 · Fri 6:30 PM (in 3h 30m)",
     );
     await expect(sheet).toContainText("AI agent (chat app or MCP)");
     await expect(sheet.locator(".req-overview")).toContainText("Family reunion");
@@ -438,7 +440,7 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     await expect(page.locator(".fit-card.is-focus")).toContainText("Q2");
   });
 
-  test("walkin-8-peak: the assistant with ranked options at 19:10", async ({ page }) => {
+  test("walkin-8-peak: the assistant with ranked options at 7:10 PM", async ({ page }) => {
     await page.goto("/?scenario=walkin-8-peak");
     await expect(page.locator(".room-select select")).toHaveValue("dinner-peak");
     await expect(page.locator(".rec-card")).toHaveCount(3);
@@ -455,6 +457,42 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     await expect(chat.getByLabel("Tables from")).toHaveValue("30");
     await expect(page.locator(".request-sheet")).toContainText("Closest:");
   });
+
+  for (const id of [
+    "party-22-agent",
+    "party-22-accepted",
+    "walkin-8-peak",
+    "request-chat",
+    "activity-log",
+  ]) {
+    test(`${id}: every time a manager reads is 12-hour AM/PM`, async ({ page }) => {
+      await page.goto(`/?scenario=${id}`);
+      await expect(page.locator(".banner")).toBeVisible();
+      await page.waitForLoadState("networkidle");
+      const found = await page.evaluate(() => {
+        // the domain's "HH:MM" (zero-padded, 24-hour) must never reach the screen
+        // (a 12-hour time is followed by AM/PM, or starts a range that ends in AM/PM: "5:00–6:30 PM")
+        const re =
+          /(?<![\d:])([01]\d|2[0-3]):[0-5]\d(?![\d:])(?!\s?[AP]M)(?!–\d{1,2}:\d{2}\s?[AP]M)/;
+        const out: string[] = [];
+        if (re.test(document.body.innerText)) {
+          const lines = document.body.innerText.split("\n").filter((l) => re.test(l));
+          out.push(...lines);
+        }
+        for (const el of document.querySelectorAll("[title], [aria-label]")) {
+          for (const a of ["title", "aria-label"]) {
+            const v = el.getAttribute(a);
+            if (v && re.test(v)) out.push(`${a}: ${v}`);
+          }
+        }
+        for (const o of document.querySelectorAll("option")) {
+          if (re.test(o.textContent ?? "")) out.push(`option: ${o.textContent}`);
+        }
+        return out;
+      });
+      expect(found).toEqual([]);
+    });
+  }
 
   test("the header menu links every scenario", async ({ page }) => {
     await page.goto("/");

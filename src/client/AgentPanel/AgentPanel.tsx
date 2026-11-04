@@ -15,6 +15,7 @@ import { Metrics } from "./Metrics";
 import { activityActions } from "../activity/store";
 import { RecommendationCard } from "./RecommendationCard";
 import { plainTables, tablesPhrase } from "../../domain/wording";
+import { times12 } from "../../domain/time";
 import { activeScenario, RECORDED_WALKIN } from "../scenarios";
 
 export type Turn =
@@ -31,7 +32,7 @@ const EXAMPLES: Record<string, string[]> = {
   ],
   "demo-night": [
     "Generate tonight's layout for 17:00–22:00 — what can't we fit?",
-    "Where does the 24-top at 18:00 go, and what do we pull from storage?",
+    "Where does the 24-top at 6:00 PM go, and what do we pull from storage?",
     "Party of 6 walked in at 17:15 — where?",
   ],
   "next-day": [
@@ -247,10 +248,10 @@ function AssistantTurn({ turnId, res, room, highlight, actions, partyHint }: Ass
   const recs = [...res.recommendations].sort((a, b) => a.rank - b.rank);
   return (
     <div className="bubble assistant">
-      {res.answer && <p className="answer">{plainTables(res.answer)}</p>}
+      {res.answer && <p className="answer">{times12(plainTables(res.answer))}</p>}
       {res.clarifyingQuestion && (
         <p className="clarify">
-          <span className="pill">Question</span> {plainTables(res.clarifyingQuestion)}
+          <span className="pill">Question</span> {times12(plainTables(res.clarifyingQuestion))}
         </p>
       )}
       {recs.length > 0 && (

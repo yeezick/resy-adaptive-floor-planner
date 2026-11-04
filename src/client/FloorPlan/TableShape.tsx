@@ -1,5 +1,5 @@
 import { useContext, type KeyboardEvent, type PointerEvent } from "react";
-import { ELAPSED_EST_MIN, type Table } from "../../domain";
+import { clock12, ELAPSED_EST_MIN, type Table } from "../../domain";
 import { PHASE_ABBR } from "../lib/service";
 import { AlwaysShowIds, usePpu, usePx } from "./scale";
 import { tableColors } from "./colors";
@@ -25,7 +25,7 @@ function describe(t: Table): string {
     t.status === "occupied"
       ? `occupied, ${t.phase ?? "seated"}${t.partySize ? `, party of ${t.partySize}` : ""}`
       : t.status === "reserved"
-        ? `reserved for ${t.reservedAt ?? "later"}`
+        ? `reserved for ${t.reservedAt ? clock12(t.reservedAt) : "later"}`
         : t.status;
   const shape = t.shape === "diamond" ? "diamond (square at 45°)" : t.shape;
   return `Table ${tableNo(t.id)}, ${t.seats} seats, ${shape}, ${t.area}, section ${t.section}, ${state}`;

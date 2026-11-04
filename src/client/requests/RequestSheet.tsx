@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import {
+  clock12,
   crewNote,
+  times12,
   joinReadiness,
   partyFits,
   readinessBadge,
@@ -93,7 +95,7 @@ export function RequestSheet({
   const minutesAway = roomRes?.ok
     ? toMinutes(r.time) - toMinutes(roomRes.data.clock) - elapsed
     : null;
-  const draft = useMemo(() => (fit ? draftReply(r, fit) : ""), [fit, r]);
+  const draft = useMemo(() => (fit ? times12(draftReply(r, fit)) : ""), [fit, r]);
   const cost = useMemo(() => {
     if (!room || !fit?.ok) return null;
     const withR = { ...room, reservations: [...room.reservations, toReservation(r)] };
@@ -136,7 +138,7 @@ export function RequestSheet({
       <div className="req-head">
         <div>
           <h2 className="req-title" title={`Countdown from ${r.day}'s clock`}>
-            {requestHeader(r, minutesAway)}
+            {times12(requestHeader(r, minutesAway))}
           </h2>
           <ul className="req-overview" aria-label="What the party needs">
             {overview.map((line) => (
@@ -145,7 +147,7 @@ export function RequestSheet({
           </ul>
           <div className="muted small">
             <span className={`source-label source-${r.source}`}>{SOURCE_LABEL[r.source]}</span> ·
-            received {r.receivedAt}
+            received {times12(r.receivedAt)}
           </div>
         </div>
         <ProposedTag />
@@ -234,7 +236,7 @@ export function RequestSheet({
             </p>
             <p className="muted">
               {fit.build.area} · seats {fit.build.seats} for {fit.build.partySize}, build by{" "}
-              {fit.build.buildBy}. Every booking already on {r.day} still has a table.
+              {clock12(fit.build.buildBy)}. Every booking already on {r.day} still has a table.
             </p>
             {ready && ready.tables.length > 0 && (
               <ul className="ready-list" aria-label="Tables in the join, and when each is free">
@@ -266,7 +268,9 @@ export function RequestSheet({
             )}
           </div>
         )}
-        {fit && !fit.ok && <p className="small cant-fit-line">{adj ? adj.line : fit.reason}</p>}
+        {fit && !fit.ok && (
+          <p className="small cant-fit-line">{times12(adj ? adj.line : fit.reason)}</p>
+        )}
         <p className="muted small">From the planner, not the AI: the AI never picks tables.</p>
       </section>
 
@@ -363,10 +367,10 @@ export function RequestSheet({
         <div className="req-decided small" role="status">
           <strong>
             {decision.kind === "accepted"
-              ? `Accepted ${decision.at} · ${tablesPhrase(decision.tables)}`
+              ? `Accepted ${times12(decision.at)} · ${tablesPhrase(decision.tables)}`
               : decision.kind === "declined"
-                ? `Declined for ${decision.reason === "fit" ? "capacity fit" : decision.reason} · ${decision.at}`
-                : `Replied ${decision.at}${decision.edited ? " · draft edited" : ""}`}
+                ? `Declined for ${decision.reason === "fit" ? "capacity fit" : decision.reason} · ${times12(decision.at)}`
+                : `Replied ${times12(decision.at)}${decision.edited ? " · draft edited" : ""}`}
           </strong>
           <button type="button" className="link-btn" onClick={() => requestsActions.reopen(r)}>
             Undo

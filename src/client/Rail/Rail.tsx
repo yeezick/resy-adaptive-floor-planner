@@ -1,5 +1,13 @@
 import { useMemo, useState, type ReactNode } from "react";
-import { LARGE_PARTY, planBuilds, toHHMM, toMinutes, type Room } from "../../domain";
+import {
+  clock12,
+  LARGE_PARTY,
+  planBuilds,
+  times12,
+  toHHMM,
+  toMinutes,
+  type Room,
+} from "../../domain";
 import { buildHighlight } from "../BuildPlan/BuildPlan";
 import type { Highlight, HighlightControls } from "../highlight";
 import { PHASE_LABEL, seatedParties, type DoneEntry, type WaitEntry } from "../lib/service";
@@ -136,10 +144,10 @@ export function Rail(p: Props) {
         <ul className="rows">
           {standby.map((s) => (
             <li key={s.id} className="row">
-              <span className="row-time">{s.window.split("–")[0]}</span>
+              <span className="row-time">{clock12(s.window.split("–")[0] ?? "")}</span>
               <span className="row-party">{s.partySize}</span>
               <span className="row-main">
-                <span className="row-sub">wants {s.window}</span>
+                <span className="row-sub">wants {times12(s.window)}</span>
                 {s.needs.length > 0 && (
                   <span className="needs">
                     {s.needs.map((n) => (
@@ -182,7 +190,7 @@ export function Rail(p: Props) {
           <ul className="rows">
             {waitlist.map((w) => (
               <li key={w.id} className="row">
-                <span className="row-time">{w.addedAt}</span>
+                <span className="row-time">{clock12(w.addedAt)}</span>
                 <span className="row-party">{w.partySize}</span>
                 <span className="row-main">
                   <span className="row-sub">quoted ~{w.quoteMin} min</span>
@@ -234,7 +242,7 @@ export function Rail(p: Props) {
                   tabIndex={h ? 0 : undefined}
                   {...hoverProps(highlight, h)}
                 >
-                  <span className="row-time">{r.time}</span>
+                  <span className="row-time">{clock12(r.time)}</span>
                   <span className="row-party" aria-label={`party of ${r.partySize}`}>
                     {r.partySize}
                   </span>
@@ -281,10 +289,10 @@ export function Rail(p: Props) {
                     {...hoverProps(highlight, {
                       key: `held-${t.id}`,
                       ids: [t.id],
-                      label: `Table ${tableNo(t.id)} held for ${t.reservedAt ?? "later"}`,
+                      label: `Table ${tableNo(t.id)} held for ${t.reservedAt ? clock12(t.reservedAt) : "later"}`,
                     })}
                   >
-                    <span className="row-time">{t.reservedAt ?? "—"}</span>
+                    <span className="row-time">{t.reservedAt ? clock12(t.reservedAt) : "—"}</span>
                     <span className="row-party">{t.seats}</span>
                     <span className="row-main">
                       <span className="row-sub">
@@ -348,7 +356,7 @@ export function Rail(p: Props) {
           <ul className="rows">
             {[...done].reverse().map((d) => (
               <li key={d.id} className="row">
-                <span className="row-time">{d.finishedAt}</span>
+                <span className="row-time">{clock12(d.finishedAt)}</span>
                 <span className="row-party">{d.partySize}</span>
                 <span className="row-main">
                   <span className="row-sub">{d.tables.join("+")}</span>
@@ -406,7 +414,7 @@ function RequestsSection({
                 <span className="row-time">
                   {r.day}
                   <br />
-                  {r.time}
+                  {clock12(r.time)}
                 </span>
                 <span className="row-party" aria-label={`party of ${r.partySize}`}>
                   {r.partySize}
@@ -421,7 +429,7 @@ function RequestsSection({
                   </span>
                   {t?.status === "ok" && (
                     <span className="req-lines">
-                      <span>{t.result.summary[0]}</span>
+                      <span>{times12(t.result.summary[0] ?? "")}</span>
                     </span>
                   )}
                   {d.kind !== "pending" && (

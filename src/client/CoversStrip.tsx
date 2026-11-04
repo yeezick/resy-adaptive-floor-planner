@@ -1,4 +1,7 @@
-import { toHHMM, toMinutes, type Room } from "../domain";
+import { clock12, times12, toHHMM, toMinutes, type Room } from "../domain";
+
+/** Axis tick on the hour: "7 PM". */
+const hourTick = (m: number) => clock12(toHHMM(m)).replace(":00 ", " ");
 
 const SLOT = 15;
 
@@ -25,7 +28,7 @@ export function CoversStrip({ room }: { room: Room }) {
         <strong>{total} covers</strong>
         <span className="muted">
           {" "}
-          booked · {toHHMM(start)}–{toHHMM(end)} · per 15 min
+          booked · {times12(`${toHHMM(start)}–${toHHMM(end)}`)} · per 15 min
         </span>
       </div>
       <div className="covers-bars">
@@ -33,16 +36,20 @@ export function CoversStrip({ room }: { room: Room }) {
           <span
             className="covers-now"
             style={{ left: `${markerPct}%` }}
-            title={`Now ${room.clock}`}
+            title={`Now ${clock12(room.clock)}`}
           >
-            <span className="covers-now-label">{room.clock}</span>
+            <span className="covers-now-label">{clock12(room.clock)}</span>
           </span>
         )}
         {slots.map((s) => (
-          <div key={s.t} className="covers-slot" title={`${toHHMM(s.t)}: ${s.covers} covers`}>
+          <div
+            key={s.t}
+            className="covers-slot"
+            title={`${clock12(toHHMM(s.t))}: ${s.covers} covers`}
+          >
             <span className="covers-n">{s.covers || ""}</span>
             <span className="covers-bar" style={{ height: `${(s.covers / max) * 100}%` }} />
-            <span className="covers-t">{s.t % 60 === 0 ? toHHMM(s.t) : ""}</span>
+            <span className="covers-t">{s.t % 60 === 0 ? hourTick(s.t) : ""}</span>
           </div>
         ))}
       </div>
@@ -50,7 +57,7 @@ export function CoversStrip({ room }: { room: Room }) {
         <tbody>
           {slots.map((s) => (
             <tr key={s.t}>
-              <th scope="row">{toHHMM(s.t)}</th>
+              <th scope="row">{clock12(toHHMM(s.t))}</th>
               <td>{s.covers} covers</td>
             </tr>
           ))}
