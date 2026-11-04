@@ -2,7 +2,7 @@
 import { clock12 } from "../domain/time";
 import { DEMO_WEEK_ISO } from "../domain/requests";
 export const NIGHTS: Record<string, { day: string; label: string }> = {
-  "dinner-peak": { day: "Thu", label: "Thu · live service 7:10 PM" },
+  "dinner-peak": { day: "Wed", label: "Wed · live service 7:10 PM" },
   "book-thu": { day: "Thu", label: "Thu · planning from 3:00 PM" },
   "book-fri": { day: "Fri", label: "Fri · planning from 3:00 PM" },
   "demo-night": { day: "Sat", label: "Sat · planning from 3:00 PM" },
