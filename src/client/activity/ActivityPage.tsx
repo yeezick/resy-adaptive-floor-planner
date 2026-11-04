@@ -96,7 +96,7 @@ export function DecisionChip({ d }: { d: RowDecision }) {
         <span
           className={`verdict ${d.reason === "policy" ? "verdict-policy" : d.reason === "fit" ? "verdict-fit" : "verdict-wait"}`}
         >
-          Declined · {d.reason === "fit" ? "capacity fit" : d.reason}
+          Declined · {d.reason === "fit" ? "no capacity fit" : d.reason}
         </span>
       );
     case "edited":
@@ -147,7 +147,7 @@ export function ActivityPage() {
         <div className="totals activity-counts" aria-label="This week">
           <Count label="Requests logged this week" value={counts.requests} />
           <Count label="Accepted" value={counts.accepted} />
-          <Count label="Declined · capacity fit" value={counts.declined.fit} />
+          <Count label="Declined · no capacity fit" value={counts.declined.fit} />
           <Count label="Declined · policy" value={counts.declined.policy} />
           <Count label="Declined · other" value={counts.declined.other} />
           <Count label="Pending" value={counts.pending} />
@@ -211,7 +211,7 @@ export function ActivityPage() {
             }
           >
             <option value="">Any</option>
-            <option value="fit">Capacity fit</option>
+            <option value="fit">No capacity fit</option>
             <option value="policy">Policy</option>
             <option value="other">Other</option>
           </select>

@@ -98,7 +98,7 @@ const SOURCE_DETAIL: Partial<Record<GuestRequest["source"], string>> = {
 };
 
 const DECLINE: { id: DeclineReason; label: string; hint: string }[] = [
-  { id: "fit", label: "Capacity fit", hint: "we can't seat them that night" },
+  { id: "fit", label: "No capacity fit", hint: "we can't seat them that night" },
   { id: "policy", label: "Policy", hint: "minimums, buyouts, house rules, junk" },
   { id: "other", label: "Other", hint: "anything else" },
 ];
@@ -309,7 +309,7 @@ export function RequestSheet({
 
       <section className="req-block" aria-label="Capacity fit">
         <div className="req-block-head">
-          <h3 className="section-title">Capacity check · {r.day}</h3>
+          <h3 className="section-title">Capacity check</h3>
           {fit && (
             <span
               className={`verdict ${fit.ok ? "verdict-real" : "verdict-unsure"} fit-pill`}
@@ -434,22 +434,13 @@ export function RequestSheet({
         </p>
       </section>
 
-      {decision.kind === "pending" && fit?.ok && (
-        <p className="feedforward small">
-          Accept holds {tablesPhrase(fit.build.tables)}
-          {holdFrom ? ` from ${clock12(holdFrom)}` : ""} · no guest message is sent
-        </p>
-      )}
-
       {decision.kind === "pending" && room && (
-        <details
-          className="req-chat-wrap"
-          open={chatOpen}
-          onToggle={(e) => setChatOpen((e.target as HTMLDetailsElement).open)}
-        >
-          <summary className="small">Discuss this request ▸</summary>
+        <div className="req-chat-wrap" hidden={!chatOpen}>
           <RequestChat request={r0} result={proposedAdj ?? adj} />
-        </details>
+          <button type="button" className="link-btn small" onClick={() => setChatOpen(false)}>
+            Hide chat
+          </button>
+        </div>
       )}
 
       {decision.kind === "pending" && mode === "decline" && (
@@ -475,7 +466,7 @@ export function RequestSheet({
           >
             {reason === null
               ? "Pick a reason to decline"
-              : `Decline for ${reason === "fit" ? "capacity fit" : reason}`}
+              : `Decline: ${reason === "fit" ? "no capacity fit" : reason}`}
           </button>
         </fieldset>
       )}
@@ -503,6 +494,20 @@ export function RequestSheet({
 
       {decision.kind === "pending" ? (
         <div className="req-actions decision-footer">
+          {fit?.ok && (
+            <p className="feedforward small">
+              Accept holds {tablesPhrase(fit.build.tables)}
+              {holdFrom ? ` from ${clock12(holdFrom)}` : ""}
+              {movedDetail.length
+                ? ` · ${movedDetail
+                    .map((m) =>
+                      m.replace(/^Moves /, "moves ").replace(/ from tables [^ ]+ to /, " to "),
+                    )
+                    .join(" · ")}`
+                : ""}{" "}
+              · no guest message is sent
+            </p>
+          )}
           <button
             type="button"
             className="ask-ai text-btn"
@@ -557,7 +562,7 @@ export function RequestSheet({
             {decision.kind === "accepted"
               ? `Accepted ${times12(decision.at)} · ${tablesPhrase(decision.tables)}`
               : decision.kind === "declined"
-                ? `Declined for ${decision.reason === "fit" ? "capacity fit" : decision.reason} · ${times12(decision.at)}`
+                ? `Declined: ${decision.reason === "fit" ? "no capacity fit" : decision.reason} · ${times12(decision.at)}`
                 : `Replied ${times12(decision.at)}${decision.edited ? " · draft edited" : ""}`}
           </strong>
           <button type="button" className="link-btn" onClick={() => requestsActions.reopen(r)}>
@@ -605,9 +610,7 @@ function ChatDiff({
   const notes = after.notes.filter((n) => !before.notes.includes(n));
   if (notes.length) rows.push(`Notes: + ${notes.join(", ")}`);
   const word = (ok: boolean) => (ok ? "capacity fit ✓" : "no capacity fit");
-  rows.push(`${word(fitBefore)} → ${word(result.fit.ok)}`);
-  if (result.fit.ok) rows.push(`tables: ${tablesPhrase(result.fit.build.tables)}`);
-  else if (result.closest) rows.push(`closest: ${times12(result.closest)}`);
+  const loses = fitBefore && !result.fit.ok;
   return (
     <div className="chat-diff" role="group" aria-label="Change proposed in chat">
       <p className="chat-diff-title small">
@@ -621,9 +624,24 @@ function ChatDiff({
           <li key={x}>{x}</li>
         ))}
       </ul>
+      <p className="chat-diff-check small">
+        <span className="muted">Capacity check: </span>
+        {word(fitBefore)} →{" "}
+        <span className={`verdict ${result.fit.ok ? "verdict-real" : "verdict-unsure"}`}>
+          {word(result.fit.ok)}
+        </span>
+        {result.fit.ok ? (
+          <span> · {tablesPhrase(result.fit.build.tables)}</span>
+        ) : result.closest ? (
+          <span className="muted"> · closest: {times12(result.closest)}</span>
+        ) : null}
+      </p>
+      {loses && (
+        <p className="warn-text small">Applying this leaves the request with no capacity fit.</p>
+      )}
       <div className="btn-row">
         <button type="button" className="tonal" onClick={onApply}>
-          Apply
+          {loses ? "Apply (no capacity fit)" : "Apply"}
         </button>
         <button type="button" onClick={onDiscard}>
           Discard

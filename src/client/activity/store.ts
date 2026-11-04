@@ -1,6 +1,7 @@
 // Activity log inputs for this session, from what is already logged: triage results and manager decisions (the
 // requests store), assistant responses and what the host applied from them (recorded here), plus a fictional
 // seed for earlier this week. Read-only to the Activity screen.
+import { DEMO_WEEK_ISO } from "../../domain/requests";
 import { useMemo, useSyncExternalStore } from "react";
 import weekJson from "../../../fixtures/activity/week.json";
 import {
@@ -160,14 +161,11 @@ export const activityActions = {
 };
 
 /** "Tue 09:12" → this week's date at that time (local), as ISO. */
-export function weekdayToIso(label: string, now = new Date()): string {
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/** "Tue 10:03" → that moment in the fixtures' demo week (the requests name only a weekday). */
+export function weekdayToIso(label: string): string {
   const [day, hm] = label.split(" ");
-  const [h, m] = (hm ?? "00:00").split(":").map(Number);
-  const d = new Date(now);
-  d.setDate(d.getDate() - ((d.getDay() - days.indexOf(day ?? "Mon") + 7) % 7));
-  d.setHours(h ?? 0, m ?? 0, 0, 0);
-  return d.toISOString();
+  const date = DEMO_WEEK_ISO[(day ?? "Mon") as keyof typeof DEMO_WEEK_ISO] ?? DEMO_WEEK_ISO.Mon;
+  return new Date(`${date}T${hm ?? "00:00"}:00`).toISOString();
 }
 
 export function liveEvents(s: RequestsState): {
@@ -207,9 +205,8 @@ export function liveEvents(s: RequestsState): {
   for (const r of s.book?.requests ?? []) {
     const t = s.triage[r.id];
     if (!t || t.status === "loading" || t.status === "host") continue;
-    // When it arrived this week, but never later than when its triage finished (the AI action).
-    const received = weekdayToIso(r.receivedAt);
-    const at = received < t.at ? received : t.at;
+    // The triage runs when the request arrives (in the demo week).
+    const at = weekdayToIso(r.receivedAt);
     const base = {
       type: "triage" as const,
       refId: r.id,

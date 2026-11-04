@@ -392,7 +392,9 @@ function RequestsSection({
       parties={list.length}
       covers={covers(list)}
       badge={badge}
-      countText={`${badge} open ${badge === 1 ? "request" : "requests"}`}
+      countText={`${badge} open ${badge === 1 ? "request" : "requests"}${
+        list.length > badge ? ` · ${list.length - badge} decided` : ""
+      }`}
     >
       {s.error && <p className="rail-empty">Requests unavailable: {s.error.message}</p>}
       {!s.error && !s.book && <p className="rail-empty">Loading requests…</p>}

@@ -92,7 +92,7 @@ export function TonightPanel({
 
       {!applied && (
         <details className="generate" open={!proposal}>
-          <summary className="section-title">Generate the night's layout ▸</summary>
+          <summary className="section-title">Night's layout ▸</summary>
           <div className="field-stack">
             <label className="field-inline">
               <span>Start from</span>
@@ -172,7 +172,7 @@ function AcceptedCard({
   return (
     <section className="accepted-card" aria-label="Accepted party">
       <h3 className="accepted-title">
-        {partyName(id)} · {f.partySize} · {day ? `${day} ` : ""}
+        {partyName(id)} · party of {f.partySize} · {day ? `${day} ` : ""}
         {clock12(f.time)} — Accepted
       </h3>
       <dl className="accepted-grid small">
@@ -319,12 +319,12 @@ function Proposal({
       </div>
 
       {!readOnly && (
-        <div className="btn-row sheet-actions">
+        <div className="sheet-actions apply-stack">
+          <button type="button" className="primary apply-night" onClick={onApply}>
+            Apply to {nightLabel}
+          </button>
           <button type="button" onClick={onEdit}>
             Edit in editor
-          </button>
-          <button type="button" className="primary" onClick={onApply}>
-            Apply to {nightLabel}
           </button>
         </div>
       )}

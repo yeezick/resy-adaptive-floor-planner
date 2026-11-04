@@ -94,13 +94,13 @@ export function ConsoleBar({
       <dl className="cb-stats">
         <Stat k="Covers seated" v={c.covers} />
         <Stat k="Tables seated" v={c.seatedTables} />
-        <Stat k="Open" v={`${c.open}/${c.inService}`} />
+        <Stat k="Open" v={`${c.open} of ${c.inService}`} />
         <Stat k="Held" v={held} />
       </dl>
       <div className="cb-actions" role="group" aria-label="Host actions">
         <button
           type="button"
-          className="tonal"
+
           aria-pressed={mode === "walkin"}
           onClick={() => onMode("walkin")}
         >

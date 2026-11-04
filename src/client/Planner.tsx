@@ -306,9 +306,9 @@ export function Planner({
       />
       {proposal && (
         <div className="preview-bar" role="status">
-          <ProposedTag /> <strong>Previewing tonight's layout</strong> ·{" "}
-          {times12(`${proposal.window.from}–${proposal.window.to}`)} · ghosts and arrows show what
-          moves; nothing changes until you apply it.
+          <strong>Previewing the night's layout</strong> ·{" "}
+          {times12(`${proposal.window.from}–${proposal.window.to}`)} · nothing changes until you
+          apply it
           <button type="button" className="link-btn" onClick={() => setProposal(null)}>
             Exit preview
           </button>

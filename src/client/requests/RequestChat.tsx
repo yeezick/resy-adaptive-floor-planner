@@ -73,7 +73,7 @@ export function RequestChat({
       </div>
       <p className="muted small">
         Changes apply to this request only. The AI Planner turns a message into the same settings as
-        the controls below; the planner picks the tables.
+        the controls below; Capacity check picks the tables.
       </p>
 
       <ol className="chat-log" aria-label="AI Planner chat" aria-live="polite">
@@ -84,13 +84,15 @@ export function RequestChat({
               {t.status === "loading" || t.outcome === undefined
                 ? "Checking the plan…"
                 : times12(`${t.changed?.length ? `${listAnd(t.changed)} → ` : ""}${t.outcome}`)}
-              {t.result && (
-                <span className="muted">
-                  {" "}
-                  · {t.result.model} · ${t.result.metrics.costUsd.toFixed(4)}
-                </span>
-              )}
             </p>
+            {t.result && (
+              <details className="how-made small">
+                <summary>How this was made</summary>
+                <span className="muted">
+                  {t.result.model} · ${t.result.metrics.costUsd.toFixed(4)}
+                </span>
+              </details>
+            )}
           </li>
         ))}
       </ol>
@@ -119,7 +121,7 @@ export function RequestChat({
 
       <div className="adjust-grid small">
         <label>
-          Table range: first
+          First table
           <input
             placeholder="any"
             type="number"
@@ -136,7 +138,7 @@ export function RequestChat({
           />
         </label>
         <label>
-          last
+          Last table
           <input
             placeholder="any"
             type="number"

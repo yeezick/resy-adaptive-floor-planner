@@ -4,8 +4,9 @@ import { duration, usd } from "../lib/format";
 export function Metrics({ res }: { res: AgentResponse }) {
   const m = res.metrics;
   return (
-    <details className="metrics small">
-      <summary>
+    <details className="metrics how-made small">
+      <summary>How this was made</summary>
+      <p className="metrics-line">
         <span>{usd(m.costUsd)}</span>
         <span>{duration(m.latencyMs)}</span>
         <span>
@@ -16,7 +17,7 @@ export function Metrics({ res }: { res: AgentResponse }) {
         </span>
         <span>{res.promptVersion}</span>
         <span>{res.model}</span>
-      </summary>
+      </p>
       <dl className="kv">
         <dt>Trace</dt>
         <dd className="mono">{res.traceId}</dd>

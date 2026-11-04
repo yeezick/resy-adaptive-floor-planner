@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import {
   checkTableSet,
   combinedSeats,
@@ -82,6 +83,15 @@ export function RecommendationCard({
     source: "ai",
   };
   const pinned = highlight.pinnedKey === hlKey;
+  // the first option is shown on the floor when the answer arrives (the floor scrolls it into view)
+  const autoPinned = useRef(false);
+  useEffect(() => {
+    if (!primary || autoPinned.current || highlight.pinnedKey) return;
+    autoPinned.current = true;
+    highlight.onTogglePin(h);
+    // once per answer
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const joinRows = rows.filter((r) => r.length > 1);
   const applied = joinRows.length > 0 && joinRows.every((r) => isApplied(room, r));
