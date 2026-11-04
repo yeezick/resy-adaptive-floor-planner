@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { clock12, type Room } from "../domain";
+import { clock12, toMinutes, type Room } from "../domain";
+import { planHolds } from "./lib/holds";
 import { NIGHTS } from "./nights";
 import { decisionOf, useRequests, type RequestsState } from "./requests/store";
 import type { ActionResult } from "./Planner";
@@ -69,7 +70,15 @@ export function ConsoleBar({
   onReset,
 }: Props) {
   const c = roomCounts(room);
-  const held = heldCount(room, useRequests());
+  const reqs = useRequests();
+  const held = heldCount(room, reqs);
+  // holds that start later tonight say when (planning clock): "9 from 5:00 PM"
+  const holdStarts = [...planHolds(room, reqs).values()].map((h) => h.from).sort();
+  const firstHold = holdStarts[0];
+  const heldText =
+    firstHold && toMinutes(firstHold) > toMinutes(room.clock)
+      ? `${held} from ${clock12(firstHold)}`
+      : String(held);
   return (
     <div className="console-bar">
       <div className="cb-room">
@@ -94,8 +103,8 @@ export function ConsoleBar({
       <dl className="cb-stats">
         <Stat k="Covers seated" v={c.covers} />
         <Stat k="Tables seated" v={c.seatedTables} />
-        <Stat k="Open" v={`${c.open} of ${c.inService}`} />
-        <Stat k="Held" v={held} />
+        <Stat k="Open" v={`${c.open} of ${room.tables.length}`} />
+        <Stat k="Held" v={heldText} />
       </dl>
       <div className="cb-actions" role="group" aria-label="Host actions">
         <button

@@ -5,9 +5,12 @@ import {
   estimateFreeTime,
   times12,
   tableById,
+  PHASES,
+  type Phase,
   type Room,
   type Table,
 } from "../../domain";
+import type { PlanHold } from "../lib/holds";
 import { waitLabel } from "../lib/format";
 import { PHASE_LABEL } from "../lib/service";
 import { tableNo, tablesPhrase } from "../../domain/wording";
@@ -24,15 +27,28 @@ interface Props {
   room: Room;
   selected: string[];
   onFinish: (ids: string[]) => void;
+  /** Tables held by accepted large-party plans. */
+  holds?: ReadonlyMap<string, PlanHold>;
+  /** Tables whose phase the host set by hand. */
+  phaseByHost?: ReadonlySet<string>;
+  onPhase?: (ids: string[], phase: Phase) => void;
 }
 
-export function TableDetails({ room, selected, onFinish }: Props) {
+export function TableDetails({ room, selected, onFinish, holds, phaseByHost, onPhase }: Props) {
   const tables = selected.map((id) => tableById(room, id)).filter((t): t is Table => !!t);
   if (!tables.length) return null;
   return (
     <div className="details-grid">
       {tables.map((t) => (
-        <TableCard key={t.id} room={room} table={t} onFinish={onFinish} />
+        <TableCard
+          key={t.id}
+          room={room}
+          table={t}
+          onFinish={onFinish}
+          hold={holds?.get(t.id)}
+          byHost={phaseByHost?.has(t.id) ?? false}
+          onPhase={onPhase}
+        />
       ))}
       <p className="muted small details-note">
         Moving a table changes the drawing only. Which tables can be joined comes from the room's
@@ -46,10 +62,16 @@ function TableCard({
   room,
   table: t,
   onFinish,
+  hold,
+  byHost,
+  onPhase,
 }: {
   room: Room;
   table: Table;
   onFinish: (ids: string[]) => void;
+  hold?: PlanHold;
+  byHost: boolean;
+  onPhase?: (ids: string[], phase: Phase) => void;
 }) {
   const free = estimateFreeTime(t);
   const combo = comboOf(room, t.id);
@@ -58,7 +80,30 @@ function TableCard({
       <header>
         <strong>Table {tableNo(t.id)}</strong>
         <span className={`pill status-${t.status}`}>{t.status}</span>
+        {hold && <span className="pill pill-held">Held</span>}
       </header>
+      {hold && (
+        <p className="held-line small">
+          Held · {hold.name} · party of {hold.partySize} · {times12(`${hold.from}–${hold.until}`)}
+        </p>
+      )}
+      {t.status === "occupied" && onPhase && (
+        <div className="phase-control" role="group" aria-label="Meal phase">
+          {PHASES.map((p) => (
+            <button
+              key={p}
+              type="button"
+              aria-pressed={t.phase === p}
+              onClick={() => onPhase(combo ?? [t.id], p)}
+            >
+              {PHASE_LABEL[p]}
+            </button>
+          ))}
+          <p className="muted small phase-source">
+            {byHost ? "set by host" : "from POS (simulated)"}
+          </p>
+        </div>
+      )}
       <dl className="kv">
         <dt>Seats</dt>
         <dd>
