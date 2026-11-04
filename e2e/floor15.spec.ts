@@ -85,16 +85,17 @@ test("s2: held tables read 22; the join label sits above the Held tags; Held cle
   page,
 }) => {
   await page.goto("/?scenario=party-22-accepted");
-  await expect(page.locator(".preview-bar")).toBeVisible();
+  // Accept applied the crew plan in the same confirm: the floor shows it, the tables joined and held
+  await expect(page.locator(".accepted-result")).toContainText("crew plan applied");
   for (const id of fitTables) await expectBubble(page, id, "22");
-  const label = page.locator(".change-badge.is-move", { hasText: "9 tables joined" });
-  await expect(label).toBeVisible();
-  const lb = await label.locator("rect").boundingBox();
+  const labels = page.locator(".combo-badge rect");
+  await expect(labels.first()).toBeVisible();
+  const lbs = await labels.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON()));
   for (const id of fitTables) {
     const held = page.locator(`g.table[data-id="${id}"] .ready-bubble.is-held rect`);
     const hb = await held.boundingBox();
     const num = await page.locator(`g.table[data-id="${id}"] .t-id`).boundingBox();
-    expect(lb && hb && !overlaps(lb, hb)).toBe(true);
+    for (const lb of lbs) expect(hb && !overlaps(lb as never, hb), `${id} label`).toBe(true);
     expect(hb && num && !overlaps(hb, num)).toBe(true);
   }
 });

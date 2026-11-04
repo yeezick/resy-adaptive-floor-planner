@@ -246,8 +246,12 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
   await sheet.getByRole("button", { name: "Discuss" }).click();
   await expect(sheet.getByRole("textbox", { name: "Message about this request" })).toBeFocused();
   await page.getByRole("button", { name: /Accept/ }).click();
+  // the review screen first; its one button holds the tables and applies the crew plan
+  await page.getByRole("button", { name: "Accept · hold tables" }).click();
   await expect(page.locator(".room-select select")).toHaveValue("book-fri");
-  await expect(page.locator(".proposal")).toBeVisible();
+  await expect(page.locator(".accepted-result")).toContainText(
+    "Accepted · tables held · crew plan applied",
+  );
   await expect(page.locator(".accepted-card")).toContainText(
     "Whitaker · party of 22 · Fri 6:30 PM — Accepted",
   );
@@ -360,7 +364,9 @@ test("in-request chat: a message becomes constraints, the planner re-runs, manua
   await chat.getByRole("button", { name: "Send" }).click();
   const log = chat.getByRole("list", { name: "AI Planner chat" });
   await expect(log).toContainText("headcount is now 26");
-  await expect(log).toContainText("party of 26 and high chair → Capacity fit:");
+  await expect(log).toContainText(
+    "I'd change party of 26 and high chair — see Proposed changes above. Capacity fit:",
+  );
   const sheet = page.locator(".request-sheet");
   // a proposal: shown as a diff, nothing changes until Apply
   const diff = sheet.getByRole("group", { name: "Change proposed in chat" });
@@ -375,9 +381,14 @@ test("in-request chat: a message becomes constraints, the planner re-runs, manua
   await expect(sheet.locator(".net-hero")).toContainText("+26 booked");
   await sheet.locator(".fit-more > summary").click();
   await expect(sheet.locator(".crew-note")).toContainText("Also: high chair.");
-  // manual parity: the same table range from the controls, no chat needed
-  await chat.getByLabel("First table").fill("30");
-  await chat.getByLabel("Last table").fill("50");
+  // manual parity: the same table range on the review screen, no chat needed
+  await sheet.getByRole("button", { name: "Accept", exact: true }).click();
+  const review = page.locator(".review");
+  await review.getByLabel("First table").fill("30");
+  await review.getByLabel("Last table").fill("50");
+  await expect(review.locator(".fit-pill")).toHaveText("no capacity fit");
+  await expect(review.getByRole("button", { name: "Accept · hold tables" })).toBeDisabled();
+  await review.getByRole("button", { name: "‹ Back to the request" }).click();
   await expect(sheet.locator(".cant-fit-line")).toContainText("No capacity fit in tables 30–50");
   await expect(sheet.locator(".cant-fit-line")).toContainText("Closest:");
   await expect(sheet).not.toContainText(/\bT\d/);
@@ -553,7 +564,7 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     const chat = page.getByRole("region", { name: "Adjust this request" });
     const log = chat.getByRole("list", { name: "AI Planner chat" });
     await expect(log).toContainText("find another space between tables 30–50");
-    await expect(log).toContainText("tables 30–50 →");
+    await expect(log).toContainText("I'd change tables 30–50");
     // the chat's change waits as a diff; Capacity check still shows the original fit
     const sheet = page.locator(".request-sheet");
     const diff = sheet.getByRole("group", { name: "Change proposed in chat" });
@@ -562,7 +573,7 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     await expect(diff).toContainText("closest: tables 57–61 and 63–66");
     await expect(sheet.locator(".fit-pill")).toContainText("capacity fit ✓");
     await diff.getByRole("button", { name: "Apply" }).click();
-    await expect(chat.getByLabel("First table")).toHaveValue("30");
+    await expect(sheet.locator(".changed-line")).toContainText("tables 30–50");
     await expect(sheet.locator(".fit-pill")).toHaveText("no capacity fit");
     await expect(sheet.locator(".original-fit")).toHaveText("Original request: capacity fit ✓");
     await sheet.locator(".changed-line").getByRole("button", { name: "Revert" }).click();
@@ -580,12 +591,18 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     await expect(sheet.locator(".fit-pill")).toContainText("capacity fit ✓");
   });
 
-  test("request-chat: a manual edit while a proposal waits replaces it", async ({ page }) => {
+  test("request-chat: an edit on the review screen writes the same request state", async ({
+    page,
+  }) => {
     await page.goto("/?scenario=request-chat");
     const sheet = page.locator(".request-sheet");
-    await expect(sheet.getByRole("group", { name: "Change proposed in chat" })).toBeVisible();
-    await sheet.getByLabel("First table").fill("70");
-    await expect(sheet.getByRole("group", { name: "Change proposed in chat" })).toHaveCount(0);
+    await sheet
+      .getByRole("group", { name: "Change proposed in chat" })
+      .getByRole("button", { name: "Discard" })
+      .click();
+    await sheet.getByRole("button", { name: "Accept", exact: true }).click();
+    await page.locator(".review").getByLabel("First table").fill("70");
+    await page.locator(".review").getByRole("button", { name: "‹ Back to the request" }).click();
     await expect(sheet.locator(".changed-line")).toContainText("Changed by hand");
   });
 
@@ -744,28 +761,18 @@ test.describe("after accept", () => {
   }) => {
     await page.goto("/?scenario=party-22-accepted");
     const panel = page.locator(".side-col");
-    // Accept already held the tables; the second step applies the crew plan
-    await expect(page.locator(".preview-bar")).toContainText(
-      "Accept already held tables 57–61 and 63–66.",
+    // one confirm: the tables are held and the crew plan is applied, no second step
+    await expect(panel.locator(".accepted-result")).toContainText(
+      "Accepted · tables held · crew plan applied",
     );
+    await expect(panel.getByRole("button", { name: "Apply crew plan" })).toHaveCount(0);
+    await expect(page.locator(".preview-bar")).toHaveCount(0);
     await expect(panel.locator(".accepted-card")).toContainText("Crew starts");
-    const placedTile = panel
-      .locator(".stat", { hasText: "Parties of 8+ placed" })
-      .locator(".stat-value");
-    const placed = await placedTile.innerText();
-    const rows = await panel.locator(".crew > li").count();
-    // one crew row per build, no per-party change cards
+    await expect(panel.locator(".crew > li").first()).toBeVisible();
     await expect(panel.locator(".party-changes")).toHaveCount(0);
-    await panel.getByRole("button", { name: "Apply crew plan" }).click();
-    await expect(panel.locator(".applied-bar")).toContainText(
-      "Crew plan applied to Fri · planning from 3:00 PM",
-    );
     await expect(page.locator(".cb-sub")).not.toContainText("Tonight —");
-    await expect(placedTile).toHaveText(placed);
-    await expect(panel.locator(".crew > li")).toHaveCount(rows);
-    await panel.locator(".applied-bar").getByRole("button", { name: "Undo" }).click();
-    await expect(page.locator(".cb-sub")).toContainText("Base layout");
-    await panel.getByRole("button", { name: "Undo accept" }).click();
+    // one Undo reverts both
+    await panel.locator(".accepted-result").getByRole("button", { name: "Undo" }).click();
     await expect(page.locator(".request-sheet .req-actions")).toContainText("Accept");
   });
 });
@@ -836,8 +843,7 @@ test.describe("host parity", () => {
 
   test("party-22-accepted: a held table says who it's held for and when", async ({ page }) => {
     await page.goto("/?scenario=party-22-accepted");
-    await expect(page.locator(".proposal")).toBeVisible();
-    await page.getByRole("button", { name: "Exit preview" }).click();
+    await expect(page.locator(".accepted-result")).toBeVisible();
     await page.getByRole("button", { name: "Close" }).click();
     await page.locator('svg.floor g[data-id="T57"]').focus();
     await page.keyboard.press("Enter");
@@ -1108,6 +1114,7 @@ test.describe("request flow: one state, demo clock, decisions stay open", () => 
   }) => {
     await page.goto("/?scenario=party-22-agent");
     await page.getByRole("button", { name: "Accept", exact: true }).click();
+    await page.getByRole("button", { name: "Accept · hold tables" }).click();
     await expect(page.locator(".accepted-card")).toBeVisible();
     await expect(page.locator(".floor-highlight-tag")).toContainText("Whitaker");
   });
