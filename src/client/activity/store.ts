@@ -302,3 +302,8 @@ export function resetActivityStore(feedback: FeedbackRecord[] = []): void {
 export function useFeedbackReasons(): Record<string, FeedbackReason[]> {
   return useSyncExternalStore(subscribe, () => state).reasons;
 }
+
+/** Tests only. */
+export function getActivityReasons(): Record<string, FeedbackReason[]> {
+  return state.reasons;
+}
