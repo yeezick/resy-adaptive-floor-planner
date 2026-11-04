@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   baseConstraints,
   changeDelta,
@@ -10,6 +10,7 @@ import type { PartyFit, RequestFit, Room } from "../../domain";
 import { times12 } from "../../domain/time";
 import { currentRequest, requestsActions, useRequests } from "./store";
 import { localAnswer, notedLine, turnSentence } from "./chatReply";
+import { oneRoomPlan, oneRoomSentence } from "../../domain/alternatives";
 import "./chat15.css";
 
 const EXAMPLES = [
@@ -85,6 +86,25 @@ export function RequestChat({
     void requestsActions.sendChat(r, m);
   };
   const noted = notedLine(currentRequest(s, r), cost);
+  // A plan split across rooms: offer the one-room answer (storage included) up front, worked out after paint.
+  const [offer, setOffer] = useState<string | null>(null);
+  const split = fit?.ok && fit.build.area.includes(" + ") ? fit.build.area : null;
+  // keyed on the applied changes, so typing in the box never re-runs the per-room check
+  const adjustKey = JSON.stringify(s.adjust[r.id] ?? null);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const req = useMemo(() => currentRequest(s, r), [adjustKey, r]);
+  useEffect(() => {
+    if (!room || !split) return;
+    const t = window.setTimeout(() => {
+      const plan = oneRoomPlan(room, req);
+      setOffer(
+        plan.ok
+          ? `This plan spans ${split}. ${oneRoomSentence(req, plan, { area: split })}`
+          : `This plan spans ${split}. ${oneRoomSentence(req, plan, null)}`,
+      );
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [room, split, req]);
 
   return (
     <section className="req-block req-chat" aria-label="Adjust this request">
@@ -93,9 +113,10 @@ export function RequestChat({
       </div>
 
       <ol className="chat-log" aria-label="AI Planner chat" aria-live="polite">
-        {noted && (
+        {(noted || (split && offer)) && (
           <li className="chat-noted">
-            <p className="chat-out small">{noted}</p>
+            {noted && <p className="chat-out small">{noted}</p>}
+            {split && offer && <p className="chat-out small chat-offer">{offer}</p>}
           </li>
         )}
         {turns.map((t) => (
