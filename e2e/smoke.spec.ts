@@ -637,7 +637,8 @@ test.describe("manager copy carries no fixture ids", () => {
     await page.goto("/?scenario=party-22-accepted");
     await expect(page.locator(".proposal")).toBeVisible();
     const held = page.locator(".cb-stats div", { has: page.locator("dt", { hasText: "Held" }) });
-    await expect(held.locator("dd")).toHaveText(/^[1-9]\d*$/);
+    // planning clock: the hold starts later, so it says when
+    await expect(held.locator("dd")).toHaveText(/^[1-9]\d* from 5:00 PM$/);
   });
 
   test("party-22-agent: Looks real, the override is one tap and the telemetry is folded", async ({
@@ -797,4 +798,73 @@ test("activity-log reads as an ops log: actor column, plain words, no engineerin
   await expect(table).toContainText("Capacity check rejected 1 AI option");
   const body = await page.locator(".activity").innerText();
   expect(body).not.toMatch(/sha256|validator|claude-|\$0\.\d{4} ·|triage\.v|agent\.v/);
+});
+
+test.describe("host parity", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/requests/*/triage", (route) => route.abort());
+    await page.route("**/api/agent", (route) => route.abort());
+  });
+
+  test("party-22-accepted: a held table says who it's held for and when", async ({ page }) => {
+    await page.goto("/?scenario=party-22-accepted");
+    await expect(page.locator(".proposal")).toBeVisible();
+    await page.getByRole("button", { name: "Exit preview" }).click();
+    await page.getByRole("button", { name: "Close" }).click();
+    await page.locator('svg.floor g[data-id="T57"]').focus();
+    await page.keyboard.press("Enter");
+    const card = page.locator(".table-card");
+    await expect(card.locator(".held-line")).toHaveText(
+      "Held · Whitaker · party of 22 · 5:00–6:30 PM",
+    );
+    await expect(page.locator('svg.floor g[data-id="T57"] .held-outline')).toHaveCount(1);
+  });
+
+  test("a host sets a seated table's meal phase by hand", async ({ page }) => {
+    await openFloor(page);
+    await page.locator('svg.floor g[data-id="T3"]').click();
+    const card = page.locator(".table-card");
+    await expect(card.locator(".phase-source")).toHaveText("from POS (simulated)");
+    await card
+      .getByRole("group", { name: "Meal phase" })
+      .getByRole("button", { name: "Check" })
+      .click();
+    await expect(card.locator(".phase-source")).toHaveText("set by host");
+    await expect(card).toContainText("Check");
+  });
+
+  test("Split is one tap after Combine", async ({ page }) => {
+    await openFloor(page);
+    await page.locator(".room-select select").selectOption("book-fri");
+    await expect(page.locator(".room-name")).toBeVisible();
+    await page.getByRole("tab", { name: "Dining room" }).click();
+    await page.locator('svg.floor g[data-id="T4"]').click();
+    await page.locator('svg.floor g[data-id="T5"]').click();
+    await page.getByRole("button", { name: /^Combine/ }).click();
+    await expect(page.getByRole("button", { name: /^Split/ })).toBeEnabled();
+  });
+
+  test("walkin-8 at peak: a busy pick leads with Add to waitlist, never a disabled Seat", async ({
+    page,
+  }) => {
+    await openFloor(page);
+    await hostButton(page, "+ Walk-in").click();
+    await page.locator(".size-grid").getByRole("button", { name: "8", exact: true }).click();
+    await page.locator(".sugg").first().click();
+    const actions = page.locator(".walkin .sheet-actions");
+    await expect(actions.locator("button:disabled")).toHaveCount(0);
+    await expect(actions.locator("button.primary")).toHaveCount(1);
+  });
+
+  test("rail: a request's source has its own line; booked rows read time · name · size · table", async ({
+    page,
+  }) => {
+    await page.goto("/?scenario=party-22-agent");
+    await expect(page.locator(".request-sheet")).toBeVisible();
+    const strip = page.locator(".rail-collapse");
+    if (await strip.isVisible()) await strip.click();
+    await expect(page.locator(".row-request .row-source").first()).toBeVisible();
+    const booked = page.locator("#rail-booked .row").first();
+    await expect(booked.locator(".row-table")).toHaveText(/^(tables? [\d–, and]+|unassigned)$/);
+  });
 });
