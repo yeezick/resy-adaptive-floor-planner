@@ -1,7 +1,13 @@
 import { useMemo, useState } from "react";
 import { clock12, toHHMM, toMinutes, type Room } from "../../domain";
 import { baseConstraints, changeList, checkAdjusted } from "../../domain/requestChat";
-import { DEMO_WEEK_ISO, NEEDS, SERVICE, type GuestRequest } from "../../domain/requests";
+import {
+  DEMO_WEEK_ISO,
+  NEEDS,
+  requestVia,
+  SERVICE,
+  type GuestRequest,
+} from "../../domain/requests";
 import { storagePhrase, tablesPhrase } from "../../domain/wording";
 import { requestsActions, useRequests } from "../requests/store";
 import { PersonIcon, ReviewDiff, ReviewFoot } from "./parts";
@@ -119,6 +125,10 @@ export function RequestReview({
         </label>
         {now?.day !== r.day && <span className="review-date muted">{dateLabel(r.day)}</span>}
       </header>
+      <div className="field review-via small">
+        <span className="field-label muted">Request</span>
+        <span className="field-value">{requestVia(r)}</span>
+      </div>
 
       <section className="review-row" aria-label="Tables">
         <div className="review-tables">

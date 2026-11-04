@@ -4519,3 +4519,18 @@ html.theme-switching *::after {
   height: 0;
   z-index: 60;
 }
+
+/* A label on its own line, its value on the next (request sheet, review screen, chat cards). */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+}
+.field-label {
+  font-size: 12px;
+  line-height: 16px;
+}
+.field-value {
+  line-height: 20px;
+}

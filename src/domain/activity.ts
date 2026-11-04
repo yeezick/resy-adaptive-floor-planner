@@ -23,6 +23,8 @@ export const TriageEvent = z
     /** ISO time the request arrived (the triage runs on arrival). */
     at: z.string(),
     source: z.enum(SOURCES),
+    /** The Request field ("AI agent · MCP"), when the request recorded who sent it and through what. */
+    via: z.string().max(60).optional(),
     partySize: z.number().int().positive(),
     when: z.string(), // "Thu 19:30"
     verdict: z.enum(["real", "junk", "unsure"]),
@@ -151,6 +153,8 @@ export interface ActivityRow {
   /** Extra filter tags: "validator-reject", "junk". */
   flags: string[];
   source: ActivitySource;
+  /** The Request field ("AI agent · MCP") for a request row, when recorded. */
+  via?: string;
   partySize: number | null;
   when: string | null;
   /** One line: what the AI did (its own words or a template — never the guest's text). */
@@ -230,6 +234,7 @@ function triageRow(e: TriageEvent, actions: readonly ManagerAction[]): ActivityR
       ...(override ? ["override"] : []),
     ],
     source: e.source,
+    ...(e.via ? { via: e.via } : {}),
     partySize: e.partySize,
     when: e.when,
     what: `${verdict}${e.summary[0] ? `: ${e.summary[0]}` : ""}${
@@ -242,7 +247,7 @@ function triageRow(e: TriageEvent, actions: readonly ManagerAction[]): ActivityR
     record: {
       inputs: [
         ["Request", e.refId],
-        ["Source", SOURCE_LABEL[e.source]],
+        ["Source", e.via ?? SOURCE_LABEL[e.source]],
         ["Party", `${e.partySize} · ${e.when}`],
         ["Guest text", hashLabel(e.message)],
       ],
