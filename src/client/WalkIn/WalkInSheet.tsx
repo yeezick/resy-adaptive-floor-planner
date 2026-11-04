@@ -192,7 +192,11 @@ export function WalkInSheet({
       <div className="quote-hero" aria-live="polite">
         <div>
           <span className="quote-big">
-            {live === 0 && !busy.length ? "Free now" : `Quote ~${shownQuote} min (est.)`}
+            {live === 0 && !busy.length
+              ? "Free now"
+              : live === null
+                ? `No table fits now · quote ~${shownQuote} min (est.)`
+                : `Quote ~${shownQuote} min (est.)`}
           </span>
         </div>
         <div className="muted small">

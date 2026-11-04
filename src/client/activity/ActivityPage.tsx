@@ -401,7 +401,9 @@ function Count({ label, value, warn }: { label: string; value: number; warn?: bo
 }
 
 function RecordPanel({ r, onClose }: { r: ActivityRow; onClose: () => void }) {
-  const reasons = useFeedbackReasons()[r.id] ?? [];
+  const down = feedbackOf(useFeedback(), r.id, DEMO_MANAGER)?.rating === "down";
+  const allReasons = useFeedbackReasons()[r.id] ?? [];
+  const reasons = down ? allReasons : [];
   return (
     <aside className="record" aria-label="Full record">
       <div className="panel-head">

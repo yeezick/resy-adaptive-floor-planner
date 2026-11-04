@@ -138,7 +138,8 @@ export const activityActions = {
       rating,
       at: new Date().toISOString(),
     });
-    set({ feedback });
+    // a row rated helpful has no "why not" reasons
+    set(rating === "up" ? { feedback, reasons: { ...state.reasons, [rowId]: [] } } : { feedback });
     saveFeedback(feedback);
   },
   /** Toggle a reason chip on a 👎 (categorical, logged with the row). */

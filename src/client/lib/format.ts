@@ -19,7 +19,7 @@ export function waitLabel(min: number): string {
 /** "7pm" / "7:30pm" in model text → "7:00 PM" / "7:30 PM", the app's one time format (display only). */
 export function normalTimes(text: string): string {
   return text.replace(
-    /\b(\d{1,2})(?::([0-5]\d))?\s?(am|pm)\b/gi,
+    /\b(1[0-2]|[1-9])(?::([0-5]\d))?\s?(am|pm)\b/gi,
     (_m, h: string, m: string | undefined, ap: string) => `${h}:${m ?? "00"} ${ap.toUpperCase()}`,
   );
 }
