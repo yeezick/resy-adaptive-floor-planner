@@ -141,3 +141,16 @@ describe("request-chat rows", () => {
     expect(activityCounts(rows).requests).toBe(0);
   });
 });
+
+describe("manager override of a triage verdict", () => {
+  it("is logged on the triage row without becoming a decision", () => {
+    const [row] = buildActivity(
+      [triage()],
+      [{ refId: "Q1", at: "2026-11-03T15:10:00.000Z", kind: "overridden", verdict: "junk" }],
+    );
+    expect(row?.flags).toContain("override");
+    expect(row?.what).toContain("Manager override: marked as junk");
+    expect(row?.record.aiOutput).toContain("Manager override: marked as junk");
+    expect(row?.decision.kind).toBe("pending");
+  });
+});

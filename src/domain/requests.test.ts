@@ -9,6 +9,7 @@ import {
   needsOverview,
   parseRequestBook,
   requestHeader,
+  requestWhen,
   SOURCE_LABEL,
   SOURCES,
   walkInRequest,
@@ -45,7 +46,7 @@ describe("request fixture", () => {
   it("labels every source for the card", () => {
     expect(SOURCES.map((s) => SOURCE_LABEL[s])).toEqual([
       "Resy app",
-      "AI agent (chat app or MCP)",
+      "AI agent",
       "Walk-in at the host stand",
     ]);
   });
@@ -153,5 +154,20 @@ describe("draftReply", () => {
   it("offers the earliest time when the request can't fit as asked", () => {
     const r = byId("Q3");
     expect(draftReply(r, checkRequest(roomFor(r), r))).toMatch(/from 20:30/);
+  });
+});
+
+describe("requestWhen", () => {
+  const r = { day: "Fri", time: "18:30" } as const;
+  it("same day as the night on screen: weekday, time and a countdown from its floor clock", () => {
+    expect(requestWhen(r, { day: "Fri", clock: "15:00" })).toBe("Fri 6:30 PM (in 3h 30m)");
+    expect(requestWhen(r, { day: "Fri", clock: "19:00" })).toBe("Fri 6:30 PM (30m ago)");
+    expect(requestWhen(r, { day: "Fri", clock: "15:00" }, 30)).toBe("Fri 6:30 PM (in 3h)");
+  });
+  it("another day: weekday and date, no countdown", () => {
+    expect(requestWhen({ day: "Thu", time: "19:30" }, { day: "Fri", clock: "15:00" })).toBe(
+      "Thu Nov 5 · 7:30 PM",
+    );
+    expect(requestWhen(r, null)).toBe("Fri Nov 6 · 6:30 PM");
   });
 });
