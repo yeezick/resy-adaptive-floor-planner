@@ -39,7 +39,7 @@ describe("request chat answers from the capacity check", () => {
   it("“bring tables from the back” names storage, then the one-room answer", () => {
     const a = localAnswer("bring tables from the back if available", ctx);
     expect(a?.text).toMatch(
-      /^Storage tonight: \d+ of 6 spare tables free, 6 extenders, 40 chairs\. No single room fits 22/,
+      /^Storage tonight: \d+ of 6 spare tables free, \d+ of 6 extenders, \d+ of 40 chairs\. No single room fits 22/,
     );
   });
 
@@ -52,8 +52,17 @@ describe("request chat answers from the capacity check", () => {
   });
 
   it("everything else goes to the AI", () => {
-    for (const m of ["headcount is now 26", "can we push it to 7pm?", "find space in tables 30–50"])
-      expect(localAnswer(m, ctx)).toBeNull();
+    for (const m of [
+      "headcount is now 26",
+      "can we push it to 7pm?",
+      "find space in tables 30–50",
+      // a second ask in the same message goes to the AI with it
+      "bring tables from the back and push to 7 PM",
+      "wheelchair is fine, add a high chair",
+      // "one table" alone is not a one-room question
+      "can we add one table?",
+    ])
+      expect(localAnswer(m, ctx), m).toBeNull();
   });
 
   it("a model turn reads as a sentence that points at the proposal", () => {

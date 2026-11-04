@@ -31,9 +31,30 @@ describe("one room for the 22-top, with storage", () => {
   it("names what storage has, or says plainly there are no spare tables", () => {
     const stock = stockOf(room);
     expect(stock).toEqual({ spareTables: 6, extenders: 6, chairs: 40 });
-    expect(storageSentence(stock, 2)).toBe(
-      "Storage tonight: 4 of 6 spare tables free, 6 extenders, 40 chairs.",
+    expect(storageSentence(stock, { spareTables: 2, extenders: 1, extraChairs: 8 })).toBe(
+      "Storage tonight: 4 of 6 spare tables free, 5 of 6 extenders, 32 of 40 chairs.",
     );
-    expect(storageSentence(stock, 6)).toBe("No spare tables in storage tonight: 0 of 6.");
+    expect(storageSentence(stock, { spareTables: 6, extenders: 0, extraChairs: 0 })).toBe(
+      "No spare tables in storage tonight: 0 of 6.",
+    );
+  });
+
+  it("words the other cases: a room that works, no closest room, rooms not free then", () => {
+    const ok = oneRoomPlan(room, { ...q2, partySize: 12 });
+    expect(oneRoomSentence({ partySize: 12 }, ok, null)).toBe(
+      "One room works: tables 63–66 in the Library with 2 chairs from storage, seats 12. It's shown on the floor; ask to switch and I'll propose it.",
+    );
+    expect(oneRoomSentence({ partySize: 40 }, { ok: false, largest: null, busy: [] }, null)).toBe(
+      "No single room fits 40, even with tables from storage.",
+    );
+    expect(
+      oneRoomSentence(
+        { partySize: 22 },
+        { ok: false, largest: { area: "Garden Room", seats: 20 }, busy: ["Cellar"] },
+        null,
+      ),
+    ).toBe(
+      "No single room fits 22, even with tables from storage (closest: Garden Room, 20 seats). Cellar isn't free at that time.",
+    );
   });
 });
