@@ -29,7 +29,7 @@ test("planner controls are at least 44 × 44 under a coarse pointer", async ({ p
     ".decision-footer .btn-row button",
     ".topbar .scenario-menu summary",
     ".decision-footer .ask-ai",
-    ".request-sheet .how-made > summary",
+    ".request-sheet .triage-row .more-toggle",
   ]) {
     const all = await sizes(page, sel);
     expect(all.length, sel).toBeGreaterThan(0);
