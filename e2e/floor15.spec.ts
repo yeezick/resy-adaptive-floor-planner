@@ -1,6 +1,6 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
-// Floor polish: one key line, party-size bubbles on the tiles, no cut-off labels, a one-line venue name.
+// Floor polish: one key line, plain tiles (number + seats, no party-size badge), no cut-off labels, a one-line venue name.
 
 const fitTables = ["T57", "T58", "T59", "T60", "T61", "T63", "T64", "T65", "T66"];
 
@@ -10,34 +10,6 @@ test.beforeEach(async ({ page }) => {
   await page.route("**/api/agent", (route) => route.abort());
 });
 
-/** Rendered font size (px) of an SVG text: its font-size in grid units × screen px per unit. */
-async function renderedPx(text: Locator): Promise<number> {
-  return text.evaluate((el) => {
-    const svg = (el as SVGTextElement).ownerSVGElement as SVGSVGElement;
-    const vb = svg.viewBox.baseVal;
-    const r = svg.getBoundingClientRect();
-    const ppu = Math.min(r.width / vb.width, r.height / vb.height);
-    return Number(el.getAttribute("font-size")) * ppu;
-  });
-}
-
-/** WCAG contrast between a bubble's text fill and its pill fill. */
-async function bubbleContrast(bubble: Locator): Promise<number> {
-  return bubble.evaluate((g) => {
-    const rgb = (s: string) => (s.match(/[\d.]+/g) ?? []).slice(0, 3).map(Number);
-    const lum = ([r, g2, b]: number[]) => {
-      const c = [r, g2, b].map((v) => {
-        const x = (v ?? 0) / 255;
-        return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
-      });
-      return 0.2126 * (c[0] ?? 0) + 0.7152 * (c[1] ?? 0) + 0.0722 * (c[2] ?? 0);
-    };
-    const fg = lum(rgb(getComputedStyle(g.querySelector("text") as Element).fill));
-    const bg = lum(rgb(getComputedStyle(g.querySelector("rect") as Element).fill));
-    return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
-  });
-}
-
 function overlaps(
   a: { x: number; y: number; width: number; height: number },
   b: { x: number; y: number; width: number; height: number },
@@ -45,70 +17,38 @@ function overlaps(
   return a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height;
 }
 
-async function expectBubble(page: Page, id: string, size: string) {
-  const bubble = page.locator(`.party-bubble[data-table="${id}"]`);
-  await expect(bubble).toHaveText(size);
-  // never over the table number (measured once the floor has drawn both; retried while it settles)
-  const num = page.locator(`g.table[data-id="${id}"] .t-id`);
-  await expect(num).toBeVisible();
-  await expect
-    .poll(async () => {
-      const a = await num.boundingBox();
-      const b = await bubble.locator("rect").boundingBox();
-      return !!a && !!b && !overlaps(a, b);
-    }, `${id}: bubble clear of the table number`)
-    .toBe(true);
-  return bubble;
-}
-
-for (const theme of ["dark", "light"] as const) {
-  test(`s1 (${theme}): the 22-top's nine tables read 22 at Fit, readable and clear of the numbers`, async ({
-    page,
-  }) => {
-    await page.emulateMedia({ colorScheme: theme });
-    await page.goto("/?scenario=party-22-agent");
-    await page
-      .getByRole("button", { name: theme === "dark" ? "Dark" : "Light", exact: true })
-      .click();
-    await page.getByRole("button", { name: "Fit to panel" }).click();
-    for (const id of fitTables) {
-      const bubble = await expectBubble(page, id, "22");
-      expect(await renderedPx(bubble.locator("text"))).toBeGreaterThanOrEqual(10);
-      expect(await bubbleContrast(bubble)).toBeGreaterThanOrEqual(4.5);
-    }
-    // a table with no party has no bubble
-    await expect(page.locator('.party-bubble[data-table="T71"]')).toHaveCount(0);
-  });
-}
-
-test("s1: the party the 22-top moves reads 12 on its new tables", async ({ page }) => {
-  await page.goto("/?scenario=party-22-agent");
-  await page.getByRole("tab", { name: "West suite" }).click();
-  for (const id of ["T77", "T78", "T79", "T80"]) await expectBubble(page, id, "12");
+test("s1 and s4: the 22-top's tables show their number and seats, no party-size badge", async ({
+  page,
+}) => {
+  for (const sc of ["party-22-agent", "request-chat"]) {
+    await page.goto(`/?scenario=${sc}`);
+    await expect(page.locator('g.table[data-id="T57"] .t-id')).toBeVisible();
+    await expect(page.locator(".party-bubble")).toHaveCount(0);
+  }
 });
 
-test("s2: held tables read 22; the join label sits above the Held tags; Held clears the numbers", async ({
+test("s2: the join label sits above the Held tags; Held clears the numbers; no party-size badge", async ({
   page,
 }) => {
   await page.goto("/?scenario=party-22-accepted");
   // Accept applied the crew plan in the same confirm: the floor shows it, the tables joined and held
   await expect(page.locator(".accepted-result")).toContainText("crew plan applied");
-  for (const id of fitTables) await expectBubble(page, id, "22");
   const labels = page.locator(".combo-badge rect");
   await expect(labels.first()).toBeVisible();
+  await expect(page.locator(".party-bubble")).toHaveCount(0);
   const lbs = await labels.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().toJSON()));
   for (const id of fitTables) {
     const held = page.locator(`g.table[data-id="${id}"] .ready-bubble.is-held rect`);
-    const hb = await held.boundingBox();
-    const num = await page.locator(`g.table[data-id="${id}"] .t-id`).boundingBox();
-    for (const lb of lbs) expect(hb && !overlaps(lb as never, hb), `${id} label`).toBe(true);
-    expect(hb && num && !overlaps(hb, num)).toBe(true);
+    const num = page.locator(`g.table[data-id="${id}"] .t-id`);
+    await expect(num).toBeVisible();
+    await expect
+      .poll(async () => {
+        const hb = await held.boundingBox();
+        const nb = await num.boundingBox();
+        return !!hb && !!nb && !overlaps(hb, nb) && lbs.every((lb) => !overlaps(lb as never, hb));
+      }, `${id}: Held tag clear of the number and the join label`)
+      .toBe(true);
   }
-});
-
-test("s4: the request-chat scenario still shows the 22-top's tables", async ({ page }) => {
-  await page.goto("/?scenario=request-chat");
-  for (const id of fitTables.slice(0, 2)) await expectBubble(page, id, "22");
 });
 
 test("live floor: one key line under the meal-phase bar, no Key block", async ({ page }) => {
