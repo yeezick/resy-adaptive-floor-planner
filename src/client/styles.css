@@ -4383,3 +4383,34 @@ html.planner-shell .console > .preview-bar .link-btn {
 .accept-why {
   text-align: left;
 }
+
+/* /evals: the published deterministic checks */
+.checks-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+.checks-table th,
+.checks-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border);
+}
+.checks-table thead th {
+  border-top: 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+.checks-table tbody th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.checks-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.checks-card {
+  margin-bottom: 12px;
+}

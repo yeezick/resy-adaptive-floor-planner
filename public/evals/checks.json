@@ -1,0 +1,48 @@
+{
+  "runAt": "2026-11-04T18:40:00.857Z",
+  "gitSha": "bbf9b201037e52d90d80cf35e012673990782b7e",
+  "groups": [
+    {
+      "id": "holds",
+      "label": "Holds",
+      "what": "Each hold covers the party's tables, starts between service start and the build, ends at arrival, and its covers lost stay in bounds.",
+      "passed": 46,
+      "total": 46
+    },
+    {
+      "id": "section",
+      "label": "Server sections",
+      "what": "Each placed party names the section(s) it lands in.",
+      "passed": 46,
+      "total": 46
+    },
+    {
+      "id": "aisle",
+      "label": "Aisle clearance",
+      "what": "No join narrows an aisle below the venue minimum; rejected sets say why.",
+      "passed": 52,
+      "total": 52
+    },
+    {
+      "id": "cant-fit",
+      "label": "Can't-fit answers",
+      "what": "A party that can't be seated gets one line with the size, the time and the earliest option.",
+      "passed": 9,
+      "total": 9
+    },
+    {
+      "id": "activity",
+      "label": "Activity log",
+      "what": "Every AI action and manager decision is logged; guest and host text only as a hash.",
+      "passed": 10,
+      "total": 10
+    },
+    {
+      "id": "request-chat",
+      "label": "Request chat",
+      "what": "Chat changes stay proposals until applied, and never name a table the solver didn't pick.",
+      "passed": 30,
+      "total": 30
+    }
+  ]
+}

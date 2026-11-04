@@ -12,7 +12,7 @@ import {
   type AgentRequest,
   type RequestDecision,
 } from "../shared/api";
-import { EvalResults } from "../shared/evals";
+import { DeterministicChecks, EvalResults } from "../shared/evals";
 
 export type ClientErrorCode = ApiError["code"] | "network" | "not_found" | "bad_response";
 export interface ClientError {
@@ -87,6 +87,10 @@ export function postAgent(req: AgentRequest): Promise<Result<AgentResponse>> {
 
 export function fetchEvalResults(): Promise<Result<EvalResults>> {
   return call("/evals/results.json", schemaParser(EvalResults), { cache: "no-store" });
+}
+
+export function fetchEvalChecks(): Promise<Result<DeterministicChecks>> {
+  return call("/evals/checks.json", schemaParser(DeterministicChecks), { cache: "no-store" });
 }
 
 export function fetchRequests(): Promise<Result<RequestBook>> {
