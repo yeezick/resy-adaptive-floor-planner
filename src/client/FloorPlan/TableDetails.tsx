@@ -32,10 +32,20 @@ interface Props {
   holds?: ReadonlyMap<string, PlanHold>;
   /** Tables whose phase the host set by hand. */
   phaseByHost?: ReadonlySet<string>;
+  /** Minutes since the party sat, fixed when the host first changed its phase (a phase change isn't a re-seat). */
+  seatedAgo?: ReadonlyMap<string, number>;
   onPhase?: (ids: string[], phase: Phase) => void;
 }
 
-export function TableDetails({ room, selected, onFinish, holds, phaseByHost, onPhase }: Props) {
+export function TableDetails({
+  room,
+  selected,
+  onFinish,
+  holds,
+  phaseByHost,
+  seatedAgo,
+  onPhase,
+}: Props) {
   const tables = selected.map((id) => tableById(room, id)).filter((t): t is Table => !!t);
   if (!tables.length) return null;
   return (
@@ -48,6 +58,7 @@ export function TableDetails({ room, selected, onFinish, holds, phaseByHost, onP
           onFinish={onFinish}
           hold={holds?.get(t.id)}
           byHost={phaseByHost?.has(t.id) ?? false}
+          seatedMin={seatedAgo?.get(t.id)}
           onPhase={onPhase}
         />
       ))}
@@ -61,6 +72,7 @@ function TableCard({
   onFinish,
   hold,
   byHost,
+  seatedMin,
   onPhase,
 }: {
   room: Room;
@@ -68,6 +80,7 @@ function TableCard({
   onFinish: (ids: string[]) => void;
   hold?: PlanHold;
   byHost: boolean;
+  seatedMin?: number;
   onPhase?: (ids: string[], phase: Phase) => void;
 }) {
   const free = estimateFreeTime(t);
@@ -110,7 +123,7 @@ function TableCard({
         {t.status === "occupied" && (
           <>
             <dt>Seated</dt>
-            <dd>~{ELAPSED_EST_MIN[t.phase ?? "seated"]} min ago (est.)</dd>
+            <dd>~{seatedMin ?? ELAPSED_EST_MIN[t.phase ?? "seated"]} min ago (est.)</dd>
           </>
         )}
         {t.reservedAt && (

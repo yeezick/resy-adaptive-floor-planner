@@ -169,8 +169,10 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
   await openFloor(page);
   const rail = page.getByRole("region", { name: /Requests/ });
   await expect(rail).toContainText("Proposed feature");
-  await expect(rail.locator(".row-request")).toHaveCount(6);
-  for (const label of ["Resy app", "AI agent", "Walk-in"]) await expect(rail).toContainText(label);
+  // the Thursday live floor lists what had arrived by 7:10 PM Thu: the Fri 2:40 PM walk-in is not there yet
+  await expect(rail.locator(".row-request")).toHaveCount(5);
+  for (const label of ["Resy app", "AI agent"]) await expect(rail).toContainText(label);
+  await expect(rail).not.toContainText("Walk-in");
   await expect(rail).toContainText("Likely junk");
 
   // the 30-top can't have a private room at 19:30: Accept stays disabled, the reason is one line
@@ -193,7 +195,10 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
   await expect(sheet.locator(".req-title")).toHaveText(
     "Sam Whitaker · party of 22 · Fri Nov 6 · 6:30 PM",
   );
-  await expect(sheet.locator(".req-overview")).toContainText("Stub line one for Q2.");
+  // the demo opens with the recorded triage (no model call)
+  await expect(sheet.locator(".req-overview")).toContainText(
+    "Family reunion; can move the time by 30 minutes.",
+  );
   await expect(sheet).toContainText("AI agent");
   await expect(sheet.locator(".fit-pill")).toHaveText("capacity fit ✓ · Ready");
   await sheet.getByRole("button", { name: "Show on Fri's floor →" }).click();
@@ -720,11 +725,15 @@ test.describe("decision card", () => {
 });
 
 test.describe("after accept", () => {
-  test("party-22-accepted: Apply names the night, keeps the plan, and Undo restores it", async ({
+  test("party-22-accepted: Apply crew plan names the night, keeps the plan, and Undo restores it", async ({
     page,
   }) => {
     await page.goto("/?scenario=party-22-accepted");
     const panel = page.locator(".side-col");
+    // Accept already held the tables; the second step applies the crew plan
+    await expect(page.locator(".preview-bar")).toContainText(
+      "Accept already held tables 57–61 and 63–66.",
+    );
     await expect(panel.locator(".accepted-card")).toContainText("Crew starts");
     const placedTile = panel
       .locator(".stat", { hasText: "Parties of 8+ placed" })
@@ -733,9 +742,9 @@ test.describe("after accept", () => {
     const rows = await panel.locator(".crew > li").count();
     // one crew row per build, no per-party change cards
     await expect(panel.locator(".party-changes")).toHaveCount(0);
-    await panel.getByRole("button", { name: "Apply to Fri · planning from 3:00 PM" }).click();
+    await panel.getByRole("button", { name: "Apply crew plan" }).click();
     await expect(panel.locator(".applied-bar")).toContainText(
-      "Applied to Fri · planning from 3:00 PM",
+      "Crew plan applied to Fri · planning from 3:00 PM",
     );
     await expect(page.locator(".cb-sub")).not.toContainText("Tonight —");
     await expect(placedTile).toHaveText(placed);
@@ -1032,4 +1041,152 @@ test.describe("iPad floor and top bar", () => {
       "absolute",
     );
   });
+});
+
+test.describe("request flow: one state, demo clock, decisions stay open", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.route("**/api/requests/*/triage", (route) => route.abort());
+    await page.route("**/api/agent", (route) => route.abort());
+  });
+
+  test("Mark as sent keeps Accept and Decline; the stamp is on the demo clock", async ({
+    page,
+  }) => {
+    await page.goto("/?scenario=party-22-agent");
+    const sheet = page.locator(".request-sheet");
+    await sheet.getByRole("button", { name: "Message guest" }).click();
+    await sheet.getByRole("button", { name: "Mark as sent" }).click();
+    await expect(sheet.locator(".req-sent")).toContainText("Reply marked sent · Fri 3:00 PM");
+    await expect(sheet.locator(".req-actions button.primary")).toHaveText("Accept");
+    await expect(sheet.getByRole("button", { name: "Decline", exact: true })).toBeVisible();
+    await page.getByRole("link", { name: "Activity" }).click();
+    await expect(page.locator(".activity-table")).toContainText("Replied");
+  });
+
+  test("Decline: the reasons come into view and the footer's main button is the decline", async ({
+    page,
+  }) => {
+    await page.goto("/?scenario=party-22-agent");
+    const sheet = page.locator(".request-sheet");
+    await sheet.getByRole("button", { name: "Decline", exact: true }).click();
+    await expect(sheet.locator("fieldset.decline")).toBeInViewport();
+    await expect(sheet.locator(".req-actions button.primary")).toHaveText(
+      "Pick a reason to decline",
+    );
+    await sheet.getByRole("radio", { name: /Policy/ }).check();
+    await sheet.getByRole("button", { name: "Decline: policy" }).click();
+    await expect(sheet.locator(".req-decided")).toContainText("Declined: policy · Fri 3:00 PM");
+  });
+
+  test("the countdown reads from the night's clock and doesn't drift", async ({ page }) => {
+    await page.clock.install();
+    await page.goto("/?scenario=party-22-agent");
+    const title = page.locator(".request-sheet .req-title");
+    await expect(title).toContainText("(in 3h 30m)");
+    await page.clock.fastForward("02:00");
+    await expect(title).toContainText("(in 3h 30m)");
+  });
+
+  test("after Accept the floor stays on the accepted party, whatever is under the cursor", async ({
+    page,
+  }) => {
+    await page.goto("/?scenario=party-22-agent");
+    await page.getByRole("button", { name: "Accept", exact: true }).click();
+    await expect(page.locator(".accepted-card")).toBeVisible();
+    await expect(page.locator(".floor-highlight-tag")).toContainText("Whitaker");
+  });
+
+  test("the live floor is Thursday; the Friday walk-in shows on Friday with 'tomorrow'", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await expect(page.locator(".room-select select option:checked")).toHaveText(
+      "Thu · live service 7:10 PM",
+    );
+    await page.locator(".room-select select").selectOption("book-fri");
+    const rail = page.getByRole("region", { name: /Requests/ });
+    await expect(rail.locator(".row-request")).toHaveCount(6);
+    await rail.locator(".row-request .row-btn", { hasText: "Walk-in" }).click();
+    const sheet = page.locator(".request-sheet");
+    await expect(sheet).toContainText("received Fri 2:40 PM");
+    await sheet.getByText("Detail ▸").click();
+    await expect(sheet.locator(".req-message")).toContainText("tomorrow");
+  });
+
+  test("the demo shows the recorded triage summary, never a live one", async ({ page }) => {
+    await page.goto("/");
+    const rail = page.getByRole("region", { name: /Requests/ });
+    await rail.locator(".row-request .row-btn", { hasText: "Thu" }).first().click();
+    await expect(page.locator(".request-sheet .req-overview")).toContainText(
+      "time is fixed at 7:30 PM",
+    );
+    await expect(page.locator(".request-sheet")).not.toContainText("unknown");
+  });
+
+  test("the activity log's newest request row is on the demo clock (no Saturday stamp)", async ({
+    page,
+  }) => {
+    await page.goto("/activity");
+    await expect(page.locator(".activity-table")).toContainText("Fri 2:40 PM");
+    await expect(page.locator(".activity-table")).not.toContainText("Sat 2:40 PM");
+  });
+
+  test("a phase change keeps the seated time", async ({ page }) => {
+    await page.goto("/");
+    await page.locator('svg.floor g[data-id="T3"]').focus();
+    await page.keyboard.press("Enter");
+    const card = page.locator(".table-card");
+    const seated = card
+      .locator("dt", { hasText: "Seated" })
+      .locator("xpath=following-sibling::dd[1]");
+    const before = await seated.innerText();
+    await card.locator(".phase-control").getByRole("button", { name: "Check" }).click();
+    await expect(seated).toHaveText(before);
+  });
+});
+
+test("chat Apply updates the rail row and the floor pill too (one request state)", async ({
+  page,
+}) => {
+  await page.route("**/api/requests/*/chat", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        requestId: "Q2",
+        traceId: "e2e-chat-2",
+        promptVersion: "e2e",
+        model: "e2e-stub",
+        output: {
+          tableRange: null,
+          partySize: 26,
+          time: "19:00",
+          addNeeds: [],
+          removeNeeds: [],
+          notes: [],
+          clarify: null,
+        },
+        escalated: false,
+        note: null,
+        validatorRejects: 0,
+        input: { sha256: "e2e0000000000000", length: 19 },
+        metrics: { costUsd: 0, latencyMs: 1, calls: [] },
+      }),
+    }),
+  );
+  await page.goto("/?scenario=party-22-agent");
+  const sheet = page.locator(".request-sheet");
+  await sheet.getByRole("button", { name: "Discuss" }).click();
+  const chat = page.getByRole("region", { name: "Adjust this request" });
+  await chat.getByRole("textbox", { name: "Message about this request" }).fill("26 at 7");
+  await chat.getByRole("button", { name: "Send" }).click();
+  await sheet
+    .getByRole("group", { name: "Change proposed in chat" })
+    .getByRole("button", { name: "Apply" })
+    .click();
+  await expect(sheet.locator(".req-title")).toContainText("party of 26");
+  const row = page.locator(".row-request .row-btn[aria-current='true']");
+  await expect(row).toContainText("26 ppl");
+  await expect(row).toContainText("7:00 PM");
+  await expect(page.locator(".floor-highlight-tag")).toContainText("party of 26");
 });

@@ -13,7 +13,13 @@ import type { Highlight, HighlightControls } from "../highlight";
 import { PHASE_LABEL, seatedParties, type DoneEntry, type WaitEntry } from "../lib/service";
 import { SOURCE_LABEL, SOURCE_SHORT, VerdictChip } from "../requests/RequestSheet";
 import { ProposedTag } from "../ProposedTag";
-import { decisionOf, pendingCount, useRequests } from "../requests/store";
+import {
+  currentRequest,
+  decisionOf,
+  pendingCount,
+  requestsBy,
+  useRequests,
+} from "../requests/store";
 import { tableNo, tablesPhrase } from "../../domain/wording";
 import { normalTimes } from "../lib/format";
 import { partyName } from "../lib/names";
@@ -136,7 +142,12 @@ export function Rail(p: Props) {
           onChange={(e) => setQuery(e.target.value)}
         />
       </div>
-      <RequestsSection open={p.openRequest} onOpen={p.onOpenRequest} query={q} />
+      <RequestsSection
+        open={p.openRequest}
+        onOpen={p.onOpenRequest}
+        query={q}
+        night={{ roomId: p.room.id, clock: p.room.clock }}
+      />
       <RailSection
         title="Standby"
         parties={standby.length}
@@ -381,16 +392,20 @@ function RequestsSection({
   open,
   onOpen,
   query,
+  night,
 }: {
   open: string | null;
   onOpen: (id: string) => void;
   query: string;
+  /** The night on screen: only requests received by its clock are listed. */
+  night: { roomId: string; clock: string };
 }) {
   const s = useRequests();
-  const list = (s.book?.requests ?? []).filter((r) =>
-    matches(query, r.id, r.partySize, r.day, r.time, r.occasion),
-  );
-  const badge = pendingCount(s);
+  // as the request stands now (the manager's applied changes), received by this night's clock
+  const list = requestsBy(s, night)
+    .map((r) => currentRequest(s, r))
+    .filter((r) => matches(query, r.id, r.partySize, r.day, r.time, r.occasion));
+  const badge = pendingCount(s, night);
   return (
     <RailSection
       title="Requests"
@@ -441,10 +456,12 @@ function RequestsSection({
                       <span>{normalTimes(times12(t.result.summary[0] ?? ""))}</span>
                     </span>
                   )}
-                  {d.kind !== "pending" && (
+                  {d.kind !== "pending" ? (
                     <span className={`tag tag-${d.kind}`}>
                       {d.kind === "declined" ? `declined · ${d.reason}` : d.kind}
                     </span>
+                  ) : (
+                    s.replies[r.id] && <span className="tag tag-replied">replied</span>
                   )}
                 </span>
               </button>

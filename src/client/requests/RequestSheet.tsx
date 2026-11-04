@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   clock12,
   crewNote,
@@ -30,7 +30,6 @@ import {
 import { fetchRoom } from "../api";
 import { duration, normalTimes, usd } from "../lib/format";
 import { useAsync } from "../lib/useAsync";
-import { useElapsedMinutes } from "../lib/useDemoClock";
 import {
   baseConstraints,
   changeList,
@@ -148,7 +147,6 @@ export function RequestSheet({
   const original = useMemo(() => (room ? checkRequest(room, r0) : null), [room, r0]);
   const changedBy = s.changedBy[r0.id];
   const fit = useMemo(() => adj?.fit ?? (room ? checkRequest(room, r0) : null), [adj, room, r0]);
-  const elapsed = useElapsedMinutes();
   // the reply promises only an answer time: one hour after the floor clock of the request's night
   const confirmMin = roomRes?.ok ? toMinutes(roomRes.data.clock) + 60 : null;
   const confirmBy = confirmMin !== null && confirmMin < 24 * 60 ? toHHMM(confirmMin) : undefined;
@@ -218,12 +216,25 @@ export function RequestSheet({
     box?.focus({ preventScroll: true });
   }, [focusChat, chatOpen, r0.id]);
   const holdFrom = cost?.hold.tables.length ? cost.hold.from : null;
+  const sent = s.replies[r0.id];
+  // Decline: bring the reasons into view and onto the first one, so the choice is never below the fold
+  const declineRef = useRef<HTMLFieldSetElement>(null);
+  useEffect(() => {
+    if (mode !== "decline") return;
+    const el = declineRef.current;
+    el?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    el?.querySelector("input")?.focus({ preventScroll: true });
+  }, [mode]);
+  const declineLabel =
+    reason === null
+      ? "Pick a reason to decline"
+      : `Decline: ${reason === "fit" ? "no capacity fit" : reason}`;
 
   return (
     <div className="request-sheet decision">
       <div className="req-head">
         <h2 className="req-title">
-          {r.contact} · party of {r.partySize} · {requestWhen(r, now, elapsed)}
+          {r.contact} · party of {r.partySize} · {requestWhen(r, now)}
         </h2>
         <div className="muted small">
           <span className={`source-label source-${r.source}`}>{SOURCE_LABEL[r.source]}</span> ·
@@ -456,7 +467,7 @@ export function RequestSheet({
       )}
 
       {decision.kind === "pending" && mode === "decline" && (
-        <fieldset className="decline">
+        <fieldset className="decline" ref={declineRef}>
           <legend className="small">Why decline?</legend>
           {DECLINE.map((d) => (
             <label key={d.id} className="radio">
@@ -471,15 +482,6 @@ export function RequestSheet({
               </span>
             </label>
           ))}
-          <button
-            type="button"
-            disabled={reason === null}
-            onClick={() => reason && requestsActions.decline(r, reason)}
-          >
-            {reason === null
-              ? "Pick a reason to decline"
-              : `Decline: ${reason === "fit" ? "no capacity fit" : reason}`}
-          </button>
         </fieldset>
       )}
       {decision.kind === "pending" && mode === "reply" && (
@@ -496,7 +498,10 @@ export function RequestSheet({
           />
           <button
             type="button"
-            onClick={() => requestsActions.reply(r, reply !== null && reply !== draft)}
+            onClick={() => {
+              requestsActions.reply(r, reply !== null && reply !== draft);
+              setMode("none");
+            }}
           >
             Mark as sent
           </button>
@@ -506,7 +511,17 @@ export function RequestSheet({
 
       {decision.kind === "pending" ? (
         <div className="req-actions decision-footer">
-          {fit?.ok && (
+          {sent && (
+            <p className="req-sent small" role="status">
+              Reply marked sent · {times12(sent.at)}
+              {sent.edited ? " · draft edited" : ""} · still open: accept or decline when the guest
+              answers{" "}
+              <button type="button" className="link-btn" onClick={() => requestsActions.unsend(r)}>
+                Undo
+              </button>
+            </p>
+          )}
+          {fit?.ok && mode !== "decline" && (
             <p className="feedforward small">
               Accept holds {tablesPhrase(fit.build.tables)}
               {holdFrom ? ` from ${clock12(holdFrom)}` : ""}
@@ -549,23 +564,34 @@ export function RequestSheet({
             >
               Message guest
             </button>
-            <button
-              type="button"
-              className="primary"
-              disabled={!fit?.ok || junk || !!proposal}
-              title={
-                proposal
-                  ? "Apply or discard the change proposed in chat first"
-                  : junk
-                    ? "Triaged as junk"
-                    : !fit?.ok
-                      ? "It doesn't fit that night"
-                      : undefined
-              }
-              onClick={() => fit?.ok && requestsActions.accept(r, fit.build.tables)}
-            >
-              Accept
-            </button>
+            {mode === "decline" ? (
+              <button
+                type="button"
+                className="primary"
+                disabled={reason === null}
+                onClick={() => reason && requestsActions.decline(r, reason)}
+              >
+                {declineLabel}
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="primary"
+                disabled={!fit?.ok || junk || !!proposal}
+                title={
+                  proposal
+                    ? "Apply or discard the change proposed in chat first"
+                    : junk
+                      ? "Triaged as junk"
+                      : !fit?.ok
+                        ? "It doesn't fit that night"
+                        : undefined
+                }
+                onClick={() => fit?.ok && requestsActions.accept(r, fit.build.tables)}
+              >
+                Accept
+              </button>
+            )}
           </div>
           {proposal && (
             <p className="muted small accept-why">

@@ -65,6 +65,11 @@ export function triageProblems(out: TriageOutput, r: GuestRequest): string[] {
     problems.push("says the party is booked or confirmed — nothing is decided yet");
   if (/https?:\/\/|www\.|@\w+\.\w+|\+?\d[\d\s().-]{8,}\d/.test(text))
     problems.push("repeats a link, email or phone number");
+  // a summary line must read as what the guest said: no template words left in ("time is flexible unknown")
+  if (/\b(unknown|n\/a|null|undefined|tbd|not specified)\b/i.test(out.summary.join(" \n ")))
+    problems.push(
+      "leaves a placeholder (unknown, n/a) in the summary — say what the guest wrote or leave it out",
+    );
   const name = r.contact.trim();
   const lower = text.toLowerCase();
   // The full contact string is always checked (any case). Single words count only when capitalised and

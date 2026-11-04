@@ -30,6 +30,20 @@ describe("plan holds", () => {
     expect(room.tables.some((t) => t.status === "blocked")).toBe(false);
   });
 
+  it("holds an accepted request as changed in chat (its new time), not as first asked", () => {
+    if (!q2) throw new Error("Q2 missing");
+    const fit = checkRequest(fri, q2);
+    if (!fit.ok) throw new Error("Q2 should fit");
+    const holds = planHolds(fri, {
+      book,
+      decisions: { Q2: { kind: "accepted", at: "", iso: "", tables: fit.build.tables } },
+      adjust: {
+        Q2: { tableRange: null, partySize: null, time: "19:00", needs: q2.needs, notes: [] },
+      },
+    });
+    expect([...holds.values()][0]?.until).toBe("19:00");
+  });
+
   it("nothing accepted, nothing held", () => {
     expect(planHolds(fri, { book, decisions: {} }).size).toBe(0);
   });
