@@ -57,6 +57,10 @@ Beneath them, the card weighs yes against no, in covers (a negative net is shown
 The actions, in order: **Accept · Decline** (with a reason) **· Message guest · Ask AI Planner** (jumps to the
 in-request chat). Every chat change is also a manual control.
 
+Times a manager reads are 12-hour AM/PM ("build by 6:00 PM", "held 5:00–6:30 PM"). The domain, the API and the
+evals keep 24-hour "HH:MM"; the screen converts it (`clock12` / `times12` in `src/domain/time.ts`), and an e2e check
+fails if a 24-hour time reaches any scenario's screen.
+
 Table numbers never carry the fixtures' `T` prefix in anything a person reads ("Combine tables 72, 73 and 74 into an
 11-top; bring 2 tables and 6 chairs from storage."). Elapsed time on seated tables is estimated from meal phase and
 is labelled "est.".
@@ -70,14 +74,14 @@ fixtures, with AI answers replayed from recordings in `fixtures/scenarios/`, so 
 | ------------------------------ | ------------------------------------------------------------- |
 | `/?scenario=party-22-agent`    | AI-agent request for 22, capacity fit + cost sheet open       |
 | `/?scenario=party-22-accepted` | the 22-top accepted: tonight's layout and crew build list     |
-| `/?scenario=walkin-8-peak`     | walk-in of 8 at 19:10, AI Planner open with ranked options    |
+| `/?scenario=walkin-8-peak`     | walk-in of 8 at 7:10 PM, AI Planner open with ranked options  |
 | `/?scenario=request-chat`      | the in-request chat mid-conversation ("between tables 30–50") |
 | `/?scenario=activity-log`      | the activity log with rated rows and a request-chat turn      |
 
 ## In-request chat
 
 Inside a request, the manager can type a change that applies to that request only ("headcount is now 26", "can
-we push it to 19:00?"). Haiku turns the message into constraints (table range, headcount, time, needs, crew
+we push it to 7:00 PM?"). Haiku turns the message into constraints (table range, headcount, time, needs, crew
 notes); the planner re-runs the capacity fit; the card shows the new option and its cost. The model never names a
 table, and every number it sets must appear in the manager's message. Each constraint is also a control on the
 sheet, and every turn is logged in the activity log (the message as a hash). Evals:
