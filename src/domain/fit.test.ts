@@ -92,4 +92,8 @@ describe("holds and sections", () => {
     expect(p.summary.coversLostToHolds).toBe(p.parties.reduce((n, f) => n + f.hold.coversLost, 0));
     expect(p.parties).toHaveLength(p.summary.placed);
   });
+
+  it("no hold or setup on the proposal starts while an earlier party is still seated", () => {
+    expect(generateTonight(base, "17:00", "22:00").conflicts).toEqual([]);
+  });
 });
