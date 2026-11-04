@@ -1,14 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import {
-  baseConstraints,
-  changeDelta,
-  changeList,
-  type AdjustedFit,
-} from "../../domain/requestChat";
+import { checkAdjusted } from "../../domain/requestChat";
 import type { GuestRequest } from "../../domain/requests";
 import type { PartyFit, RequestFit, Room } from "../../domain";
 import { times12 } from "../../domain/time";
-import { currentRequest, requestsActions, useRequests } from "./store";
+import { currentRequest, requestsActions, useRequests, type ChatTurn } from "./store";
+import { Spinner, Working } from "../lib/wait";
 import { localAnswer, notedLine, turnSentence } from "./chatReply";
 import { oneRoomPlan, oneRoomSentence } from "../../domain/alternatives";
 import "./chat15.css";
@@ -28,14 +24,12 @@ const EXAMPLES = [
  */
 export function RequestChat({
   request: r,
-  result,
   room = null,
   fit = null,
   cost = null,
   focusSeq = 0,
 }: {
   request: GuestRequest;
-  result: AdjustedFit | null;
   /** The night's book, for answers the capacity check gives by itself. */
   room?: Room | null;
   fit?: RequestFit | null;
@@ -44,37 +38,30 @@ export function RequestChat({
   focusSeq?: number;
 }) {
   const s = useRequests();
-  const c = s.adjust[r.id] ?? baseConstraints(r);
-  const turns = s.chat[r.id] ?? [];
+  const turns = useMemo(() => s.chat[r.id] ?? [], [s.chat, r.id]);
   const [text, setText] = useState("");
   const [micHint, setMicHint] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
   const busy = turns.some((t) => t.status === "loading");
 
-  // Once the planner has re-run after a turn, record its one-line answer on that turn (and in the log).
-  const pending = turns.find((t) => t.status === "ok" && t.outcome === undefined);
-  // the turn's answer is what its proposal would do (the proposal, if one is waiting; else the current state)
-  const proposed = s.proposals[r.id]?.constraints ?? c;
+  // Once a model turn has its own constraints, work out ITS capacity sentence (from those constraints only)
+  // and record it on that turn by id, for the chat and the activity log.
   useEffect(() => {
-    if (!pending || !result) return;
-    const clarify = pending.result?.output?.clarify;
-    requestsActions.noteTurn(
-      r.id,
-      pending.id,
-      clarify && !changeList(r, proposed).length ? `Question: ${clarify}` : result.line,
-      changeDelta(r, pending.before ?? baseConstraints(r), proposed),
-    );
-  }, [pending, result, r, proposed]);
+    if (!room) return;
+    for (const t of turns) {
+      if (t.status !== "ok" || t.local || t.outcome !== undefined || !t.after) continue;
+      const line = checkAdjusted(room, r, t.after).line;
+      requestsActions.noteTurn(
+        r.id,
+        t.id,
+        t.clarify && !t.changed?.length ? `Question: ${t.clarify}` : line,
+        t.changed ?? [],
+      );
+    }
+  }, [turns, room, r]);
   useEffect(() => {
     if (focusSeq) box.current?.focus({ preventScroll: true });
   }, [focusSeq]);
-  // an answer that takes too long ends in a plain error, never a spinner (the store marks it on the turn)
-  const loadingId = turns.find((t) => t.status === "loading")?.id;
-  useEffect(() => {
-    if (!loadingId) return;
-    const t = window.setTimeout(() => requestsActions.timeoutTurn(r.id, loadingId), 8000);
-    return () => window.clearTimeout(t);
-  }, [loadingId, r.id]);
 
   const send = () => {
     const m = text.trim();
@@ -126,11 +113,7 @@ export function RequestChat({
         {turns.map((t) => (
           <li key={t.id}>
             <p className="chat-me">{t.message}</p>
-            <p className={`chat-out small${t.status === "error" ? " warn-text" : ""}`}>
-              {t.status === "loading" || t.outcome === undefined
-                ? "Checking the plan…"
-                : times12(turnSentence(t))}
-            </p>
+            <ChatReply turn={t} />
             {t.result && (
               <details className="how-made small">
                 <summary>How this was made</summary>
@@ -203,10 +186,30 @@ export function RequestChat({
           )}
           <span className="spacer" />
           <button type="submit" className="tonal" disabled={busy || !text.trim()}>
-            {busy ? "Checking…" : "Send"}
+            {busy ? (
+              <>
+                <Spinner /> Checking…
+              </>
+            ) : (
+              "Send"
+            )}
           </button>
         </div>
       </form>
     </section>
+  );
+}
+
+/** One turn's reply: working (dots + seconds), then that turn's own answer. */
+function ChatReply({ turn: t }: { turn: ChatTurn }) {
+  const text = turnSentence(t);
+  if (text === null)
+    return (
+      <p className="chat-out small">
+        <Working since={t.sentMs ?? null} />
+      </p>
+    );
+  return (
+    <p className={`chat-out small${t.status === "error" ? " warn-text" : ""}`}>{times12(text)}</p>
   );
 }

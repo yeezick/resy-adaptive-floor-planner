@@ -76,6 +76,8 @@ describe("requestChatTurn", () => {
 
     const twice = await requestChatTurn("Q2", body, "c3", cfg(scripted([bad, bad]).create));
     expect(twice).toMatchObject({ escalated: true, output: null, validatorRejects: 2 });
-    expect(twice.note).toMatch(/use the controls/);
+    expect(twice.note).toBe(
+      "I couldn't turn that into a change. Nothing changed. You can set party, time, tables and needs on the review screen after Accept.",
+    );
   });
 });

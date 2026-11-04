@@ -4,7 +4,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { ChatTurnOutput, chatTurnProblems } from "../domain/requestChat";
+import { ChatTurnOutput, chatTurnProblems, ESCALATED_NOTE } from "../domain/requestChat";
 import type { CallMetrics, RequestChatBody, RequestChatResult } from "../shared/api";
 import { checkModel } from "./config";
 import type { SpendGate } from "./guards/budget";
@@ -168,8 +168,7 @@ export async function requestChatTurn(
         calls,
       },
     });
-    if (msg.stop_reason === "refusal")
-      return done(null, "The AI declined that message — use the controls on the card instead.");
+    if (msg.stop_reason === "refusal") return done(null, ESCALATED_NOTE);
     const text = msg.content
       .filter((b): b is Anthropic.Beta.BetaTextBlock => b.type === "text")
       .map((b) => b.text)
@@ -180,8 +179,7 @@ export async function requestChatTurn(
       : ["the answer was not valid JSON"];
     if (parsed && problems.length === 0) return done(parsed, null);
     rejects++;
-    if (attempt === 1)
-      return done(null, "The AI couldn't turn that into a change — use the controls on the card.");
+    if (attempt === 1) return done(null, ESCALATED_NOTE);
     messages.push({ role: "assistant", content: msg.content });
     messages.push({
       role: "user",
