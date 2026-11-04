@@ -49,6 +49,7 @@ import {
 } from "./store";
 import { partyName } from "../lib/names";
 import "./request15.css";
+import { MAX_NOTE_CHARS } from "../../domain/activity";
 
 export { SOURCE_LABEL, SOURCE_SHORT } from "../../domain/requests";
 
@@ -253,8 +254,8 @@ export function RequestSheet({
           <VerdictChip t={t} override={override} />
         </div>
         <ul className="req-overview" aria-label="What the party needs">
-          {overview.slice(0, 1).map((line) => (
-            <li key={line}>{normalTimes(line)}</li>
+          {overview.slice(0, 1).map((line, i) => (
+            <li key={`${i}-${line}`}>{normalTimes(line)}</li>
           ))}
         </ul>
         {t?.status === "host" && (
@@ -280,8 +281,8 @@ export function RequestSheet({
             <summary>More ▸</summary>
             {overview.length > 1 && (
               <ul className="req-overview-rest" aria-label="More about the party">
-                {overview.slice(1).map((line) => (
-                  <li key={line}>{normalTimes(line)}</li>
+                {overview.slice(1).map((line, i) => (
+                  <li key={`${i}-${line}`}>{normalTimes(line)}</li>
                 ))}
               </ul>
             )}
@@ -509,7 +510,7 @@ export function RequestSheet({
             <span>Add a note for the guest or the log</span>
             <textarea
               rows={2}
-              maxLength={300}
+              maxLength={MAX_NOTE_CHARS}
               placeholder="Optional"
               value={note}
               onChange={(e) => setNote(e.target.value)}
@@ -543,12 +544,16 @@ export function RequestSheet({
               <button
                 type="button"
                 title="Add your decline note to the end of the reply"
+                disabled={(reply ?? draft).trimEnd().endsWith(note.trim())}
                 onClick={() => setReply(`${(reply ?? draft).trimEnd()}\n\n${note.trim()}`)}
               >
                 Insert note
               </button>
             )}
           </div>
+          {note.trim() && (reply ?? draft).trimEnd().endsWith(note.trim()) && (
+            <p className="muted small">Your note is added as you wrote it.</p>
+          )}
           <p className="muted small">Prototype: nothing is sent to anyone.</p>
         </div>
       )}

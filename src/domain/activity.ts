@@ -1,7 +1,8 @@
 // AI activity log: one chronological row per AI action (request triage, assistant answer), with the manager's
 // decision beside it. Built only from what is already logged (triage results, assistant responses, manager
-// actions); read-only. Guest and host text never appears: it is kept as sha256 + length, and a row shows the AI's
-// own summary. The one free text is a manager's own decline note, kept in the browser session only. A row can show "accepted" only when a manager action says so.
+// actions); read-only. Guest and host text never appears: it is kept as sha256 + length, and a row shows the
+// AI's own summary. The one free text is a manager's own decline note, kept in the browser session only. A row
+// can show "accepted" only when a manager action says so.
 import { z } from "zod";
 import { SOURCE_LABEL, SOURCES, type RequestSource } from "./requests";
 import { tablesPhrase } from "./wording";
@@ -10,6 +11,9 @@ export const TextHash = z.object({ sha256: z.string().min(8), length: z.number()
 export type TextHash = z.infer<typeof TextHash>;
 
 export type ActivitySource = RequestSource | "host";
+
+/** The longest decline note a manager can keep with a decision. */
+export const MAX_NOTE_CHARS = 300;
 
 export const TriageEvent = z
   .object({
@@ -107,7 +111,7 @@ export const ManagerAction = z
     /** What was applied / booked, e.g. "T57 + T58 … (Garden Room + Library)". */
     applied: z.string().optional(),
     /** For "declined": the manager's own optional note (this session only; never sent to the server log). */
-    note: z.string().max(300).optional(),
+    note: z.string().max(MAX_NOTE_CHARS).optional(),
   })
   .strict();
 export type ManagerAction = z.infer<typeof ManagerAction>;

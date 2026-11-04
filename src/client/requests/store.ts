@@ -25,6 +25,7 @@ import {
 } from "../api";
 import { demoIso, demoStamp, receivedBy, setDemoNight } from "../lib/demoClock";
 import { NIGHTS } from "../nights";
+import { MAX_NOTE_CHARS } from "../../domain/activity";
 
 export type DeclineReason = "fit" | "policy" | "other";
 
@@ -271,7 +272,7 @@ export const requestsActions = {
   },
   /** The note is the manager's own words: kept with the decision in this session, never sent to the server log. */
   decline(r: GuestRequest, reason: DeclineReason, note?: string) {
-    const clean = note?.trim().slice(0, 300);
+    const clean = note?.trim().slice(0, MAX_NOTE_CHARS);
     logDecision(r.id, { kind: "declined", reason });
     set({
       decisions: {
