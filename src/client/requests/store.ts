@@ -419,7 +419,7 @@ export function currentRequest(s: Pick<RequestsState, "adjust">, r: GuestRequest
 
 /**
  * The requests a night's floor can know about: those received by its clock. A request that arrives later in the
- * week (e.g. Fri 14:40) is not on the Thursday live floor. Off the floor (no night), all of them.
+ * week (e.g. Fri 14:40) is not on the Wednesday live floor. Off the floor (no night), all of them.
  */
 export function requestsBy(
   s: Pick<RequestsState, "book">,

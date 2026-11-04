@@ -12,9 +12,16 @@ const state = (over: Partial<RequestsState> = {}) =>
   ({ book, decisions: {}, adjust: {}, ...over }) as RequestsState;
 
 describe("one request state per night", () => {
-  it("the live service night is Thursday; the Friday book plans from 3:00 PM", () => {
-    expect(NIGHTS["dinner-peak"]).toEqual({ day: "Thu", label: "Thu · live service 7:10 PM" });
+  it("the live service night is Wednesday; the Friday book plans from 3:00 PM", () => {
+    expect(NIGHTS["dinner-peak"]).toEqual({ day: "Wed", label: "Wed · live service 7:10 PM" });
     expect(NIGHTS["book-fri"]?.day).toBe("Fri");
+  });
+
+  it("the Wednesday live floor lists only requests received by Wed 7:10 PM", () => {
+    const ids = requestsBy(state(), { roomId: "dinner-peak", clock: "19:10" }).map((r) => r.id);
+    expect(ids).toEqual(["Q1", "Q2", "Q3", "Q4"]);
+    expect(pendingCount(state(), { roomId: "dinner-peak", clock: "19:10" })).toBe(4);
+    expect(requestsBy(state(), { roomId: "book-fri", clock: "15:00" })).toHaveLength(6);
   });
 
   it("the host-stand request arrives Fri 2:40 PM for tomorrow (Saturday)", () => {
@@ -39,16 +46,16 @@ describe("one request state per night", () => {
     }
   });
 
-  it("the Thursday live floor doesn't list the Friday walk-in; Friday and Saturday do", () => {
+  it("the Wednesday live floor doesn't list the Friday walk-in; Friday and Saturday do", () => {
     const s = state();
     const ids = (roomId: string, clock: string) =>
       requestsBy(s, { roomId, clock }).map((r) => r.id);
     expect(ids("dinner-peak", "19:10")).not.toContain("Q6");
-    expect(ids("dinner-peak", "19:10")).toHaveLength(5);
+    expect(ids("dinner-peak", "19:10")).toHaveLength(4);
     expect(ids("book-fri", "15:00")).toContain("Q6");
     expect(ids("demo-night", "15:00")).toHaveLength(6);
     expect(requestsBy(s)).toHaveLength(6);
-    expect(pendingCount(s, { roomId: "dinner-peak", clock: "19:10" })).toBe(5);
+    expect(pendingCount(s, { roomId: "dinner-peak", clock: "19:10" })).toBe(4);
   });
 
   it("the row reads the request as changed in chat (26 at 7:00 PM), not as first asked", () => {

@@ -9,7 +9,7 @@ type Day = keyof typeof DEMO_WEEK_ISO;
 const DAYS: Day[] = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
 /** Before any floor opens (e.g. /activity first): the default night, the live service. */
-let night: { day: Day; clock: string } = { day: "Thu", clock: "19:10" };
+let night: { day: Day; clock: string } = { day: "Wed", clock: "19:10" };
 /** Orders stamps taken at the same demo minute (ms past the minute; never shown). */
 let tick = 0;
 
@@ -37,7 +37,7 @@ export function demoIso(label: string): string {
   return new Date(`${DEMO_WEEK_ISO[d]}T${hm ?? "00:00"}:00`).toISOString();
 }
 
-/** True when a "Fri 14:40" label is at or before the night's clock ("Thu 19:10" → false). */
+/** True when a "Fri 14:40" label is at or before the night's clock ("Wed 19:10" → false). */
 export function receivedBy(label: string, day: string, clock: string): boolean {
   const [d, hm] = label.split(" ");
   const a = DAYS.indexOf(d as Day);
@@ -48,6 +48,6 @@ export function receivedBy(label: string, day: string, clock: string): boolean {
 
 /** Tests only. */
 export function resetDemoClock(): void {
-  night = { day: "Thu", clock: "19:10" };
+  night = { day: "Wed", clock: "19:10" };
   tick = 0;
 }
