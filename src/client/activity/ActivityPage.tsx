@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState, type ReactNode } from "react";
+import { Thumb } from "./Thumb";
 import {
   activityCounts,
   filterActivity,
@@ -327,7 +328,7 @@ function FeedbackCell({
   fb: FeedbackRecord | undefined;
   onRate: (r: Rating) => void;
 }) {
-  const thumb = (rating: Rating, icon: string, label: string) => (
+  const thumb = (rating: Rating, icon: ReactNode, label: string) => (
     <button
       type="button"
       className={`fb-thumb${fb?.rating === rating ? " is-on" : ""}`}
@@ -344,8 +345,8 @@ function FeedbackCell({
   );
   return (
     <span className="fb-cell">
-      {thumb("up", "👍", "Helpful")}
-      {thumb("down", "👎", "Not helpful")}
+      {thumb("up", <Thumb />, "Helpful")}
+      {thumb("down", <Thumb down />, "Not helpful")}
       {fb && (
         <span className="fb-rated small" title="Saved to this log only (prototype)">
           rated

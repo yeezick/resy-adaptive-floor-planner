@@ -4354,3 +4354,32 @@ html.planner-shell .console > .preview-bar .link-btn {
   width: 100%;
   min-width: 0;
 }
+/* thumbs: monochrome icons in the text colour; the selected one is an inverted-neutral fill */
+.fb-thumb {
+  filter: none;
+  color: var(--text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.fb-thumb .thumb-icon {
+  fill: currentColor;
+}
+.fb-thumb.is-on,
+.fb-thumb.is-on[aria-label="Helpful"],
+.fb-thumb.is-on[aria-label="Not helpful"] {
+  background: var(--text);
+  border-color: var(--text);
+  color: var(--bg);
+  box-shadow: none;
+}
+/* an opened private room is neutral (periwinkle is AI only) */
+.floor .area-private.is-open rect {
+  fill: color-mix(in srgb, var(--text) 6%, transparent);
+}
+.divider-note {
+  color: var(--text);
+}
+.accept-why {
+  text-align: left;
+}
