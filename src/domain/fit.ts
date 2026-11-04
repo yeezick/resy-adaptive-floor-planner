@@ -202,13 +202,14 @@ export function holdConflicts(
 ): HoldConflict[] {
   const out: HoldConflict[] = [];
   for (const f of fits) {
-    for (const run of f.hold.runs.length
-      ? f.hold.runs
-      : [{ from: f.hold.from, tables: f.tables, byArea: [] }]) {
+    // spare tables only: nothing on the floor is held, so only a setup start can conflict
+    const runs = f.hold.runs.length ? f.hold.runs : [{ from: "", tables: f.tables, byArea: [] }];
+    for (const run of runs) {
       const setup = starts[f.reservationId];
+      if (!run.from && !setup) continue;
       for (const id of run.tables) {
         const begin = Math.min(
-          toMinutes(run.from),
+          run.from ? toMinutes(run.from) : Number.POSITIVE_INFINITY,
           setup ? toMinutes(setup) : Number.POSITIVE_INFINITY,
         );
         for (const e of fits) {

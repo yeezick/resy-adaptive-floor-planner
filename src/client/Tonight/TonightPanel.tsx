@@ -11,6 +11,7 @@ import {
   toMinutes,
   type Build,
   type CrewStep,
+  type HoldConflict,
   type Room,
   type TonightProposal,
 } from "../../domain";
@@ -212,6 +213,21 @@ function AcceptedCard({
   );
 }
 
+/** One line per (party, still-seated party): the tables together, the earliest start. */
+function groupConflicts(list: readonly HoldConflict[]) {
+  const by = new Map<string, HoldConflict & { tables: string[] }>();
+  for (const c of list) {
+    const k = `${c.reservationId}|${c.seatedId}`;
+    const g = by.get(k);
+    if (!g) by.set(k, { ...c, tables: [c.table] });
+    else {
+      if (!g.tables.includes(c.table)) g.tables.push(c.table);
+      if (c.from < g.from) g.from = c.from;
+    }
+  }
+  return [...by.values()];
+}
+
 /** One crew instruction per build: "Join tables 82–86 (5 tables) · 2 chairs from storage". */
 function crewLine(b: Build | undefined, c: CrewStep): string {
   if (!b) return times12(namesIn(c.actions[0] ?? ""));
@@ -266,11 +282,11 @@ function Proposal({
         <h3 className="section-title">Setup checklist</h3>
         {p.conflicts.length > 0 && (
           <ul className="hold-conflicts small" role="alert" aria-label="Hold conflicts">
-            {p.conflicts.map((c) => (
-              <li key={`${c.reservationId}-${c.table}-${c.seatedId}`} className="warn-text">
-                Conflict: {partyName(c.reservationId)}&rsquo;s setup starts {clock12(c.from)} on{" "}
-                {tablesPhrase([c.table])}, but {partyName(c.seatedId)} is seated there until ~
-                {clock12(c.seatedUntil)}
+            {groupConflicts(p.conflicts).map((c) => (
+              <li key={`${c.reservationId}-${c.seatedId}`} className="warn-text">
+                Conflict: {partyName(c.reservationId)}&rsquo;s hold or setup starts{" "}
+                {clock12(c.from)} on {tablesPhrase(c.tables)}, but {partyName(c.seatedId)} is seated
+                there until ~{clock12(c.seatedUntil)}
               </li>
             ))}
           </ul>

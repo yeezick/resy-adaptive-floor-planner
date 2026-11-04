@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { activeScenario, SCENARIOS, scenarioUrl } from "./scenarios";
 
 /**
@@ -6,8 +7,24 @@ import { activeScenario, SCENARIOS, scenarioUrl } from "./scenarios";
  */
 export function ScenarioMenu() {
   const current = activeScenario();
+  const ref = useRef<HTMLDetailsElement>(null);
+  // a tap outside or Escape closes the menu (it opens over the floor)
+  useEffect(() => {
+    const close = (e: Event) => {
+      const el = ref.current;
+      if (!el?.open) return;
+      if (e instanceof KeyboardEvent ? e.key === "Escape" : !el.contains(e.target as Node))
+        el.open = false;
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, []);
   return (
-    <details className="scenario-menu">
+    <details className="scenario-menu" ref={ref}>
       <summary>
         Scenarios
         {current ? <span className="sr-only"> · {current.title}</span> : null}{" "}

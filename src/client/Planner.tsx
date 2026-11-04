@@ -117,9 +117,14 @@ export function Planner({
   }
   useEffect(() => {
     if (hoverArmed) return;
+    // re-armed by a pointer move or by the keyboard (focus highlights rows too)
     const arm = () => setHoverArmed(true);
     window.addEventListener("pointermove", arm, { once: true });
-    return () => window.removeEventListener("pointermove", arm);
+    window.addEventListener("keydown", arm, { once: true });
+    return () => {
+      window.removeEventListener("pointermove", arm);
+      window.removeEventListener("keydown", arm);
+    };
   }, [hoverArmed]);
   const [pinned, setPinned] = useState<Highlight | null>(null);
   const [mode, setMode] = useState<PanelMode>(
@@ -338,6 +343,8 @@ export function Planner({
     setEdited(false);
     setSelected([]);
     setPinned(null);
+    setSeatedAgo(new Map());
+    setPhaseByHost(new Set());
     setNotice({ ok: true, message: "Reset to the original room" });
   };
 
@@ -383,23 +390,22 @@ export function Planner({
           </button>
         </div>
       )}
-      {notice && (
-        <div
-          key={notice.message}
-          className={`toast small ${notice.ok ? "is-ok" : "is-warn"}`}
-          role={notice.ok ? "status" : "alert"}
-        >
-          <span>{notice.message}</span>
-          <button
-            type="button"
-            className="link-btn toast-close"
-            aria-label="Dismiss"
-            onClick={() => setNotice(null)}
-          >
-            ×
-          </button>
-        </div>
-      )}
+      {/* always mounted, so screen readers announce each toast */}
+      <div className="toast-region" aria-live="polite" role="status">
+        {notice && (
+          <div className={`toast small ${notice.ok ? "is-ok" : "is-warn"}`}>
+            <span>{notice.message}</span>
+            <button
+              type="button"
+              className="link-btn toast-close"
+              aria-label="Dismiss"
+              onClick={() => setNotice(null)}
+            >
+              ×
+            </button>
+          </div>
+        )}
+      </div>
       <div className="console-body">
         <aside className="rail" aria-label="Guest lists">
           <button

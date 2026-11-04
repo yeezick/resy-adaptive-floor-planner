@@ -23,7 +23,7 @@ import {
   postTriage,
   type ClientError,
 } from "../api";
-import { demoIso, demoStamp, receivedBy } from "../lib/demoClock";
+import { demoIso, demoStamp, receivedBy, setDemoNight } from "../lib/demoClock";
 import { NIGHTS } from "../nights";
 
 export type DeclineReason = "fit" | "policy" | "other";
@@ -185,6 +185,8 @@ async function applyScenario(book: RequestBook): Promise<void> {
     if (!room.ok) return;
     const fit = checkRequest(room.data, r);
     if (!fit.ok) return;
+    // stamped on the request's own night (the planner hasn't opened it yet)
+    setDemoNight(r.bookRoomId, room.data.clock);
     set({
       decisions: {
         ...state.decisions,

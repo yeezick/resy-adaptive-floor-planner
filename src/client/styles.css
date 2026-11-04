@@ -4503,3 +4503,11 @@ html.planner-shell .console > .preview-bar .link-btn {
 .checks-card {
   margin-bottom: 12px;
 }
+.toast-region {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  z-index: 60;
+}
