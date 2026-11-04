@@ -27,6 +27,8 @@ interface Props {
   changes?: readonly LayoutChange[];
   /** Open on this tab instead of the screen-size default (the preview opens on a single room). */
   initialTab?: "first" | ViewPreset;
+  /** When this changes (a sheet opened or closed and the canvas resized), the floor returns to Fit. */
+  fitKey?: string;
 }
 
 interface Drag {
@@ -53,12 +55,30 @@ export function FloorPlan({
   onMove,
   changes,
   initialTab,
+  fitKey,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const panRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [zoom, setZoom] = useState(1);
+  const [fitFor, setFitFor] = useState(fitKey);
+  if (fitFor !== fitKey) {
+    setFitFor(fitKey);
+    setZoom(1);
+  }
+  // The floor fills whatever height its column gives it (the planner page is a fixed-height shell).
+  const [floorH, setFloorH] = useState<number | null>(null);
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(([e]) => {
+      const h = Math.floor(e?.contentRect.height ?? 0);
+      setFloorH(h > 120 ? h : null);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const [preset, setPreset] = useState<ViewPreset>(() =>
     initialTab === "first"
       ? (roomTabs(room)[0]?.id ?? "all")
@@ -262,6 +282,7 @@ export function FloorPlan({
           style={
             {
               "--zoom": zoom,
+              ...(floorH ? { "--floor-h": `${floorH}px` } : {}),
               "--ar": box.w / box.h,
               // single rooms keep ≥11px per grid unit on tablets (2-tops ≥32px); the panel scrolls
               "--min-w": preset === "all" ? "0px" : `${box.w * 11}px`,

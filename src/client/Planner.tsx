@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   clock12,
   times12,
@@ -33,7 +33,7 @@ import type { Highlight, HighlightControls } from "./highlight";
 import { finishParty, seatParty, type DoneEntry, type WaitEntry } from "./lib/service";
 import { Rail } from "./Rail/Rail";
 import { ProposedTag, RequestSheet } from "./requests/RequestSheet";
-import { useRequests } from "./requests/store";
+import { pendingCount, useRequests } from "./requests/store";
 import { ReservationSheet } from "./WalkIn/ReservationSheet";
 import { WalkInSheet, type WalkInDraft } from "./WalkIn/WalkInSheet";
 import { tablesPhrase } from "../domain/wording";
@@ -93,6 +93,13 @@ export function Planner({
     focusView === "request" ? (focus ?? null) : null,
   );
   const requests = useRequests();
+  // The planner is a fixed-height app shell: rail, floor and sheet scroll on their own, the console bar stays.
+  useEffect(() => {
+    document.documentElement.classList.add("planner-shell");
+    return () => document.documentElement.classList.remove("planner-shell");
+  }, []);
+  // iPad: an open sheet collapses the rail to a strip; the host can expand it again.
+  const [railOpen, setRailOpen] = useState(false);
   const request = requests.book?.requests.find((r) => r.id === openRequest) ?? null;
 
   const [notice, setNotice] = useState<ActionResult | null>(null);
@@ -265,8 +272,10 @@ export function Planner({
   };
 
   const night = NIGHTS[room.id];
+  const hasSheet = mode !== "details" || selected.length > 0;
+  const openCount = pendingCount(requests);
   return (
-    <div className={`console${mode !== "details" || selected.length ? " has-sheet" : ""}`}>
+    <div className={`console${hasSheet ? " has-sheet" : ""}${railOpen ? " rail-open" : ""}`}>
       <ConsoleBar
         room={room}
         roomSelect={roomSelect}
@@ -289,6 +298,25 @@ export function Planner({
       )}
       <div className="console-body">
         <aside className="rail" aria-label="Guest lists">
+          <button
+            type="button"
+            className="rail-collapse"
+            aria-expanded={railOpen}
+            onClick={() => setRailOpen((o) => !o)}
+          >
+            {railOpen ? (
+              "‹ Hide lists"
+            ) : (
+              <>
+                <span>Lists ›</span>
+                {openCount > 0 && (
+                  <span className="badge" aria-label={`${openCount} open requests`}>
+                    {openCount}
+                  </span>
+                )}
+              </>
+            )}
+          </button>
           <Rail
             room={room}
             waitlist={waitlist}
@@ -323,6 +351,7 @@ export function Planner({
             onToggle={proposal ? () => undefined : toggle}
             onMove={proposal ? () => undefined : move}
             changes={proposal?.changes}
+            fitKey={hasSheet ? "sheet" : "full"}
           />
           <CoversStrip room={room} />
           <Legend />

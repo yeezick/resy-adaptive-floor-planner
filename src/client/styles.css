@@ -3443,3 +3443,172 @@ button,
 .ask-ai:disabled .sparkle {
   fill: currentColor;
 }
+
+/* ---------------------------------------------------------------------------------------------------------
+   Planner app shell: the page never scrolls; rail, floor and sheet scroll on their own and the console bar stays.
+   (Set by the planner only; /activity, /evals and the layout editor keep normal page scrolling.)
+   --------------------------------------------------------------------------------------------------------- */
+html.planner-shell,
+html.planner-shell body {
+  height: 100%;
+  overflow: clip;
+}
+html.planner-shell #root {
+  height: 100dvh;
+  overflow: clip;
+  display: flex;
+  flex-direction: column;
+}
+html.planner-shell main {
+  flex: 1 1 0;
+  min-height: 0;
+  overflow: clip;
+  width: 100%;
+  max-width: 1600px;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+}
+html.planner-shell main > .console {
+  flex: 1 1 0;
+  min-height: 0;
+  gap: 8px;
+}
+html.planner-shell .console-bar,
+html.planner-shell .console > .preview-bar {
+  flex: none;
+  margin: 0;
+}
+html.planner-shell .console-body {
+  flex: 1 1 0;
+  min-height: 0;
+  align-items: stretch;
+  grid-template-rows: minmax(0, 1fr);
+  overflow: clip;
+}
+html.planner-shell .rail,
+html.planner-shell .side-col {
+  position: relative;
+  height: auto;
+  max-height: none;
+  min-height: 0;
+}
+html.planner-shell .rail {
+  overflow-y: auto;
+}
+html.planner-shell .side-col .tabpanel {
+  overscroll-behavior: contain;
+}
+html.planner-shell .floor-col {
+  min-height: 0;
+  overflow: hidden;
+}
+html.planner-shell .floor-wrap {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+html.planner-shell .floor-viewport {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+html.planner-shell .floor-scroll {
+  flex: 1 1 0;
+  min-height: 0;
+  max-height: none;
+}
+html.planner-shell .covers-strip,
+html.planner-shell .floor-col > .legend {
+  flex: none;
+}
+.rail-collapse {
+  display: none;
+}
+
+/* iPad landscape: the sheet is a column, not an overlay. With a sheet open the rail collapses to a strip
+   (expandable) and the canvas keeps ~70 % of the width next to a ~340 px detail column. */
+@media (max-width: 1280px) {
+  html.planner-shell .console-body {
+    grid-template-columns: 220px minmax(0, 1fr);
+    position: static;
+  }
+  html.planner-shell .console.has-sheet .console-body {
+    grid-template-columns: 64px minmax(0, 1fr) 340px;
+  }
+  html.planner-shell .console.has-sheet.rail-open .console-body {
+    grid-template-columns: 220px minmax(0, 1fr) 340px;
+  }
+  html.planner-shell .console .side-col {
+    position: relative;
+    width: auto;
+    box-shadow: none;
+    transform: none;
+  }
+  html.planner-shell .console.has-sheet .floor-col {
+    margin-right: 0;
+  }
+  html.planner-shell .console:not(.has-sheet) .side-col {
+    display: none;
+  }
+  html.planner-shell .console.has-sheet .rail-collapse {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    min-height: 44px;
+    padding: 8px 4px;
+    font-size: 12px;
+    border: 0;
+    border-bottom: 1px solid var(--border);
+    border-radius: 0;
+    background: transparent;
+  }
+  html.planner-shell .console.has-sheet.rail-open .rail-collapse {
+    flex-direction: row;
+    justify-content: flex-start;
+    padding: 8px 12px;
+  }
+  html.planner-shell .console.has-sheet:not(.rail-open) .rail-lists {
+    display: none;
+  }
+}
+
+/* Touch: every named host control is at least 44 × 44 under a coarse pointer (floor tiles excepted). */
+@media (pointer: coarse) {
+  .topbar nav a,
+  .theme-toggle,
+  .topbar button,
+  .topbar select,
+  #rail-search,
+  .rail-search input,
+  .fb-thumb,
+  .theme-toggle button,
+  .layouts button,
+  .btn-row button,
+  .panel-head .link-btn,
+  .panel-head button,
+  .cb-actions button,
+  .room-tabs button,
+  .seg button,
+  .rail-collapse,
+  .rail-action,
+  .row-finish,
+  .row-actions button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  .topbar nav a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px;
+  }
+}
+/* absolutely positioned helpers (screen-reader tables) stay inside their column */
+html.planner-shell .console-body > * {
+  position: relative;
+}
