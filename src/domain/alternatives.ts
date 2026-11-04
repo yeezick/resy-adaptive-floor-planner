@@ -4,7 +4,7 @@
 import { fitRequest, type Build } from "./buildplan";
 import { SERVICE, toReservation, type GuestRequest } from "./requests";
 import type { Room } from "./types";
-import { storagePhrase, tablesPhrase } from "./wording";
+import { listAnd, storagePhrase, tablesPhrase } from "./wording";
 
 export interface StorageStock {
   /** Spare 4-tops (or larger) in storage tonight. */
@@ -24,8 +24,11 @@ export function stockOf(room: Room): StorageStock {
 
 export type OneRoomPlan =
   | { ok: true; area: string; build: Build }
-  /** No single room seats the party, even with storage: the room that comes closest. */
-  | { ok: false; largest: { area: string; seats: number } | null };
+  /**
+   * No single room works: the room that comes closest in seats, and rooms whose check failed for another
+   * reason (booked or not free at that time), which are named as "not free" rather than "too small".
+   */
+  | { ok: false; largest: { area: string; seats: number } | null; busy: string[] };
 
 /**
  * The party in ONE room, its floor tables plus whatever storage adds (spare tables, extenders, chairs), at the
@@ -36,6 +39,7 @@ export function oneRoomPlan(room: Room, r: GuestRequest): OneRoomPlan {
   const areas = [...new Set(room.tables.map((t) => t.area))];
   const fits: { area: string; build: Build }[] = [];
   let largest: { area: string; seats: number } | null = null;
+  const busy: string[] = [];
   for (const area of areas) {
     const tables = room.tables.filter((t) => t.area === area).map((t) => t.id);
     // latest = the requested time: no later-arrival search, one plan per room
@@ -49,8 +53,13 @@ export function oneRoomPlan(room: Room, r: GuestRequest): OneRoomPlan {
       if (!f.build.area.includes(" + ")) fits.push({ area, build: f.build });
       continue;
     }
+    // the planner's reason names the largest set when seats run short; any other reason means not free then
     const m = /largest: (\d+)/.exec(f.reason);
-    const seats = m ? Number(m[1]) : 0;
+    if (!m) {
+      busy.push(area);
+      continue;
+    }
+    const seats = Number(m[1]);
     if (seats > 0 && (!largest || seats > largest.seats)) largest = { area, seats };
   }
   const best = fits.sort(
@@ -58,7 +67,7 @@ export function oneRoomPlan(room: Room, r: GuestRequest): OneRoomPlan {
       a.build.spareTables + a.build.extenders - (b.build.spareTables + b.build.extenders) ||
       a.build.tables.length - b.build.tables.length,
   )[0];
-  return best ? { ok: true, area: best.area, build: best.build } : { ok: false, largest };
+  return best ? { ok: true, area: best.area, build: best.build } : { ok: false, largest, busy };
 }
 
 /** "No single room fits 22, even with tables from storage (closest: Garden Room, 20 seats)." */
@@ -79,15 +88,26 @@ export function oneRoomSentence(
   const nearest = current?.area.includes(" + ")
     ? ` The nearest is the current plan: ${current.area} with the divider open.`
     : "";
-  return `No single room fits ${r.partySize}, even with tables from storage${closest}.${nearest}`;
+  const busy = plan.busy.length
+    ? ` ${listAnd(plan.busy)} ${plan.busy.length === 1 ? "isn't" : "aren't"} free at that time.`
+    : "";
+  return `No single room fits ${r.partySize}, even with tables from storage${closest}.${busy}${nearest}`;
 }
 
 /**
  * What storage still has once the night's other builds take theirs: "Storage tonight: 4 of 6 spare tables free,
- * 6 extenders, 40 chairs." or the plain no ("No spare tables in storage tonight: 0 of 6.").
+ * 6 of 6 extenders, 32 of 40 chairs." or the plain no ("No spare tables in storage tonight: 0 of 6.").
  */
-export function storageSentence(stock: StorageStock, usedSpare: number): string {
-  const free = Math.max(0, stock.spareTables - usedSpare);
+export function storageSentence(
+  stock: StorageStock,
+  usedBy: { spareTables: number; extenders: number; extraChairs: number } | number,
+): string {
+  // a bare number is spare tables only (older callers)
+  const used =
+    typeof usedBy === "number" ? { spareTables: usedBy, extenders: 0, extraChairs: 0 } : usedBy;
+  const free = Math.max(0, stock.spareTables - used.spareTables);
   if (free === 0) return `No spare tables in storage tonight: 0 of ${stock.spareTables}.`;
-  return `Storage tonight: ${free} of ${stock.spareTables} spare tables free, ${stock.extenders} extenders, ${stock.chairs} chairs.`;
+  const ext = Math.max(0, stock.extenders - used.extenders);
+  const chairs = Math.max(0, stock.chairs - used.extraChairs);
+  return `Storage tonight: ${free} of ${stock.spareTables} spare tables free, ${ext} of ${stock.extenders} extenders, ${chairs} of ${stock.chairs} chairs.`;
 }

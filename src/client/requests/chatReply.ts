@@ -32,7 +32,10 @@ export function notedLine(
 const STORAGE =
   /\b(from (the )?(back|storage|stockroom)|storage|spare tables?|bring (in |out )?(more |extra )?tables)\b/i;
 const ONE_ROOM =
-  /\b(single|one|same) (long |big )?(table|room|row|space)\b|\ball (\d+ )?(guests |of them )?together\b|\bone place\b/i;
+  /\bsingle (long |big )?(table|room|row|space)\b|\b(one|same) (room|space|place)\b|\bone (long |big )?(table|row) for (all|everyone|the whole)\b|\ball (\d+ )?(guests |of them )?together\b/i;
+/** Another change in the same message (time, headcount, a new need or note): the model handles it. */
+const OTHER_ASK =
+  /\b(push|move it|earlier|later|headcount|now \d+|\d{1,2}(:\d\d)? ?(am|pm)|\d{1,2}:\d\d|high ?chair|add (a|an|some)\b|birthday|cake|allerg\w*|vegan|quiet|view|window)\b/i;
 const NEED_TALK = /\b(wheel ?chair|accessible|stroller|pram|aisle|step[- ]free)\b/i;
 const REMOVE = /\b(no longer|remove|drop|without|doesn'?t need|don'?t need|not need)\b/i;
 
@@ -51,11 +54,17 @@ export function localAnswer(
   ctx: { room: Room; request: GuestRequest; fit: RequestFit | null; cost: PartyFit | null },
 ): LocalAnswer | null {
   const { room, request: r, fit, cost } = ctx;
+  if (OTHER_ASK.test(message)) return null;
   const current = fit?.ok ? { area: fit.build.area } : null;
   const storage = STORAGE.test(message);
   if (storage || ONE_ROOM.test(message)) {
     const plan = oneRoomPlan(room, r);
-    const used = fit?.plan.totals.spareTables ?? 0;
+    const t = fit?.plan.totals;
+    const used = {
+      spareTables: t?.spareTables ?? 0,
+      extenders: t?.extenders ?? 0,
+      extraChairs: t?.extraChairs ?? 0,
+    };
     const text = [
       storage ? storageSentence(stockOf(room), used) : null,
       oneRoomSentence(r, plan, current),
