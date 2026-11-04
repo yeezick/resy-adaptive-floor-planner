@@ -4008,6 +4008,7 @@ button[aria-pressed="true"]:not(.primary):not(.fb-thumb) {
 html.planner-shell .console-body > .rail,
 html.planner-shell .console-body > .side-col {
   top: 0;
+}
 /* Held by an accepted plan: neutral dashed outline + "Held" (distinct from Blocked; no amber, no hatch) */
 .floor .held-outline {
   fill: none;
@@ -4094,4 +4095,17 @@ html.planner-shell .console-body > .side-col {
   margin: 2px 0 0;
   align-self: stretch;
   text-align: right;
+}
+/* Decisions are neutral (green = open / fits only); one chip style for every AI row kind */
+.tag-accepted {
+  background: var(--surface-3);
+  color: var(--text);
+}
+.kind-recommendation,
+.kind-request,
+.kind-request-chat,
+.kind-assistant-answer,
+.kind-assistant-question {
+  background: var(--surface-3);
+  color: var(--text);
 }
