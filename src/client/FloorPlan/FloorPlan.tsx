@@ -29,6 +29,8 @@ interface Props {
   initialTab?: "first" | ViewPreset;
   /** When this changes (a sheet opened or closed and the canvas resized), the floor returns to Fit. */
   fitKey?: string;
+  /** Tables held by accepted large-party plans for this night. */
+  held?: ReadonlySet<string>;
 }
 
 interface Drag {
@@ -56,6 +58,7 @@ export function FloorPlan({
   changes,
   initialTab,
   fitKey,
+  held,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -349,6 +352,7 @@ export function FloorPlan({
                     badge={highlight?.badges?.[t.id]}
                     dim={dimOthers && !lit.has(t.id)}
                     dragging={drag?.id === t.id && drag.moved}
+                    held={held?.has(t.id) ?? false}
                     onPointerDown={(e) => onTableDown(e, t)}
                     onPointerMove={(e) => onTableMove(e, t)}
                     onPointerUp={(e) => onTableUp(e, t)}

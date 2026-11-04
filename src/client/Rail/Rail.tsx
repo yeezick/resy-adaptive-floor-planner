@@ -14,7 +14,7 @@ import { PHASE_LABEL, seatedParties, type DoneEntry, type WaitEntry } from "../l
 import { SOURCE_LABEL, SOURCE_SHORT, VerdictChip } from "../requests/RequestSheet";
 import { ProposedTag } from "../ProposedTag";
 import { decisionOf, pendingCount, useRequests } from "../requests/store";
-import { tableNo } from "../../domain/wording";
+import { tableNo, tablesPhrase } from "../../domain/wording";
 import { partyName } from "../lib/names";
 
 interface Props {
@@ -245,12 +245,15 @@ export function Rail(p: Props) {
                   {...hoverProps(highlight, h)}
                 >
                   <span className="row-time">{clock12(r.time)}</span>
-                  <span className="row-party" aria-label={`party of ${r.partySize}`}>
-                    {r.partySize}
-                  </span>
                   <span className="row-main">
-                    <span className="row-sub">
-                      {partyName(r.id)} · {r.area ? short(r.area) : "any area"}
+                    <span className="row-name">
+                      <strong>{partyName(r.id)}</strong>
+                      <span className="row-party-inline" aria-label={`party of ${r.partySize}`}>
+                        {r.partySize}
+                      </span>
+                      <span className="row-table">
+                        {build ? tablesPhrase(build.tables) : "unassigned"}
+                      </span>
                     </span>
                     {(r.partySize >= LARGE_PARTY || r.needs.length > 0) && (
                       <span className="needs">
@@ -426,10 +429,9 @@ function RequestsSection({
                 <span className="row-main">
                   <span className="row-sub">
                     <VerdictChip t={t} override={s.overrides[r.id]} />
-                    <span className="muted" title={SOURCE_LABEL[r.source]}>
-                      {" "}
-                      {SOURCE_SHORT[r.source]}
-                    </span>
+                  </span>
+                  <span className="row-source muted" title={SOURCE_LABEL[r.source]}>
+                    {SOURCE_SHORT[r.source]}
                   </span>
                   {t?.status === "ok" && (
                     <span className="req-lines">

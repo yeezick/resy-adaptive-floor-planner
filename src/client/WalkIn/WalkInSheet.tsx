@@ -137,14 +137,20 @@ export function WalkInSheet({
   const check = selected.length ? checkTableSet(room, selected) : null;
   const base = check?.ok ? check.baseSeats : picked.reduce((n, t) => n + t.seats, 0);
   const busy = picked.filter((t) => t.status === "occupied" || t.status === "blocked");
+  // the picked option's wait (a suggestion's own estimate, else the live quote)
+  const pickedOption = fit.options.find(
+    (o) => o.tables.length === selected.length && o.tables.every((id) => selected.includes(id)),
+  );
+  const pickWait = pickedOption ? Math.max(pickedOption.waitMin, 5) : quote;
   const problem = !selected.length
     ? "Tap a suggestion or tables on the floor"
     : check && !check.ok
       ? check.reason
       : busy.length
-        ? `${tablesPhrase(busy.map((t) => t.id))} still ${busy.length === 1 ? "has" : "have"} guests — add to the waitlist or pick free tables`
+        ? `${tablesPhrase(busy.map((t) => t.id))} still ${busy.length === 1 ? "has" : "have"} guests — soonest free in ~${pickWait} min (est.); add the party to the waitlist`
         : null;
   const short = Math.max(0, size - base);
+  const canSeat = selected.length > 0 && problem === null;
 
   const toggleNeed = (n: Need) =>
     onDraft({ ...draft, needs: needs.includes(n) ? needs.filter((x) => x !== n) : [...needs, n] });
@@ -280,17 +286,18 @@ export function WalkInSheet({
       </div>
 
       <div className="btn-row sheet-actions">
-        <button
-          type="button"
-          className="primary"
-          disabled={problem !== null}
-          onClick={() => onSeat(selected, size)}
-        >
-          Seat party of {size}
-        </button>
+        {canSeat && (
+          <button type="button" className="primary" onClick={() => onSeat(selected, size)}>
+            Seat party of {size} at {tablesPhrase(selected)}
+          </button>
+        )}
         {!draft.waitId && (
-          <button type="button" onClick={() => onWaitlist(quote)}>
-            Add to waitlist · quote ~{quote} min
+          <button
+            type="button"
+            className={canSeat ? undefined : "primary"}
+            onClick={() => onWaitlist(busy.length ? pickWait : quote)}
+          >
+            Add to waitlist · ~{busy.length ? pickWait : quote} min (est.)
           </button>
         )}
       </div>

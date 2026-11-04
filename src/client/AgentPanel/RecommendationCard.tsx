@@ -3,6 +3,7 @@ import {
   checkTableSet,
   combinedSeats,
   comboOf,
+  estimateFreeTime,
   REMAINING_MIN,
   RESET_MIN,
   tableById,
@@ -81,6 +82,15 @@ export function RecommendationCard({
     label: `AI option ${rec.rank}: ${rows.map((r) => tablesPhrase(r)).join(" | ")}`,
     dividers,
     source: "ai",
+    // each table's own countdown on the floor (amber until free, est.; green when free now)
+    badges: Object.fromEntries(
+      rec.tables.flatMap((id) => {
+        const t = tableById(room, id);
+        if (!t || t.status === "blocked") return [];
+        const m = estimateFreeTime(t).minutes;
+        return m === null ? [] : [[id, m === 0 ? "now" : `~${m}m`]];
+      }),
+    ),
   };
   const pinned = highlight.pinnedKey === hlKey;
   // the first option is shown on the floor when the answer arrives (the floor scrolls it into view)

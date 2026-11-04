@@ -13,6 +13,8 @@ interface Props {
   badge?: string;
   dim: boolean;
   dragging: boolean;
+  /** Held by an accepted large-party plan (neutral dashed outline + "Held"; never "blocked"). */
+  held?: boolean;
   onPointerDown: (e: PointerEvent<SVGGElement>) => void;
   onPointerMove: (e: PointerEvent<SVGGElement>) => void;
   onPointerUp: (e: PointerEvent<SVGGElement>) => void;
@@ -52,7 +54,16 @@ function HitArea({ table: t }: { table: Table }) {
   );
 }
 
-export function TableShape({ table: t, selected, lit, badge, dim, dragging, ...handlers }: Props) {
+export function TableShape({
+  table: t,
+  selected,
+  lit,
+  badge,
+  dim,
+  dragging,
+  held = false,
+  ...handlers
+}: Props) {
   const c = tableColors(t);
   const cx = t.x + t.w / 2;
   const cy = t.y + t.h / 2;
@@ -62,6 +73,7 @@ export function TableShape({ table: t, selected, lit, badge, dim, dragging, ...h
     lit && "is-lit",
     dim && "is-dim",
     dragging && "is-dragging",
+    held && "is-held",
   ]
     .filter(Boolean)
     .join(" ");
@@ -120,10 +132,20 @@ export function TableShape({ table: t, selected, lit, badge, dim, dragging, ...h
       tabIndex={0}
       role="button"
       aria-pressed={selected}
-      aria-label={badge ? `${describe(t)}, ${badgeWords(badge)}` : describe(t)}
+      aria-label={`${describe(t)}${held ? ", held for a large party" : ""}${badge ? `, ${badgeWords(badge)}` : ""}`}
       {...handlers}
     >
       <HitArea table={t} />
+      {held && (
+        <rect
+          className="held-outline"
+          x={t.x - 0.35}
+          y={t.y - 0.35}
+          width={t.w + 0.7}
+          height={t.h + 0.7}
+          rx={0.5}
+        />
+      )}
       {(selected || lit) && ring}
       <Chairs table={t} />
       {body}
@@ -139,7 +161,11 @@ export function TableShape({ table: t, selected, lit, badge, dim, dragging, ...h
         />
       )}
       <TableLabels table={t} color={c.text} />
-      {badge && <ReadyBubble table={t} text={badge} />}
+      {badge ? (
+        <ReadyBubble table={t} text={badge} />
+      ) : held ? (
+        <ReadyBubble table={t} text="Held" kind="is-held" />
+      ) : null}
     </g>
   );
 }
@@ -153,7 +179,7 @@ function badgeWords(b: string): string {
 }
 
 /** Readiness bubble on the table's top edge: green "now" / "free", red "~25m" or "~5:20 PM" (est.). */
-function ReadyBubble({ table: t, text }: { table: Table; text: string }) {
+function ReadyBubble({ table: t, text, kind }: { table: Table; text: string; kind?: string }) {
   const px = usePx();
   const font = px(9);
   const h = font * 1.45;
@@ -163,7 +189,7 @@ function ReadyBubble({ table: t, text }: { table: Table; text: string }) {
   const y = t.y - h * 0.55;
   return (
     <g
-      className={`ready-bubble ${text === "now" || text === "free" ? "is-now" : "is-wait"}`}
+      className={`ready-bubble ${kind ?? (text === "now" || text === "free" ? "is-now" : "is-wait")}`}
       aria-hidden="true"
     >
       <rect x={x} y={y} width={w} height={h} rx={h / 2} />

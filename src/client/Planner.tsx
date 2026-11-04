@@ -28,7 +28,15 @@ import { Legend } from "./FloorPlan/Legend";
 import { SelectionBar } from "./FloorPlan/SelectionBar";
 import { TableDetails } from "./FloorPlan/TableDetails";
 import type { Highlight, HighlightControls } from "./highlight";
-import { finishParty, seatParty, type DoneEntry, type WaitEntry } from "./lib/service";
+import {
+  finishParty,
+  PHASE_LABEL,
+  seatParty,
+  setPhase,
+  type DoneEntry,
+  type WaitEntry,
+} from "./lib/service";
+import { planHolds } from "./lib/holds";
 import { Rail } from "./Rail/Rail";
 import { RequestSheet } from "./requests/RequestSheet";
 import { ProposedTag } from "./ProposedTag";
@@ -111,6 +119,8 @@ export function Planner({
   }, []);
   // iPad: an open sheet collapses the rail to a strip; the host can expand it again.
   const [railOpen, setRailOpen] = useState(false);
+  // Tables whose meal phase the host set by hand (the rest come from the simulated POS feed).
+  const [phaseByHost, setPhaseByHost] = useState<ReadonlySet<string>>(new Set());
   const [railFor, setRailFor] = useState(false);
   const request = requests.book?.requests.find((r) => r.id === openRequest) ?? null;
 
@@ -211,9 +221,8 @@ export function Planner({
   };
 
   const combine = (ids: string[]) => {
-    const r = run(() => applyCombine(room, ids), `Combined ${tablesPhrase(ids)}`);
-    if (r.ok) setSelected([]);
-    return r;
+    // the combined set stays selected, so Split is one tap away
+    return run(() => applyCombine(room, ids), `Combined ${tablesPhrase(ids)}`);
   };
   const combineRows = (rows: string[][]) =>
     run(
@@ -285,6 +294,9 @@ export function Planner({
   };
 
   const night = NIGHTS[room.id];
+  // Tables held by accepted large-party plans for this night (derived here; never a "blocked" status).
+  const holds = useMemo(() => planHolds(room, requests), [room, requests]);
+  const heldIds = useMemo(() => new Set(holds.keys()), [holds]);
   const hasSheet = mode !== "details" || selected.length > 0;
   // the expanded rail resets each time a sheet closes
   if (railFor !== hasSheet) {
@@ -370,6 +382,7 @@ export function Planner({
             onMove={proposal ? () => undefined : move}
             changes={proposal?.changes}
             fitKey={hasSheet ? "sheet" : "full"}
+            held={heldIds}
           />
           <CoversStrip room={room} />
           <details
@@ -405,7 +418,20 @@ export function Planner({
               onSplit={split}
               onClear={() => setSelected([])}
             />
-            <TableDetails room={room} selected={selected} onFinish={finish} />
+            <TableDetails
+              room={room}
+              selected={selected}
+              onFinish={finish}
+              holds={holds}
+              phaseByHost={phaseByHost}
+              onPhase={(ids, phase) => {
+                const r = run(
+                  () => setPhase(room, ids, phase),
+                  `${tablesPhrase(ids)} set to ${PHASE_LABEL[phase].toLowerCase()}`,
+                );
+                if (r.ok) setPhaseByHost((s) => new Set([...s, ...ids]));
+              }}
+            />
           </div>
           {mode === "walkin" && (
             <div className="tabpanel">

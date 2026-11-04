@@ -162,3 +162,13 @@ export interface DoneEntry {
   tables: string[];
   finishedAt: string;
 }
+
+/** The host sets a seated table's meal phase by hand (parity with the simulated POS feed). */
+export function setPhase(room: Room, ids: readonly string[], phase: Phase): Room {
+  return {
+    ...room,
+    tables: room.tables.map((t) =>
+      ids.includes(t.id) && t.status === "occupied" ? { ...t, phase } : t,
+    ),
+  };
+}

@@ -90,7 +90,7 @@ export function fmtAt(iso: string): string {
 export function DecisionChip({ d }: { d: RowDecision }) {
   switch (d.kind) {
     case "accepted":
-      return <span className="verdict verdict-real">Accepted</span>;
+      return <span className="verdict verdict-neutral">Accepted</span>;
     case "declined":
       return (
         <span

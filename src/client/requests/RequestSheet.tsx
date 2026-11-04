@@ -555,6 +555,11 @@ export function RequestSheet({
               Accept
             </button>
           </div>
+          {proposal && (
+            <p className="muted small accept-why">
+              Apply or discard the change proposed in chat to accept.
+            </p>
+          )}
         </div>
       ) : (
         <div className="req-decided small" role="status">

@@ -15,10 +15,26 @@ export default defineConfig({
     trace: "retain-on-failure",
   },
   projects: [
-    { name: "ipad", use: { ...devices["Desktop Chrome"], viewport: { width: 1180, height: 820 } } },
+    {
+      name: "ipad",
+      testIgnore: /touch\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], viewport: { width: 1180, height: 820 } },
+    },
     {
       name: "desktop",
+      testIgnore: /touch\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], viewport: { width: 1440, height: 900 } },
+    },
+    {
+      // coarse pointer at iPad landscape: touch-target sizes only (not the whole suite)
+      name: "touch",
+      testMatch: /touch\.spec\.ts/,
+      use: {
+        ...devices["Desktop Chrome"],
+        viewport: { width: 1180, height: 820 },
+        hasTouch: true,
+        isMobile: false,
+      },
     },
   ],
   webServer: {
