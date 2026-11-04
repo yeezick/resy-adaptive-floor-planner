@@ -181,6 +181,9 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
   await expect(page.locator(".req-decided")).toContainText("Declined for capacity fit");
 
   // the 22-top fits: Accept opens Friday's plan with the party in focus
+  // (iPad: an open sheet collapses the rail to a strip; expand it to pick another request)
+  const strip = page.locator(".rail-collapse");
+  if (await strip.isVisible()) await strip.click();
   await rail.locator(".row-request .row-btn").nth(1).click();
   const sheet = page.locator(".request-sheet");
   // another night on screen: weekday + date, no countdown
@@ -595,5 +598,32 @@ test.describe("manager copy carries no fixture ids", () => {
     await sheet.getByRole("button", { name: "Mark as junk" }).click();
     await expect(sheet.locator(".verdict").first()).toHaveText("Junk (manager)");
     await expect(sheet.getByRole("button", { name: /Accept/ })).toBeDisabled();
+  });
+});
+
+test.describe("planner app shell", () => {
+  test("the page never scrolls; Discuss doesn't move the window", async ({ page }) => {
+    await page.route("**/api/requests/*/triage", (route) => route.abort());
+    await page.goto("/?scenario=party-22-agent");
+    await expect(page.locator(".request-sheet")).toBeVisible();
+    const vh = page.viewportSize()?.height ?? 0;
+    expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(
+      vh,
+    );
+    await page.getByRole("button", { name: "Discuss" }).click();
+    await page.waitForTimeout(400);
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    await expect(page.locator(".console-bar")).toBeInViewport();
+  });
+
+  test("an open sheet never covers the zoom controls or room tabs", async ({ page }) => {
+    await page.goto("/?scenario=party-22-agent");
+    const side = await page.locator(".side-col").boundingBox();
+    for (const name of ["Zoom in", "Zoom out", "Fit to panel"]) {
+      const b = await page.getByRole("button", { name }).boundingBox();
+      expect(b && side && b.x + b.width <= side.x).toBe(true);
+    }
+    const tabs = await page.locator(".room-tabs").boundingBox();
+    expect(tabs && side && tabs.x + tabs.width <= side.x).toBe(true);
   });
 });
