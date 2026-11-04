@@ -942,3 +942,94 @@ test.describe("floor reads grey; colour only for exceptions", () => {
     expect(fills.length).toBe(1);
   });
 });
+
+test.describe("iPad chrome, toasts and panels", () => {
+  test("dark theme: the picked party size reads on its fill", async ({ page }) => {
+    await openFloor(page);
+    await hostButton(page, "+ Walk-in").click();
+    const eight = page
+      .locator(".walkin .size-grid")
+      .getByRole("button", { name: "8", exact: true });
+    await eight.click();
+    const [fg, bg] = await eight.evaluate((e) => {
+      const s = getComputedStyle(e);
+      return [s.color, s.backgroundColor];
+    });
+    expect(fg).not.toBe(bg);
+    expect(fg).toBe("rgb(20, 20, 20)");
+  });
+
+  test("a toast floats over the floor; the bar keeps its height", async ({ page }) => {
+    await openFloor(page);
+    await page.locator('svg.floor g[data-id="T3"]').focus();
+    await page.keyboard.press("Enter");
+    await page.locator(".table-card .finish-btn").click();
+    const toast = page.locator(".toast");
+    await expect(toast).toBeVisible();
+    expect(await toast.evaluate((e) => getComputedStyle(e).position)).toBe("fixed");
+    expect(await page.locator(".console-bar .toast, .topbar .toast").count()).toBe(0);
+    const withToast = await page.locator(".console-bar").boundingBox();
+    await toast.getByRole("button", { name: "Dismiss" }).click();
+    await expect(toast).toHaveCount(0);
+    expect(await page.locator(".console-bar").boundingBox()).toEqual(withToast);
+  });
+
+  test("no empty Table details panel: the panel opens with something in it, and has Close", async ({
+    page,
+  }) => {
+    await openFloor(page);
+    await expect(page.locator(".side-col")).toBeHidden();
+    await page.locator('svg.floor g[data-id="T3"]').focus();
+    await page.keyboard.press("Enter");
+    await expect(page.locator(".side-col")).toBeVisible();
+    await expect(page.locator(".panel-head").getByRole("button", { name: "Close" })).toBeVisible();
+  });
+});
+
+test.describe("iPad floor and top bar", () => {
+  test.skip(({ viewport }) => (viewport?.width ?? 0) > 1280, "iPad landscape only");
+
+  test("one top row ≤ 70 px with Scenarios in the nav; nothing overlaps", async ({ page }) => {
+    await openFloor(page);
+    const bar = await page.locator(".topbar").boundingBox();
+    expect(bar?.height ?? 999).toBeLessThanOrEqual(70);
+    await expect(page.locator(".topbar nav .scenario-menu summary")).toContainText("Scenarios");
+    const nav = await page.locator(".topbar nav").boundingBox();
+    const word = await page.locator(".wordmark").boundingBox();
+    const theme = await page.locator(".theme-toggle").boundingBox();
+    expect(word && nav && word.x + word.width < nav.x).toBe(true);
+    expect(nav && theme && nav.x + nav.width <= theme.x).toBe(true);
+  });
+
+  test("Fit shows the whole room; zoom out is disabled (and looks it) once fitted", async ({
+    page,
+  }) => {
+    await openFloor(page);
+    const before = await page.locator(".floor-scroll svg").boundingBox();
+    const out = page.getByRole("button", { name: "Zoom out" });
+    await expect(out).toBeEnabled();
+    await page.getByRole("button", { name: "Fit to panel" }).click();
+    const after = await page.locator(".floor-scroll svg").boundingBox();
+    const scroll = await page.locator(".floor-scroll").boundingBox();
+    expect(after && before && after.width < before.width).toBe(true);
+    expect(after && scroll && after.width <= scroll.width + 1).toBe(true);
+    await expect(out).toBeDisabled();
+    const [dis, en] = await Promise.all([
+      out.evaluate((e) => getComputedStyle(e).color),
+      page.getByRole("button", { name: "Zoom in" }).evaluate((e) => getComputedStyle(e).color),
+    ]);
+    expect(dis).not.toBe(en);
+  });
+
+  test("Lists opens over the floor as a drawer; the floor keeps its width", async ({ page }) => {
+    await openFloor(page);
+    await page.locator(".row-request .row-btn").first().click();
+    const before = await page.locator(".floor-col").boundingBox();
+    await page.locator(".rail-collapse").click();
+    await expect(page.locator(".rail-lists")).toBeVisible();
+    expect(await page.locator(".floor-col").boundingBox()).toEqual(before);
+    expect(await page.locator(".rail").evaluate((e) => getComputedStyle(e).position)).toBe(
+      "absolute",
+    );
+  });
+});
