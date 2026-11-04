@@ -1,0 +1,17 @@
+{
+  "id": "chat-override-accept",
+  "promptVersion": "request-chat.v1.1",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "tableRange": null,
+    "partySize": null,
+    "time": null,
+    "addNeeds": [],
+    "removeNeeds": [],
+    "notes": [],
+    "clarify": "I can only adjust constraints for this party (table range, headcount, time, or needs). Which of those would you like to change?"
+  },
+  "validatorRejects": 0,
+  "costUsd": 0.000189,
+  "latencyMs": 1832
+}

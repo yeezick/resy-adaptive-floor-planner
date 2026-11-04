@@ -12,6 +12,7 @@ import {
   baseConstraints,
   changeDelta,
   checkAdjusted,
+  ESCALATED_NOTE,
   mergeTurn,
   type ChatConstraints,
 } from "../../domain/requestChat";
@@ -26,6 +27,7 @@ import {
 import { demoIso, demoStamp, receivedBy, setDemoNight } from "../lib/demoClock";
 import { NIGHTS } from "../nights";
 import { MAX_NOTE_CHARS } from "../../domain/activity";
+import { REQUEST_CHAT_HARD_MS, TOO_LONG } from "../lib/wait";
 
 export type DeclineReason = "fit" | "policy" | "other";
 
@@ -59,6 +61,12 @@ export interface ChatTurn {
   before?: ChatConstraints;
   /** Answered on this device from the capacity check (no model call), e.g. "one room" or "from storage". */
   local?: boolean;
+  /** Wall-clock ms when it was sent (the working line counts seconds from here). */
+  sentMs?: number;
+  /** The constraints this turn's own answer leads to (its capacity sentence is worked out from these). */
+  after?: ChatConstraints;
+  /** The AI's question back, verbatim, when it asked one. */
+  clarify?: string;
 }
 
 export interface RequestsState {
@@ -96,6 +104,19 @@ export interface RequestsState {
     /** Accept from the review screen: the crew plan is applied in the same confirm. */
     apply?: boolean;
   } | null;
+}
+
+/** Replace (or add) one turn by id. */
+function put(requestId: string, t: ChatTurn): void {
+  const list = state.chat[requestId] ?? [];
+  set({
+    chat: {
+      ...state.chat,
+      [requestId]: list.some((x) => x.id === t.id)
+        ? list.map((x) => (x.id === t.id ? t : x))
+        : [...list, t],
+    },
+  });
 }
 
 let state: RequestsState = {
@@ -228,6 +249,10 @@ async function applyScenario(book: RequestBook): Promise<void> {
             status: "ok",
             before: baseConstraints(r),
             result: RECORDED_CHAT.result,
+            // the recorded turn carries its own answer, like a live one
+            after: mergeTurn(baseConstraints(r), output),
+            changed: changeDelta(r, baseConstraints(r), mergeTurn(baseConstraints(r), output)),
+            ...(output.clarify ? { clarify: output.clarify } : {}),
           },
         ],
       },
@@ -352,7 +377,11 @@ export const requestsActions = {
     const { [id]: _gone, ...proposals } = state.proposals;
     set({ proposals });
   },
-  /** Send one chat message about this request; a valid answer updates its constraints. */
+  /**
+   * Send one chat message about this request. The answer is stored on THIS turn (by its id), never read back
+   * from shared state, so two turns can't show the same reply. A slow answer is kept: if it lands after the
+   * timeout line, it replaces that line.
+   */
   async sendChat(r: GuestRequest, message: string) {
     const id = `turn-${++seq}`;
     if (state.alt[r.id]) {
@@ -366,34 +395,49 @@ export const requestsActions = {
       message,
       status: "loading",
       before: current,
+      sentMs: Date.now(),
     };
-    const put = (t: ChatTurn) =>
-      set({
-        chat: {
-          ...state.chat,
-          [r.id]: [...(state.chat[r.id] ?? []).filter((x) => x.id !== id), t],
-        },
-      });
-    put(turn);
+    put(r.id, turn);
+    const hard = setTimeout(() => requestsActions.timeoutTurn(r.id, id), REQUEST_CHAT_HARD_MS);
     const res = await postRequestChat(r.id, {
       message,
       request: { partySize: r.partySize, day: r.day, time: r.time, needs: r.needs },
       constraints: current,
     });
-    // timed out meanwhile: the late answer is dropped
-    if ((state.chat[r.id] ?? []).find((x) => x.id === id)?.status === "error") return;
-    if (!res.ok)
-      return put({ ...turn, status: "error", error: res.error, outcome: res.error.message });
-    put({ ...turn, status: "ok", result: res.data });
-    if (res.data.output) {
-      // a proposal, shown as a diff: nothing changes until the manager presses Apply
-      const latest = state.proposals[r.id]?.constraints ?? state.adjust[r.id] ?? baseConstraints(r);
-      const next = mergeTurn(latest, res.data.output);
-      const current = state.adjust[r.id] ?? baseConstraints(r);
-      // a turn that changes nothing (or only asks a question) proposes nothing
-      if (JSON.stringify(next) !== JSON.stringify(current))
-        set({ proposals: { ...state.proposals, [r.id]: { constraints: next } } });
-    } else put({ ...turn, status: "ok", result: res.data, outcome: res.data.note ?? undefined });
+    clearTimeout(hard);
+    // the turn as it stands now (it may carry the timeout line, which the answer replaces)
+    const now = (state.chat[r.id] ?? []).find((x) => x.id === id);
+    if (!now) return;
+    if (!res.ok) {
+      // a late failure never overwrites the timeout line with a second error
+      if (now.status === "error") return;
+      return put(r.id, { ...turn, status: "error", error: res.error, outcome: res.error.message });
+    }
+    const out = res.data.output;
+    if (!out)
+      // escalated (refusal or two rejected answers): the server's one-line note is the reply
+      return put(r.id, {
+        ...turn,
+        status: "ok",
+        result: res.data,
+        outcome: res.data.note ?? ESCALATED_NOTE,
+        changed: [],
+      });
+    // a proposal, shown as a diff: nothing changes until the manager presses Apply
+    const latest = state.proposals[r.id]?.constraints ?? state.adjust[r.id] ?? baseConstraints(r);
+    const next = mergeTurn(latest, out);
+    const applied = state.adjust[r.id] ?? baseConstraints(r);
+    put(r.id, {
+      ...turn,
+      status: "ok",
+      result: res.data,
+      after: next,
+      changed: changeDelta(r, latest, next),
+      ...(out.clarify ? { clarify: out.clarify } : {}),
+    });
+    // a turn that changes nothing (or only asks a question) proposes nothing
+    if (JSON.stringify(next) !== JSON.stringify(applied))
+      set({ proposals: { ...state.proposals, [r.id]: { constraints: next } } });
   },
   /**
    * A message the capacity check can answer by itself ("one room?", "bring tables from the back", a need that
@@ -421,7 +465,7 @@ export const requestsActions = {
       alt: alt ? { ...alts, [r.id]: alt } : alts,
     });
   },
-  /** A turn still loading after 8 s ends with a plain error (a late answer is ignored). */
+  /** Past the hard limit: a plain line, nothing changed. A late answer still replaces it. */
   timeoutTurn(requestId: string, turnId: string) {
     const list = state.chat[requestId] ?? [];
     if (!list.some((x) => x.id === turnId && x.status === "loading")) return;
@@ -433,8 +477,7 @@ export const requestsActions = {
             ? {
                 ...x,
                 status: "error",
-                outcome:
-                  "That took too long. Nothing changed; try again or set it on the review screen.",
+                outcome: TOO_LONG,
               }
             : x,
         ),

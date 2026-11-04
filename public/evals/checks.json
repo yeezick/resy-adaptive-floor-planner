@@ -1,6 +1,6 @@
 {
-  "runAt": "2026-11-04T18:40:00.857Z",
-  "gitSha": "bbf9b201037e52d90d80cf35e012673990782b7e",
+  "runAt": "2026-11-04T23:16:58.551Z",
+  "gitSha": "1d5394569229ac5ec5a1be88e98e01cd06735d05",
   "groups": [
     {
       "id": "holds",
@@ -41,8 +41,8 @@
       "id": "request-chat",
       "label": "Request chat",
       "what": "Chat changes stay proposals until applied, and never name a table the solver didn't pick.",
-      "passed": 30,
-      "total": 30
+      "passed": 36,
+      "total": 36
     }
   ]
 }

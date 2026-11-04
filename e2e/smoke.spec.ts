@@ -1224,7 +1224,7 @@ test("/evals leads with the published deterministic checks", async ({ page }) =>
     ["Aisle clearance", "52/52"],
     ["Can't-fit answers", "9/9"],
     ["Activity log", "10/10"],
-    ["Request chat", "30/30"],
+    ["Request chat", "36/36"],
   ];
   for (const [label, n] of rows)
     await expect(card.getByRole("row", { name: new RegExp(label) })).toContainText(n);
