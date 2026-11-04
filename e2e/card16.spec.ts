@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 // The one request card: Request · summary · Needs · Guest message · "Take it" + fit pill · one rating row; Plan,
-// Pros, Cons, the walk-in comparison and the crew footnote behind More ▸. Scenario links only: no model call.
+// Pros then Cons in view; Plan, the walk-in comparison and the crew footnote behind More ▸. Scenario links only: no model call.
 test.beforeEach(async ({ page }) => {
   await page.route("**/api/requests/*/triage", (route) => route.abort());
   await page.route("**/api/requests/*/chat", (route) => route.abort());
@@ -35,6 +35,7 @@ test("the card reads top to bottom: Request, summary, Needs, guest message, Take
   await expect(card.locator(".req-message q")).toContainText(
     "Booking request on behalf of Sam Whitaker: dinner for 22 on Friday at 6:30 PM, family reunion.",
   );
+  await expect(card.locator(".req-decision .field-label")).toHaveText("Recommendation");
   await expect(card.locator(".take-it-text")).toHaveText(
     "Take it: a booked 22 beats uncertain walk-ins",
   );
@@ -108,21 +109,27 @@ for (const vp of [
   { width: 1180, height: 820 },
   { width: 1600, height: 1000 },
 ]) {
-  test(`More ▸ at ${vp.width}: Plan, then Pros above Cons in one column, the walk-in comparison, the crew footnote`, async ({
+  test(`at ${vp.width}: Pros above Cons in one column without expanding; More ▸ holds Plan, the walk-in comparison, the crew footnote`, async ({
     page,
   }) => {
     await page.setViewportSize(vp);
     const card = await openS1(page);
     await expect(card.locator(".req-more")).toHaveCount(0);
+    // pros and cons are on the card before any tap, below the rating row
+    await expect(card.getByRole("list", { name: "Pros" })).toBeAttached();
+    await expect(card.getByRole("list", { name: "Cons" })).toBeAttached();
+    const rowY = (await card.locator(".triage-row").boundingBox())?.y ?? 0;
+    const pros = await card.getByRole("list", { name: "Pros" }).boundingBox();
+    const cons = await card.getByRole("list", { name: "Cons" }).boundingBox();
+    expect((pros?.y ?? 0) > rowY).toBe(true);
     // one tap
     await card.getByRole("button", { name: "More ▸" }).click();
     const more = card.locator(".req-more");
     await expect(more.locator(".req-plan .field-label")).toHaveText("Plan");
     await expect(more.locator(".req-plan .field-value")).toHaveText(
-      "Combine: tables 57–61, 63–66 into two long tables seating 22 (Garden Room + Library, divider open).",
+      "Combine: tables 57–61, 63–66 into two long tables seating 22 (Garden Room + Library).",
     );
-    const pros = await more.getByRole("list", { name: "Pros" }).boundingBox();
-    const cons = await more.getByRole("list", { name: "Cons" }).boundingBox();
+    await expect(more.getByRole("list", { name: "Pros" })).toHaveCount(0);
     expect(pros && cons).toBeTruthy();
     // one column: cons start below the last pro, at the same left edge
     expect((cons?.y ?? 0) >= (pros?.y ?? 0) + (pros?.height ?? 0)).toBe(true);
@@ -139,7 +146,7 @@ for (const vp of [
     await expect(card.locator(".ready-list")).toHaveCount(0);
     await expect(card).not.toContainText("built by");
     const ys = [];
-    for (const sel of [".req-plan", ".req-pros", ".req-cons", ".req-covers", ".crew-foot"])
+    for (const sel of [".req-plan", ".req-covers", ".crew-foot"])
       ys.push((await more.locator(sel).boundingBox())?.y ?? Number.NaN);
     for (let i = 1; i < ys.length; i++) expect(ys[i]).toBeGreaterThan(ys[i - 1] as number);
   });

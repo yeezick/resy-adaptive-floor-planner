@@ -19,7 +19,7 @@ const whitaker = {
 describe("planLine", () => {
   it("the 22-top in one line, with the rooms only because it spans them", () => {
     expect(planLine(whitaker)).toBe(
-      "Combine: tables 57–61, 63–66 into two long tables seating 22 (Garden Room + Library, divider open).",
+      "Combine: tables 57–61, 63–66 into two long tables seating 22 (Garden Room + Library).",
     );
   });
 

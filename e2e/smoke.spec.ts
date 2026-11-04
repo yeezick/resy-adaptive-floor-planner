@@ -211,7 +211,7 @@ test("request inbox: triage, capacity fit, accept opens that night's plan", asyn
   await sheet.getByRole("button", { name: "More ▸" }).click();
   await expect(sheet.locator(".req-plan .field-value")).toHaveText(/^(Combine|Set): .*tables? \d/);
   await expect(sheet).not.toContainText(/\bT\d/);
-  const cost = page.locator(".request-sheet .req-more");
+  const cost = page.locator(".request-sheet .req-card");
   await expect(cost.getByRole("list", { name: "Pros" })).toContainText("+22 covers in one booking");
   await expect(cost.getByRole("list", { name: "Pros" })).toContainText(
     "Aisle clear for a wheelchair",
