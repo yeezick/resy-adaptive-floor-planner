@@ -1,7 +1,8 @@
 // AI activity log: one chronological row per AI action (request triage, assistant answer), with the manager's
 // decision beside it. Built only from what is already logged (triage results, assistant responses, manager
-// actions); read-only. Free text never appears: guest and host text are kept as sha256 + length, and a row
-// shows the AI's own summary. A row can show "accepted" only when a manager action says so.
+// actions); read-only. Guest and host text never appears: it is kept as sha256 + length, and a row shows the
+// AI's own summary. The one free text is a manager's own decline note, kept in the browser session only. A row
+// can show "accepted" only when a manager action says so.
 import { z } from "zod";
 import { SOURCE_LABEL, SOURCES, type RequestSource } from "./requests";
 import { tablesPhrase } from "./wording";
@@ -10,6 +11,9 @@ export const TextHash = z.object({ sha256: z.string().min(8), length: z.number()
 export type TextHash = z.infer<typeof TextHash>;
 
 export type ActivitySource = RequestSource | "host";
+
+/** The longest decline note a manager can keep with a decision. */
+export const MAX_NOTE_CHARS = 300;
 
 export const TriageEvent = z
   .object({
@@ -106,6 +110,8 @@ export const ManagerAction = z
     edited: z.boolean().optional(),
     /** What was applied / booked, e.g. "T57 + T58 … (Garden Room + Library)". */
     applied: z.string().optional(),
+    /** For "declined": the manager's own optional note (this session only; never sent to the server log). */
+    note: z.string().max(MAX_NOTE_CHARS).optional(),
   })
   .strict();
 export type ManagerAction = z.infer<typeof ManagerAction>;
@@ -130,7 +136,7 @@ export type ActivityKind =
 
 export type RowDecision =
   | { kind: "accepted"; at: string; applied?: string }
-  | { kind: "declined"; at: string; reason: "fit" | "policy" | "other" }
+  | { kind: "declined"; at: string; reason: "fit" | "policy" | "other"; note?: string }
   | { kind: "edited"; at: string }
   | { kind: "replied"; at: string }
   | { kind: "pending" }
@@ -185,7 +191,12 @@ function decisionFor(
     case "applied":
       return { kind: "accepted", at: last.at, applied: last.applied };
     case "declined":
-      return { kind: "declined", at: last.at, reason: last.reason ?? "other" };
+      return {
+        kind: "declined",
+        at: last.at,
+        reason: last.reason ?? "other",
+        ...(last.note ? { note: last.note } : {}),
+      };
     case "replied":
       return last.edited ? { kind: "edited", at: last.at } : { kind: "replied", at: last.at };
     default:

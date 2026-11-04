@@ -1,6 +1,6 @@
 import {
   clock12,
-  acceptLine,
+  bookedVsWalkIns,
   buildMinutes,
   coverTrade,
   DECLINE_LINE,
@@ -50,9 +50,7 @@ export function PartyFitCard({
       <dl className="fit-grid small">
         <dt>Yes vs no</dt>
         <dd className="trade">
-          <span className={trade.net < 0 ? "warn-text" : undefined}>
-            <strong>{acceptLine(trade)}</strong>
-          </span>
+          <strong>{bookedVsWalkIns(trade)}</strong>
           <span className="muted">{DECLINE_LINE}</span>
         </dd>
         {build && (
@@ -77,8 +75,10 @@ export function PartyFitCard({
           )}{" "}
           · {f.hold.slotsBlocked} slot
           {f.hold.slotsBlocked === 1 ? "" : "s"} blocked ·{" "}
-          <strong className={f.hold.coversLost ? "warn-text" : undefined}>
-            ~{f.hold.coversLost} covers lost (est.)
+          <strong>
+            {f.hold.coversLost
+              ? `up to ~${f.hold.coversLost} walk-in covers held (est.)`
+              : "no walk-in capacity held"}
           </strong>
         </dd>
         <dt>Section</dt>

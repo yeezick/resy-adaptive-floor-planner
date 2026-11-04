@@ -25,13 +25,14 @@ import {
 } from "../api";
 import { demoIso, demoStamp, receivedBy, setDemoNight } from "../lib/demoClock";
 import { NIGHTS } from "../nights";
+import { MAX_NOTE_CHARS } from "../../domain/activity";
 
 export type DeclineReason = "fit" | "policy" | "other";
 
 export type Decision =
   | { kind: "pending" }
   | { kind: "accepted"; at: string; iso: string; tables: string[] }
-  | { kind: "declined"; at: string; iso: string; reason: DeclineReason }
+  | { kind: "declined"; at: string; iso: string; reason: DeclineReason; note?: string }
   | { kind: "replied"; at: string; iso: string; edited: boolean };
 
 export type TriageState =
@@ -269,12 +270,14 @@ export const requestsActions = {
       openPlan: { roomId: r.bookRoomId, requestId: r.id, seq: ++seq, view: "plan" },
     });
   },
-  decline(r: GuestRequest, reason: DeclineReason) {
+  /** The note is the manager's own words: kept with the decision in this session, never sent to the server log. */
+  decline(r: GuestRequest, reason: DeclineReason, note?: string) {
+    const clean = note?.trim().slice(0, MAX_NOTE_CHARS);
     logDecision(r.id, { kind: "declined", reason });
     set({
       decisions: {
         ...state.decisions,
-        [r.id]: { kind: "declined", ...demoStamp(), reason },
+        [r.id]: { kind: "declined", ...demoStamp(), reason, ...(clean ? { note: clean } : {}) },
       },
     });
   },

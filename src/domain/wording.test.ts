@@ -2,8 +2,9 @@ import { describe, expect, it } from "vitest";
 import { demoNight } from "./__fixtures__/build";
 import { checkRequest, type GuestRequest } from "./requests";
 import {
-  acceptLine,
+  bookedVsWalkIns,
   buildMinutes,
+  capacityLine,
   countdown,
   coverTrade,
   crewNote,
@@ -12,6 +13,7 @@ import {
   tableNo,
   tableNumbers,
   tablesPhrase,
+  takeItLine,
 } from "./wording";
 
 const build = {
@@ -107,14 +109,27 @@ describe("build time and the cost of yes vs no", () => {
     expect(buildMinutes({ ...build, tables: ["T1"], spareTables: 0, extraChairs: 0 })).toBe(10);
   });
 
-  it("nets the party's covers against the hold", () => {
-    const t = coverTrade(22, 13);
-    expect(t).toEqual({ gain: 22, lost: 13, net: 9 });
-    expect(acceptLine(t)).toBe(
-      "Accept: +22 covers (the party) · −13 covers lost to the hold (est.) = net +9",
+  it("reads the trade as booked covers vs walk-in capacity held (numbers unchanged)", () => {
+    const t = coverTrade(22, 24);
+    expect(t).toEqual({ gain: 22, lost: 24, net: -2 });
+    expect(bookedVsWalkIns(t)).toBe("+22 booked vs up to ~24 possible walk-ins");
+    expect(capacityLine(t, 1, 0)).toBe(
+      "Booked +22 (guaranteed) · Walk-in capacity held: up to ~24 (only if every held seat would turn) · Reservations moved 1 · cancelled 0",
     );
-    expect(acceptLine(coverTrade(10, 14))).toMatch(/= net −4$/);
+    expect(bookedVsWalkIns(coverTrade(10, 0))).toBe("+10 booked · no walk-in capacity held");
+    expect(capacityLine(coverTrade(10, 0), 0, 0)).toBe(
+      "Booked +10 (guaranteed) · Walk-in capacity held: none · Reservations moved 0 · cancelled 0",
+    );
     expect(DECLINE_LINE).toBe("Decline: 0 · request leaves Resy");
+  });
+
+  it("recommends taking a fitting party by rule: nothing cancelled and capacity fit ✓", () => {
+    const t = coverTrade(22, 24);
+    expect(takeItLine(t, { fit: true, cancelled: 0 })).toBe(
+      "Take it: a booked 22 beats uncertain walk-ins",
+    );
+    expect(takeItLine(t, { fit: false, cancelled: 0 })).toBeNull();
+    expect(takeItLine(t, { fit: true, cancelled: 1 })).toBeNull();
   });
 
   it("counts down in hours and minutes", () => {

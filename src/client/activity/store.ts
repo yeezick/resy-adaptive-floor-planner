@@ -264,7 +264,7 @@ export function liveEvents(s: RequestsState): {
     if (d.kind === "accepted")
       actions.push({ refId: r.id, at: d.iso, kind: "accepted", applied: tableNumbers(d.tables) });
     else if (d.kind === "declined")
-      actions.push({ refId: r.id, at: d.iso, kind: "declined", reason: d.reason });
+      actions.push({ refId: r.id, at: d.iso, kind: "declined", reason: d.reason, note: d.note });
     else if (d.kind === "replied")
       actions.push({ refId: r.id, at: d.iso, kind: "replied", edited: d.edited });
     const sent = s.replies[r.id];
