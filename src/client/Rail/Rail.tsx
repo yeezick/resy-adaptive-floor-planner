@@ -210,6 +210,7 @@ export function Rail(p: Props) {
                   <span className="row-sub">
                     {w.name ? `${w.name} · ` : ""}quoted ~{w.quoteMin} min
                     {w.tables?.length ? ` · for ${tablesPhrase(w.tables)}` : ""}
+                    {w.note ? ` · ${w.note}` : ""}
                   </span>
                   {w.needs.length > 0 && (
                     <span className="needs">

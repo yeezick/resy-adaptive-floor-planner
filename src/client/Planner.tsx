@@ -401,10 +401,12 @@ export function Planner({
           addedAt: room.clock,
           tables: c.tables,
           name: c.name || undefined,
+          note: c.note || undefined,
         },
       ]);
       text = `${who} waitlisted · quoted ~${c.quoteMin} min${joined ? ` · ${tablesPhrase(c.tables)} pushed together` : ` · for ${tablesPhrase(c.tables)}`}`;
     }
+    if (c.note) text += ` · note: ${c.note}`;
     if (d.traceId) activityActions.recordApplied(d.traceId, `${text} (host confirmed)`);
     // undo only this action, against the room as it is then: the host may have done more since
     const seated = c.action === "seat" ? c.tables : [];
@@ -467,6 +469,18 @@ export function Planner({
     setNotice({ ok: true, message: "Reset to the original room" });
   };
 
+  // a promised table stays "taken" while its party is seated there or still waits for it
+  const takenNow = useMemo(
+    () =>
+      new Map(
+        [...taken].filter(
+          ([id]) =>
+            tableById(room, id)?.status === "occupied" ||
+            waitlist.some((w) => w.tables?.includes(id)),
+        ),
+      ),
+    [taken, room, waitlist],
+  );
   const night = NIGHTS[room.id];
   // Tables held by accepted large-party plans for this night (derived here; never a "blocked" status).
   const holds = useMemo(() => planHolds(room, requests), [room, requests]);
@@ -712,7 +726,7 @@ export function Planner({
               onPick={openReview}
               onOpenShift={() => goTo("shift")}
               done={aiDone}
-              taken={taken}
+              taken={takenNow}
               visible={mode === "assistant"}
               fresh={chatSeq > 0}
               threadId={`thread-${chatSeq}`}

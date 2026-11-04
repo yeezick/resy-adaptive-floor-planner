@@ -183,6 +183,8 @@ export interface WaitEntry {
   /** The tables the party waits for (from an AI Planner option), when one was picked. */
   tables?: string[];
   name?: string;
+  /** The host's note from the review screen (allergies, celebrations). */
+  note?: string;
 }
 
 export interface DoneEntry {

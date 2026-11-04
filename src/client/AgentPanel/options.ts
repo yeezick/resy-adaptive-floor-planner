@@ -70,7 +70,11 @@ const ORDINAL: Record<string, number> = {
  */
 export function resolveOption(message: string, recs: readonly Rec[], chosen?: number): Resolved {
   if (!recs.length) return { kind: "none" };
-  const m = message.toLowerCase();
+  const m = message.toLowerCase().trim();
+  // only short instructions are read here; a question or a longer message goes to the AI Planner
+  if (m.endsWith("?") || m.split(/\s+/).length > 8) return { kind: "none" };
+  if (/\b(not|no|don'?t|too|instead|why|how|what|should|could|combine|move|rotate)\b/.test(m))
+    return { kind: "none" };
   const byRank = (n: number): Resolved =>
     recs.some((r) => r.rank === n)
       ? { kind: "one", rank: n, why: `#${n}` }
