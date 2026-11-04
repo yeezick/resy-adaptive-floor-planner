@@ -87,20 +87,22 @@ export function surname(contact: string): string {
  * The name a manager reads for a party: a request id → its contact's surname ("Whitaker"); a reservation id →
  * a fictional "Alvarez, M." (stable per id, distinct within a night). Anything else passes through.
  */
-export function partyName(id: string, contacts: ReadonlyMap<string, string> = CONTACTS): string {
-  const contact = contacts.get(id);
+export function partyName(id: string): string {
+  const contact = CONTACTS.get(id);
   if (contact) return surname(contact);
-  const m = /^([DEFHNPQR])(\d{1,4})$/.exec(id);
+  const m = /^([DEFHNPQRdefhpt])(\d{1,4})$/.exec(id);
   if (!m) return id;
   const [, letter, digits] = m as unknown as [string, string, string];
-  const offset = Math.max(0, PREFIXES.indexOf(letter)) * 7;
+  // large parties use capitals (≤13 a night), small bookings lower case: lower case starts 15 names later
+  const small = letter === letter.toLowerCase();
+  const offset = Math.max(0, PREFIXES.indexOf(letter.toUpperCase())) * 7 + (small ? 15 : 0);
   const n = Number(digits);
-  const name = SURNAMES[(n - 1 + offset) % SURNAMES.length] as string;
+  const name = SURNAMES[(n - 1 + offset + SURNAMES.length) % SURNAMES.length] as string;
   const initial = INITIALS[(n * 5 + offset) % INITIALS.length] as string;
   return `${name}, ${initial}.`;
 }
 
 /** Party ids inside a display sentence ("Split P6's tables") → names ("Split Alvarez, M.'s tables"). */
 export function namesIn(text: string): string {
-  return text.replace(/\b([DEFHNPQR]\d{1,4})\b/g, (id: string) => partyName(id));
+  return text.replace(/\b([DEFHNPQRdefhpt]\d{1,4})\b/g, (id: string) => partyName(id));
 }
