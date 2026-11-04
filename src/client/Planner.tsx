@@ -9,6 +9,8 @@ import {
   findTablesForParty,
   joinReadiness,
   joinBadge,
+  partyName,
+  surname,
   readinessPill,
   tableById,
   type Room,
@@ -36,6 +38,7 @@ import { ReservationSheet } from "./WalkIn/ReservationSheet";
 import { WalkInSheet, type WalkInDraft } from "./WalkIn/WalkInSheet";
 import { tablesPhrase } from "../domain/wording";
 import { activeScenario } from "./scenarios";
+import { NIGHTS } from "./nights";
 
 const today = () => new Date().toLocaleDateString("en-CA"); // local YYYY-MM-DD
 
@@ -132,7 +135,11 @@ export function Planner({
     ? tabForTables(proposal?.variant ?? room, focusTables)
     : "first";
   const focusHighlight: Highlight | null = focusTables.length
-    ? { key: `focus-${focusRequest}`, ids: focusTables, label: `${focusRequest} · just accepted` }
+    ? {
+        key: `focus-${focusRequest}`,
+        ids: focusTables,
+        label: `${focusRequest ? partyName(focusRequest) : ""} · just accepted`,
+      }
     : null;
   // An open request whose night is on screen: outline the tables its fit check would hold.
   const reqTables = useMemo(
@@ -154,7 +161,7 @@ export function Planner({
       ? {
           key: `req-${request?.id}`,
           ids: reqTables,
-          label: `${request?.id} · party of ${request?.partySize} · ${readinessPill(reqReady)}`,
+          label: `${request ? surname(request.contact) : ""} · party of ${request?.partySize} · ${readinessPill(reqReady)}`,
           source: "fit",
           badges: Object.fromEntries(reqReady.tables.map((t) => [t.id, joinBadge(t, reqReady)])),
         }
@@ -257,6 +264,7 @@ export function Planner({
     setNotice({ ok: true, message: "Reset to the original room" });
   };
 
+  const night = NIGHTS[room.id];
   return (
     <div className={`console${mode !== "details" || selected.length ? " has-sheet" : ""}`}>
       <ConsoleBar
@@ -372,7 +380,16 @@ export function Planner({
           </div>
           {mode === "request" && request && (
             <div className="tabpanel">
-              <RequestSheet key={request.id} request={request} roomId={room.id} />
+              <RequestSheet
+                key={request.id}
+                request={request}
+                roomId={room.id}
+                now={
+                  night && request.bookRoomId === room.id
+                    ? { day: night.day, clock: room.clock }
+                    : null
+                }
+              />
             </div>
           )}
           {mode === "reservation" && (

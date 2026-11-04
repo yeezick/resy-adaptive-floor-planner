@@ -124,7 +124,7 @@ export function generateTonight(base: Room, from: string, to: string): TonightPr
     ];
     for (const p of prior)
       actions.push(
-        `Split ${p.reservationId}'s tables after ~${toHHMM(toMinutes(p.time) + TURN_MIN)}`,
+        `After ~${toHHMM(toMinutes(p.time) + TURN_MIN)}, split the tables ${p.reservationId} used`,
       );
     for (const d of b.dividersOpened) {
       actions.push(`Open the divider ${d}`);

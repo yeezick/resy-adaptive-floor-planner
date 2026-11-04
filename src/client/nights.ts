@@ -4,9 +4,9 @@ export const NIGHTS: Record<string, { day: string; label: string }> = {
   "dinner-peak": { day: "Fri", label: "Fri · live service 7:10 PM" },
   "book-thu": { day: "Thu", label: "Thu · planning from 3:00 PM" },
   "book-fri": { day: "Fri", label: "Fri · planning from 3:00 PM" },
-  "demo-night": { day: "Sat", label: "Sat · demo night from 3:00 PM" },
-  "next-day": { day: "Sat", label: "Sat · empty room, next day" },
-  "heavy-saturday": { day: "Sat", label: "Sat · overbooked (stress test)" },
+  "demo-night": { day: "Sat", label: "Sat · planning from 3:00 PM" },
+  "next-day": { day: "Sat", label: "Sat · next-day setup from 3:00 PM" },
+  "heavy-saturday": { day: "Sat", label: "Sat · overbooked · planning from 3:00 PM" },
 };
 
 export function nightLabel(id: string, clock: string): string {

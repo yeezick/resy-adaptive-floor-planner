@@ -11,7 +11,6 @@ import {
   readinessPill,
   tableNo,
   tablesPhrase,
-  toMinutes,
   type Room,
 } from "../../domain";
 import { ImpactsCard } from "../Fit/ImpactsCard";
@@ -19,7 +18,7 @@ import {
   checkRequest,
   draftReply,
   needsOverview,
-  requestHeader,
+  requestWhen,
   SERVICE,
   SOURCE_LABEL,
   toReservation,
@@ -45,16 +44,51 @@ export function ProposedTag() {
   return <span className="proposed-tag">Proposed feature</span>;
 }
 
-export function VerdictChip({ t }: { t: TriageState | undefined }) {
-  if (!t || t.status === "loading") return <span className="verdict verdict-wait">Triaging…</span>;
-  if (t.status === "host") return <span className="verdict verdict-real">At the stand</span>;
-  if (t.status === "error") return <span className="verdict verdict-unsure">Needs a person</span>;
-  const v = t.result.escalated ? "unsure" : t.result.verdict;
-  const label = v === "real" ? "Real" : v === "junk" ? "Likely junk" : "Needs a person";
-  return <span className={`verdict verdict-${v}`}>{label}</span>;
+/** The triage verdict as the manager reads it; a manager override wins over the AI's verdict. */
+export function verdictOf(
+  t: TriageState | undefined,
+  override?: { verdict: "real" | "junk" },
+): "real" | "junk" | "unsure" | null {
+  if (override) return override.verdict;
+  if (!t || t.status !== "ok") return null;
+  return t.result.escalated ? "unsure" : t.result.verdict;
+}
+
+export function VerdictChip({
+  t,
+  override,
+}: {
+  t: TriageState | undefined;
+  override?: { verdict: "real" | "junk" };
+}) {
+  if (!override) {
+    if (!t || t.status === "loading")
+      return <span className="verdict verdict-wait">Triaging…</span>;
+    if (t.status === "host") return <span className="verdict verdict-neutral">At the stand</span>;
+    if (t.status === "error") return <span className="verdict verdict-unsure">Needs a person</span>;
+  }
+  const v = verdictOf(t, override) ?? "unsure";
+  const label =
+    v === "real"
+      ? override
+        ? "Real (manager)"
+        : "Looks real"
+      : v === "junk"
+        ? override
+          ? "Junk (manager)"
+          : "Likely junk"
+        : "Needs a person";
+  return (
+    <span className={`verdict ${v === "real" ? "verdict-neutral" : `verdict-${v}`}`}>{label}</span>
+  );
 }
 
 const loadRoom = (id: string) => fetchRoom(id);
+
+/** Where an AI-agent request came from, in full (shown in the expanded triage detail). */
+const SOURCE_DETAIL: Partial<Record<GuestRequest["source"], string>> = {
+  "ai-agent": "via a chat app or MCP",
+};
 
 const DECLINE: { id: DeclineReason; label: string; hint: string }[] = [
   { id: "fit", label: "Capacity fit", hint: "we can't seat them that night" },
@@ -66,10 +100,13 @@ const DECLINE: { id: DeclineReason; label: string; hint: string }[] = [
 export function RequestSheet({
   request: guest,
   roomId,
+  now = null,
 }: {
   request: GuestRequest;
   /** The night on screen; when it isn't this request's night, offer to switch. */
   roomId: string;
+  /** The console's night: its weekday and floor clock ("now" for the relative time). */
+  now?: { day: string; clock: string } | null;
 }) {
   const s = useRequests();
   const r0 = guest;
@@ -77,7 +114,7 @@ export function RequestSheet({
   const decision = decisionOf(s, r0.id);
   const roomRes = useAsync(r0.bookRoomId, loadRoom);
   const [mode, setMode] = useState<"none" | "decline" | "reply">("none");
-  const [reason, setReason] = useState<DeclineReason>("fit");
+  const [reason, setReason] = useState<DeclineReason | null>(null);
 
   // The night's book, plus parties the manager already accepted for it (other than this one).
   const room: Room | null = useMemo(() => {
@@ -94,9 +131,6 @@ export function RequestSheet({
   const r = adj?.request ?? r0;
   const fit = useMemo(() => adj?.fit ?? (room ? checkRequest(room, r0) : null), [adj, room, r0]);
   const elapsed = useElapsedMinutes();
-  const minutesAway = roomRes?.ok
-    ? toMinutes(r.time) - toMinutes(roomRes.data.clock) - elapsed
-    : null;
   const draft = useMemo(() => (fit ? times12(draftReply(r, fit)) : ""), [fit, r]);
   const cost = useMemo(() => {
     if (!room || !fit?.ok) return null;
@@ -135,15 +169,17 @@ export function RequestSheet({
       readyAt,
     );
   }, [fit, cost, r.id, readyAt]);
-  const junk = t?.status === "ok" && t.result.verdict === "junk" && !t.result.escalated;
+  const override = s.overrides[r0.id];
+  const verdict = verdictOf(t, override);
+  const junk = verdict === "junk";
   const overview = t?.status === "ok" ? t.result.summary : [needsOverview(r)];
 
   return (
     <div className="request-sheet">
       <div className="req-head">
         <div>
-          <h2 className="req-title" title={`Countdown from ${r.day}'s clock`}>
-            {times12(requestHeader(r, minutesAway))}
+          <h2 className="req-title">
+            {r.contact}, party of {r.partySize} · {requestWhen(r, now, elapsed)}
           </h2>
           <ul className="req-overview" aria-label="What the party needs">
             {overview.map((line) => (
@@ -161,7 +197,7 @@ export function RequestSheet({
       <section className="req-block" aria-label="AI triage">
         <div className="req-block-head">
           <h3 className="section-title">AI triage</h3>
-          <VerdictChip t={t} />
+          <VerdictChip t={t} override={override} />
         </div>
         {t?.status === "host" && (
           <p className="muted small">
@@ -174,18 +210,60 @@ export function RequestSheet({
               <span className="muted">Why: </span>
               {t.result.reason}
             </p>
-            <div className="metrics small" aria-label="Triage cost and latency">
-              <span>
-                {usd(t.result.metrics.costUsd)}
-                {t.result.cached ? " (cached view, no new call)" : ""}
-              </span>
-              <span>{duration(t.result.metrics.latencyMs)}</span>
-              <span>{t.result.model}</span>
-              <span>{t.result.promptVersion}</span>
-              {t.result.validatorRejects > 0 && (
-                <span>{t.result.validatorRejects} validator reject(s)</span>
+            {(verdict === "real" || verdict === "junk") && (
+              <p className="small override">
+                {override ? (
+                  <>
+                    <span className="muted">You marked this as {override.verdict}. </span>
+                    <button
+                      type="button"
+                      className="link-btn"
+                      onClick={() =>
+                        requestsActions.overrideTriage(
+                          r0.id,
+                          override.verdict === "junk" ? "real" : "junk",
+                        )
+                      }
+                    >
+                      Mark as {override.verdict === "junk" ? "real" : "junk"}
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <span className="muted">Wrong? </span>
+                    <button
+                      type="button"
+                      className="link-btn"
+                      onClick={() =>
+                        requestsActions.overrideTriage(r0.id, verdict === "junk" ? "real" : "junk")
+                      }
+                    >
+                      Mark as {verdict === "junk" ? "real" : "junk"}
+                    </button>
+                  </>
+                )}
+              </p>
+            )}
+            <details className="small how-made">
+              <summary>How this was made</summary>
+              {SOURCE_DETAIL[r.source] && (
+                <p className="muted">
+                  {SOURCE_LABEL[r.source]} {SOURCE_DETAIL[r.source]}
+                </p>
               )}
-            </div>
+              <div className="metrics" aria-label="Triage cost and latency">
+                <span>
+                  {usd(t.result.metrics.costUsd)}
+                  {t.result.cached ? " (cached view, no new call)" : ""}
+                </span>
+                <span>{duration(t.result.metrics.latencyMs)}</span>
+                <span>{t.result.model}</span>
+                <span>{t.result.promptVersion}</span>
+                {t.result.validatorRejects > 0 && (
+                  <span>{t.result.validatorRejects} validator reject(s)</span>
+                )}
+              </div>
+            </details>
           </>
         )}
         {t?.status === "error" && (
@@ -282,7 +360,9 @@ export function RequestSheet({
         {fit && !fit.ok && (
           <p className="small cant-fit-line">{times12(adj ? adj.line : fit.reason)}</p>
         )}
-        <p className="muted small">From the planner, not the AI: the AI never picks tables.</p>
+        <p className="muted small">
+          Tables come from Capacity check; the AI reads the request and can't pick or add tables.
+        </p>
       </section>
 
       {decision.kind === "pending" ? (
@@ -301,7 +381,7 @@ export function RequestSheet({
               type="button"
               aria-expanded={mode === "decline"}
               onClick={() => {
-                setReason(junk ? "policy" : "fit");
+                setReason(null);
                 setMode(mode === "decline" ? "none" : "decline");
               }}
             >
@@ -332,7 +412,7 @@ export function RequestSheet({
           <p className="muted small">Accept opens {r.day}'s plan with the party in it.</p>
           {mode === "decline" && (
             <fieldset className="decline">
-              <legend className="small">Why decline? (logged — the sprint's key metric)</legend>
+              <legend className="small">Why decline?</legend>
               {DECLINE.map((d) => (
                 <label key={d.id} className="radio">
                   <input
@@ -346,8 +426,14 @@ export function RequestSheet({
                   </span>
                 </label>
               ))}
-              <button type="button" onClick={() => requestsActions.decline(r, reason)}>
-                Decline for {reason === "fit" ? "capacity fit" : reason}
+              <button
+                type="button"
+                disabled={reason === null}
+                onClick={() => reason && requestsActions.decline(r, reason)}
+              >
+                {reason === null
+                  ? "Pick a reason to decline"
+                  : `Decline for ${reason === "fit" ? "capacity fit" : reason}`}
               </button>
             </fieldset>
           )}

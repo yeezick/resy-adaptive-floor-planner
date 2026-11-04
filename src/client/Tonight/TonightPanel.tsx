@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  namesIn,
+  partyName,
   clock12,
   generateTonight,
   times12,
@@ -173,7 +175,7 @@ function Proposal({
               const h = {
                 key: `fit-${f.reservationId}`,
                 ids: f.tables,
-                label: `${f.reservationId} · party of ${f.partySize}`,
+                label: `${partyName(f.reservationId)} · party of ${f.partySize}`,
               };
               return (
                 <PartyFitCard
@@ -193,7 +195,8 @@ function Proposal({
           <p className="muted small">The rest of the plan still stands.</p>
           {p.infeasible.map((x) => (
             <div key={x.reservationId} className="cant-fit">
-              <strong>{x.reservationId}</strong> <span className="small">{times12(x.reason)}</span>
+              <strong>{partyName(x.reservationId)}</strong>{" "}
+              <span className="small">{times12(namesIn(x.reason))}</span>
               {x.partial && (
                 <div className="small muted">Best partial option: {times12(x.partial)}</div>
               )}
@@ -234,7 +237,7 @@ function Proposal({
             const h = {
               key: `tonight-${g.id}`,
               ids: g.tables,
-              label: `${g.id} · party of ${g.size}`,
+              label: `${partyName(g.id)} · party of ${g.size}`,
               dividers: g.dividers,
             };
             return (
@@ -248,11 +251,11 @@ function Proposal({
                 onBlur={() => highlight.onHover(null)}
               >
                 <div className="rec-head">
-                  <strong>{g.id}</strong>
+                  <strong>{partyName(g.id)}</strong>
                   {g.id === focusId && <span className="pill pill-accent">just accepted</span>}
                   <span className="muted">party of {g.size}</span>
                 </div>
-                {g.reason && <p className="small rec-reason">{times12(g.reason)}</p>}
+                {g.reason && <p className="small rec-reason">{times12(namesIn(g.reason))}</p>}
                 <ul className="steps small">
                   {g.changes.map((c, i) => (
                     <li key={i} className={`chg chg-${c.kind}`}>
@@ -281,7 +284,7 @@ function Proposal({
               <div className="crew-head">
                 <span className="crew-time">{times12(`${c.start}–${c.end}`)}</span>
                 <strong>
-                  {c.reservationId} · {c.partySize}
+                  {partyName(c.reservationId)} · {c.partySize}
                 </strong>
                 <span className="pill">{c.when === "set" ? "set before service" : "rebuild"}</span>
                 {c.reservationId === focusId && (
@@ -293,7 +296,7 @@ function Proposal({
                 <summary>{c.actions.length} steps</summary>
                 <ol className="steps">
                   {c.actions.map((a) => (
-                    <li key={a}>{times12(a)}</li>
+                    <li key={a}>{times12(namesIn(a))}</li>
                   ))}
                 </ol>
               </details>

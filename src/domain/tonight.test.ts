@@ -95,7 +95,7 @@ function assertProposal(base: Room, g: TonightProposal, from: string, to: string
     expect(c.when).toBe(prior.length ? "rebuild" : "set");
     for (const p of prior)
       expect(c.actions).toContain(
-        `Split ${p.reservationId}'s tables after ~${toHHMM(toMinutes(p.time) + TURN_MIN)}`,
+        `After ~${toHHMM(toMinutes(p.time) + TURN_MIN)}, split the tables ${p.reservationId} used`,
       );
     expect(toMinutes(c.start)).toBeGreaterThanOrEqual(earliest);
     expect(c.tight).toBe(toMinutes(b.buildBy) - buildMinutes(b) < earliest);
@@ -208,7 +208,9 @@ describe("generateTonight on dinner-peak 19:10–21:30 (live state)", () => {
     expect(p6?.rows).toHaveLength(2);
     expect(p6?.dividersOpened).toEqual([]);
     expect(p6?.seats).toBe(24);
-    expect(g.reasons.find((r) => r.reservationId === "P6")?.text).toMatch(/^P6 \(24\) → Atrium · /);
+    expect(g.reasons.find((r) => r.reservationId === "P6")?.text).toMatch(
+      new RegExp(`^P6 \\(24\\) → Atrium · `),
+    );
     expect(plan.builds.map((b) => b.reservationId).sort()).toEqual(["P11", "P6", "P8"]);
     for (const b of plan.builds)
       for (const id of b.tables) expect(tableById(base, id)?.area).not.toBe("Library");
@@ -255,7 +257,7 @@ describe("generateTonight on hand-built rooms", () => {
     expect(g.variant.combos).toEqual([["T1", "T2", "T3", "T4"]]);
     expect(g.crew[0]?.actions).toContain("Bring a spare 4-top from storage to the end of table 3");
     expect(g.reasons[0]?.text).toBe(
-      "R1 (10) → Main · one long table of 3 · storage: 1 spare table(s), 2 chair(s) · seats 10 for 10, build by 18:30",
+      `R1 (10) → Main · one long table of 3 · storage: 1 spare table(s), 2 chair(s) · seats 10 for 10, build by 18:30`,
     );
   });
 
@@ -316,7 +318,7 @@ describe("generateTonight on hand-built rooms", () => {
       ["R1", "set"],
       ["R2", "rebuild"],
     ]);
-    expect(g.crew[1]?.actions[0]).toBe("Split R1's tables after ~19:00");
+    expect(g.crew[1]?.actions[0]).toBe(`After ~19:00, split the tables R1 used`);
     // R2 builds by 19:00 but R1 only leaves at 19:00: the rebuild waits and is tight
     expect(g.crew[1]).toMatchObject({ start: "19:00", tight: true });
     expect(g.crew[1]?.actions.at(-1)).toMatch(/\(tight: the party arrives at 19:30\)$/);
@@ -349,7 +351,7 @@ describe("generateTonight on hand-built rooms", () => {
     });
     const g = generateTonight(base, "17:00", "21:00");
     expect(g.reasons[0]?.text).toBe(
-      "R1 (8) → Main · one long table of 2 · room requested · meets quiet · storage: 1 extender(s), 2 chair(s) · seats 8 for 8, build by 18:30",
+      `R1 (8) → Main · one long table of 2 · room requested · meets quiet · storage: 1 extender(s), 2 chair(s) · seats 8 for 8, build by 18:30`,
     );
     expect(g.changes.find((c) => c.kind === "pull-extenders")).toMatchObject({ count: 1 });
     expect(g.crew[0]?.actions).toContain("Add 1 extender(s)");
