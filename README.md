@@ -32,10 +32,12 @@ Each request gets an AI triage (real vs junk, plus a two-line needs overview) an
 planner: the night's book is planned with and without the party, and it fits only if every existing booking keeps
 its seats. The AI never picks tables.
 
-**Readiness.** Each table in the proposed join turns green on the floor and gets a bubble: "now" if it is free, or a
-red "~Xm" until it is free, estimated from its meal phase. The sheet lists the same tables with their meal stage. The
-pill reads "capacity fit ✓ · Ready" when every table is free now, else "capacity fit ✓ · ready to set up in ~X min"
-(X = the slowest table).
+**Readiness.** Each table in the proposed join turns green on the floor and gets a bubble, estimated from its meal
+phase. A request for now (it arrives within one 90-minute turn of the floor clock, or its hold has begun) shows live
+minutes: "now", or a red "~Xm" until free; the pill reads "capacity fit ✓ · Ready" or "capacity fit ✓ · ready to set
+up in ~X min". A later request is projected to its hold start: will each table be free when the hold begins? The
+sheet lists "free by 5:00 PM" or "busy until ~5:20 PM (est.)" per table, the floor shows "free" or a red "~5:20 PM",
+and the pill reads "capacity fit ✓ · Ready" or "capacity fit ✓ · ready to set up at ~5:20 PM".
 
 **Impacts of saying yes**, as two columns:
 
@@ -54,7 +56,8 @@ Beneath them, the card weighs yes against no, in covers (a negative net is shown
   spare table from storage, 5 per divider opened, 1 per 4 chairs carried, and never under 10. The same constants set
   the crew list's time windows. Labour cost stays out of the prototype.
 
-The actions, in order: **Accept · Decline** (with a reason) **· Message guest · Ask AI Planner** (jumps to the
+The actions, in order: **Accept · Decline** (with a reason) **· Message guest · Discuss** (the AI affordance, a sparkle in the accent
+colour; it jumps to the
 in-request chat). Every chat change is also a manual control.
 
 Times a manager reads are 12-hour AM/PM ("build by 6:00 PM", "held 5:00–6:30 PM"). The domain, the API and the
