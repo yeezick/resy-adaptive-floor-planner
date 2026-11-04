@@ -384,7 +384,11 @@ export function Planner({
                 key={request.id}
                 request={request}
                 roomId={room.id}
-                now={night ? { day: night.day, clock: room.clock } : null}
+                now={
+                  night && request.bookRoomId === room.id
+                    ? { day: night.day, clock: room.clock }
+                    : null
+                }
               />
             </div>
           )}

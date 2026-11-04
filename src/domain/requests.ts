@@ -171,8 +171,8 @@ export const DEMO_WEEK: Record<GuestRequest["day"], string> = {
 };
 
 /**
- * When a request is for, as the manager reads it. "Now" is the floor clock of the night on screen: a request for
- * that same day reads "Fri 6:30 PM (in 3h 30m)"; any other day reads "Thu Nov 5 · 7:30 PM" with no countdown.
+ * When a request is for, as the manager reads it. "Now" is the floor clock of the night on screen, passed only when
+ * that night holds the request's book: a request for that same day reads "Fri 6:30 PM (in 3h 30m)"; any other day reads "Thu Nov 5 · 7:30 PM" with no countdown.
  * `elapsedMin` is demo time that has passed since the page opened.
  */
 export function requestWhen(
