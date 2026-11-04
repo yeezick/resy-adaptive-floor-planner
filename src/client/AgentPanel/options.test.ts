@@ -61,6 +61,8 @@ describe("the chat reads which option the host means", () => {
       ranks: [1, 2, 3],
     });
     expect(resolveOption("option 7", recs)).toMatchObject({ kind: "many" });
+    expect(resolveOption("go ahead", recs)).toMatchObject({ kind: "many" });
+    expect(resolveOption("go ahead", recs, 2)).toMatchObject({ kind: "one", rank: 2 });
   });
 
   it("leaves everything else to the AI Planner (questions, combines it should refuse)", () => {
@@ -71,6 +73,14 @@ describe("the chat reads which option the host means", () => {
     ])
       expect(resolveOption(msg, recs)).toEqual({ kind: "none" });
     expect(resolveOption("option 1", [])).toEqual({ kind: "none" });
+    for (const msg of [
+      "should I go ahead and combine 41 and 42?",
+      "table 41 is too loud",
+      "not table 41",
+      "go ahead with option 1 but only if the booth frees up before the next seating",
+      "why option 2?",
+    ])
+      expect(resolveOption(msg, recs), msg).toEqual({ kind: "none" });
   });
 
   it("pre-fills needs named in the message; fixes 'any combine'", () => {
