@@ -778,7 +778,14 @@ export function Planner({
             <div className="tabpanel">
               <TonightPanel
                 layouts={layouts}
-                autoGenerate={focusRequest && !applied ? { from: "17:00", to: "22:00" } : undefined}
+                autoGenerate={
+                  // also when a plan applied earlier doesn't have this party yet
+                  focusRequest &&
+                  (!applied ||
+                    !applied.proposal.parties.some((p) => p.reservationId === focusRequest))
+                    ? { from: "17:00", to: "22:00" }
+                    : undefined
+                }
                 autoApply={focusApply}
                 focusId={focusRequest}
                 applied={applied?.proposal ?? null}

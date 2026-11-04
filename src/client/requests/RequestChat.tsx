@@ -69,12 +69,12 @@ export function RequestChat({
     if (focusSeq) box.current?.focus({ preventScroll: true });
   }, [focusSeq]);
   // an answer that takes too long ends in a plain error, never a spinner (the store marks it on the turn)
-  const loading = turns.find((t) => t.status === "loading");
+  const loadingId = turns.find((t) => t.status === "loading")?.id;
   useEffect(() => {
-    if (!loading) return;
-    const t = window.setTimeout(() => requestsActions.timeoutTurn(r.id, loading.id), 8000);
+    if (!loadingId) return;
+    const t = window.setTimeout(() => requestsActions.timeoutTurn(r.id, loadingId), 8000);
     return () => window.clearTimeout(t);
-  }, [loading, r.id]);
+  }, [loadingId, r.id]);
 
   const send = () => {
     const m = text.trim();
