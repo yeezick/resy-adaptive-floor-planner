@@ -5,8 +5,8 @@ import book from "../../fixtures/requests/requests.json";
 describe("requestVia", () => {
   it("reads who · channel, with the app when known", () => {
     expect(requestVia({ via: { by: "agent", channel: "mcp" } })).toBe("AI agent · MCP");
-    expect(requestVia({ via: { by: "agent", channel: "chat_app", app: "ChatGPT" } })).toBe(
-      "AI agent · chat app (ChatGPT)",
+    expect(requestVia({ via: { by: "agent", channel: "chat_app", app: "Chat client" } })).toBe(
+      "AI agent · chat app (Chat client)",
     );
     expect(requestVia({ via: { by: "guest", channel: "resy_app", app: "iOS" } })).toBe(
       "Guest · Resy app (iOS)",
