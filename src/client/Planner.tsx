@@ -3,6 +3,7 @@ import {
   clock12,
   times12,
   applyCombine,
+  checkTableSet,
   applyMove,
   applySplit,
   comboOf,
@@ -32,6 +33,7 @@ import type { Highlight, HighlightControls } from "./highlight";
 import {
   finishParty,
   PHASE_LABEL,
+  revertAction,
   seatParty,
   setPhase,
   type DoneEntry,
@@ -51,6 +53,8 @@ import {
 import { setDemoNight } from "./lib/demoClock";
 import { ReservationSheet } from "./WalkIn/ReservationSheet";
 import { WalkInSheet, type WalkInDraft } from "./WalkIn/WalkInSheet";
+import { WalkInReview, type WalkInConfirm, type WalkInReviewDraft } from "./Review/WalkInReview";
+import { activityActions } from "./activity/store";
 import { tablesPhrase } from "../domain/wording";
 import { activeScenario } from "./scenarios";
 import { NIGHTS, nightDate } from "./nights";
@@ -67,6 +71,7 @@ const PANEL_TITLE: Record<PanelMode, string> = {
   shift: "Shift setup",
   reservation: "Add reservation",
   request: "Large-party request",
+  review: "Review and confirm",
 };
 
 /** Owns the edited room and the session's waitlist / done lists. Remounted per fixture. */
@@ -174,6 +179,28 @@ export function Planner({
   const [waitlist, setWaitlist] = useState<WaitEntry[]>([]);
   const [done, setDone] = useState<DoneEntry[]>([]);
   const nextId = useRef(1);
+  // The review screen before any AI Planner option commits (tables editable by tapping the floor).
+  const [review, setReview] = useState<{ draft: WalkInReviewDraft; tables: string[] } | null>(null);
+  // Result lines of AI options the host acted on (by card key), each with its own Undo.
+  const [aiDone, setAiDone] = useState<Record<string, { text: string; undo: () => void }>>({});
+  // Tables promised (waitlisted for) or seated from an AI option: older options using them read "taken".
+  const [taken, setTaken] = useState<ReadonlyMap<string, string>>(new Map());
+  // "New chat" starts a fresh AI Planner thread.
+  const [chatSeq, setChatSeq] = useState(0);
+  // Where Close / Back returns: the panel the host came from (e.g. the AI Planner under Table details).
+  const [back, setBack] = useState<PanelMode[]>([]);
+  const goTo = (m: PanelMode) => {
+    if (m !== mode && (mode === "assistant" || mode === "request" || mode === "shift"))
+      setBack((b) => [...b, mode]);
+    setMode(m);
+  };
+  const closePanel = () => {
+    const prev = back[back.length - 1];
+    setBack((b) => b.slice(0, -1));
+    setSelected([]);
+    if (mode === "review") setReview(null);
+    setMode(prev ?? "details");
+  };
 
   // Walk-in suggestions are computed once here: listed in the sheet and outlined on the floor.
   const fit = useMemo(
@@ -247,20 +274,35 @@ export function Planner({
           badges: Object.fromEntries(reqReady.tables.map((t) => [t.id, joinBadge(t, reqReady)])),
         }
       : null;
+  const reviewHighlight: Highlight | null =
+    mode === "review" && review?.tables.length
+      ? {
+          key: "review",
+          ids: review.tables,
+          label: `Party of ${review.draft.size} · under review`,
+          source: "ai",
+        }
+      : null;
   const highlight =
-    (hoverArmed ? hover : null) ?? pinned ?? suggested ?? focusHighlight ?? reqHighlight;
+    reviewHighlight ??
+    (hoverArmed ? hover : null) ??
+    pinned ??
+    suggested ??
+    focusHighlight ??
+    reqHighlight;
   const controls: HighlightControls = {
     pinnedKey: pinned?.key ?? null,
     onHover: setHover,
     onTogglePin: (h) => setPinned((p) => (p?.key === h.key ? null : h)),
   };
 
-  const run = (fn: () => Room, message: string): ActionResult => {
+  /** Apply a room change; a toast says so unless the panel shows its own result line (quiet). */
+  const run = (fn: () => Room, message: string, quiet = false): ActionResult => {
     try {
       setRoom(fn());
       setEdited(true);
       const r: ActionResult = { ok: true, message };
-      setNotice(r);
+      if (!quiet) setNotice(r);
       return r;
     } catch (err) {
       const r: ActionResult = {
@@ -276,11 +318,6 @@ export function Planner({
     // the combined set stays selected, so Split is one tap away
     return run(() => applyCombine(room, ids), `Combined ${tablesPhrase(ids)}`);
   };
-  const combineRows = (rows: string[][]) =>
-    run(
-      () => rows.reduce((next, r) => applyCombine(next, r), room),
-      `Combined ${rows.map((r) => tablesPhrase(r)).join("; ")}`,
-    );
   const split = (ids: string[]) => {
     const combos = new Set(ids.map((id) => comboOf(room, id)).filter((c) => c !== undefined));
     run(
@@ -295,14 +332,98 @@ export function Planner({
   const move = (id: string, x: number, y: number) =>
     run(() => applyMove(room, id, x, y), `Moved ${id}`);
   const toggle = (id: string) => {
-    if (selected.length === 0 && mode !== "walkin") setMode("details");
+    // on the review screen a tap changes the tables under review
+    if (mode === "review" && review) {
+      const tables = review.tables.includes(id)
+        ? review.tables.filter((x) => x !== id)
+        : [...review.tables, id];
+      setReview({ ...review, tables });
+      return;
+    }
+    if (selected.length === 0 && mode !== "walkin") goTo("details");
     setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
   };
 
   const openWalkIn = (d: Partial<WalkInDraft> & { ids?: string[] } = {}) => {
     setDraft({ size: d.size ?? 2, needs: d.needs ?? [], waitId: d.waitId });
     setSelected(d.ids ?? []);
-    setMode("walkin");
+    goTo("walkin");
+  };
+  const openReview = (draft: WalkInReviewDraft) => {
+    setReview({ draft, tables: draft.tables });
+    setPinned(null);
+    setHover(null);
+    goTo("review");
+  };
+  /** The review screen's one verb: seat (combining the option's rows) or waitlist with the quote. One Undo. */
+  const confirmWalkIn = (c: WalkInConfirm) => {
+    if (!review) return;
+    const { draft: d } = review;
+    const before = room;
+    let after = room;
+    let waitId: string | null = null;
+    const who = c.name ? `${c.name} (${c.size})` : `Party of ${c.size}`;
+    let text: string;
+    if (c.action === "seat") {
+      const r = run(() => (after = seatParty(room, c.tables, c.size)), "", true);
+      if (!r.ok) return setNotice(r);
+      text = `${who} seated at ${tablesPhrase(c.tables)}`;
+    } else {
+      // a join option is pushed together now when its tables allow it; the party waits for it
+      const check = c.tables.length > 1 ? checkTableSet(room, c.tables) : null;
+      const rows = check?.ok ? check.rows.filter((x) => x.length > 1) : [];
+      let joined = false;
+      // only tables nobody sits at are pushed together now; busy ones wait for their party to leave
+      const free = c.tables.every((id) => {
+        const t = tableById(room, id);
+        return !!t && (t.status === "open" || t.status === "reserved");
+      });
+      if (rows.length && free) {
+        try {
+          const next = rows.reduce((acc, row) => applyCombine(acc, row), room);
+          setRoom(next);
+          setEdited(true);
+          after = next;
+          joined = true;
+        } catch {
+          // tables still in use can't be pushed together yet: the waitlist row keeps the target
+        }
+      }
+      const id = `W${nextId.current++}`;
+      waitId = id;
+      setWaitlist((w) => [
+        ...w,
+        {
+          id,
+          partySize: c.size,
+          needs: c.needs,
+          quoteMin: c.quoteMin,
+          addedAt: room.clock,
+          tables: c.tables,
+          name: c.name || undefined,
+          note: c.note || undefined,
+        },
+      ]);
+      text = `${who} waitlisted · quoted ~${c.quoteMin} min${joined ? ` · ${tablesPhrase(c.tables)} pushed together` : ` · for ${tablesPhrase(c.tables)}`}`;
+    }
+    if (c.note) text += ` · note: ${c.note}`;
+    if (d.traceId) activityActions.recordApplied(d.traceId, `${text} (host confirmed)`);
+    // undo only this action, against the room as it is then: the host may have done more since
+    const seated = c.action === "seat" ? c.tables : [];
+    const undo = () => {
+      setRoom((now) => revertAction(now, before, after, seated));
+      if (waitId) setWaitlist((w) => w.filter((e) => e.id !== waitId));
+      setAiDone(({ [d.key]: _gone, ...rest }) => rest);
+      setTaken((m) => new Map([...m].filter(([id]) => !c.tables.includes(id))));
+    };
+    setAiDone((x) => ({ ...x, [d.key]: { text, undo } }));
+    setTaken((m) => new Map([...m, ...c.tables.map((id) => [id, room.clock] as const)]));
+    setReview(null);
+    setPinned(null);
+    setHover(null);
+    // back to the thread: the result line is there (no toast, the panel stays open)
+    setBack((b) => b.filter((x) => x !== "assistant"));
+    setMode("assistant");
   };
   const seat = (ids: string[], size: number) => {
     const r = run(
@@ -311,8 +432,7 @@ export function Planner({
     );
     if (!r.ok) return;
     if (draft.waitId) setWaitlist((w) => w.filter((x) => x.id !== draft.waitId));
-    setSelected([]);
-    setMode("details");
+    closePanel();
   };
   const addToWaitlist = (quoteMin: number) => {
     const entry: WaitEntry = {
@@ -324,8 +444,7 @@ export function Planner({
     };
     setWaitlist((w) => [...w, entry]);
     setNotice({ ok: true, message: `Party of ${draft.size} waitlisted, quoted ~${quoteMin} min` });
-    setSelected([]);
-    setMode("details");
+    closePanel();
   };
   const finish = (ids: string[]) => {
     const size = Math.max(...ids.map((id) => tableById(room, id)?.partySize ?? 0));
@@ -345,9 +464,23 @@ export function Planner({
     setPinned(null);
     setSeatedAgo(new Map());
     setPhaseByHost(new Set());
+    setAiDone({});
+    setTaken(new Map());
     setNotice({ ok: true, message: "Reset to the original room" });
   };
 
+  // a promised table stays "taken" while its party is seated there or still waits for it
+  const takenNow = useMemo(
+    () =>
+      new Map(
+        [...taken].filter(
+          ([id]) =>
+            tableById(room, id)?.status === "occupied" ||
+            waitlist.some((w) => w.tables?.includes(id)),
+        ),
+      ),
+    [taken, room, waitlist],
+  );
   const night = NIGHTS[room.id];
   // Tables held by accepted large-party plans for this night (derived here; never a "blocked" status).
   const holds = useMemo(() => planHolds(room, requests), [room, requests]);
@@ -372,7 +505,16 @@ export function Planner({
         layoutName={layouts.active.name}
         edited={edited}
         mode={mode}
-        onMode={(m) => (m === "walkin" ? openWalkIn() : setMode(m))}
+        onMode={(m) => {
+          // a top-bar button starts over: no panel to go back to
+          setBack([]);
+          setReview(null);
+          if (m === "walkin") {
+            setDraft({ size: 2, needs: [] });
+            setSelected([]);
+            setMode("walkin");
+          } else setMode(m);
+        }}
         onReset={reset}
       />
       {proposal && (
@@ -450,7 +592,7 @@ export function Planner({
             openRequest={mode === "request" ? openRequest : null}
             onOpenRequest={(id) => {
               setOpenRequest(id);
-              setMode("request");
+              goTo("request");
             }}
           />
         </aside>
@@ -480,16 +622,34 @@ export function Planner({
               {PANEL_TITLE[mode]}{" "}
               {(mode === "assistant" || mode === "shift" || mode === "request") && <ProposedTag />}
             </h2>
+            {mode === "assistant" && (
+              <button
+                type="button"
+                className="link-btn new-chat"
+                onClick={() => {
+                  setChatSeq((n) => n + 1);
+                  setPinned(null);
+                  setHover(null);
+                }}
+              >
+                New chat
+              </button>
+            )}
             {(mode !== "details" || selected.length > 0) && (
               <button
                 type="button"
                 className="link-btn"
-                onClick={() => (mode !== "details" ? setMode("details") : setSelected([]))}
+                onClick={() => (mode !== "details" || back.length ? closePanel() : setSelected([]))}
               >
                 Close
               </button>
             )}
           </div>
+          {back.length > 0 && mode !== "review" && (
+            <button type="button" className="link-btn back-to" onClick={closePanel}>
+              ‹ Back to {PANEL_TITLE[back[back.length - 1] as PanelMode].replace("✦ ", "")}
+            </button>
+          )}
           <div className="tabpanel" hidden={mode !== "details"}>
             <TableDetails
               room={room}
@@ -544,15 +704,32 @@ export function Planner({
             </div>
           )}
           {/* Kept mounted so the conversation survives switching panels. */}
-          <div className="tabpanel" hidden={mode !== "assistant"}>
+          <div className="tabpanel agent-tab" hidden={mode !== "assistant"}>
             <AgentPanel
+              key={chatSeq}
               room={room}
               highlight={controls}
-              onApplyRows={combineRows}
-              onSelectTables={(ids, size) => openWalkIn({ ids, size })}
-              onOpenShift={() => setMode("shift")}
+              onPick={openReview}
+              onOpenShift={() => goTo("shift")}
+              done={aiDone}
+              taken={takenNow}
+              visible={mode === "assistant"}
+              fresh={chatSeq > 0}
+              threadId={`thread-${chatSeq}`}
             />
           </div>
+          {mode === "review" && review && (
+            <div className="tabpanel">
+              <WalkInReview
+                key={review.draft.key}
+                room={room}
+                draft={review.draft}
+                tables={review.tables}
+                onBack={closePanel}
+                onConfirm={confirmWalkIn}
+              />
+            </div>
+          )}
           {mode === "request" && request && (
             <div className="tabpanel">
               <RequestSheet
@@ -579,7 +756,7 @@ export function Planner({
                     }),
                     `Booked party of ${r.partySize} at ${clock12(r.time)}`,
                   );
-                  if (res.ok) setMode("details");
+                  if (res.ok) closePanel();
                 }}
               />
             </div>

@@ -1,4 +1,11 @@
-import { useRef, useState, type FormEvent, type KeyboardEvent } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type KeyboardEvent,
+} from "react";
 import type { Room } from "../../domain";
 import {
   MAX_HISTORY_CHARS,
@@ -6,6 +13,7 @@ import {
   MAX_TURN_CHARS,
   type AgentRequest,
   type AgentResponse,
+  type Recommendation,
 } from "../../shared/api";
 import { postAgent, type ClientError } from "../api";
 import type { HighlightControls } from "../highlight";
@@ -18,44 +26,42 @@ import { plainTables, tablesPhrase } from "../../domain/wording";
 import { times12 } from "../../domain/time";
 import { SourceFeedback } from "../activity/SourceFeedback";
 import { activeScenario, RECORDED_WALKIN } from "../scenarios";
+import "./agent15.css";
+import type { WalkInReviewDraft } from "../Review/WalkInReview";
+import { actionSentence, fixCopy, needsFromMessage, reasonTag, resolveOption } from "./options";
 
 export type Turn =
   | { id: number; role: "user"; text: string }
   | { id: number; role: "assistant"; res: AgentResponse }
-  | { id: number; role: "error"; error: ClientError };
+  | { id: number; role: "error"; error: ClientError }
+  /** Answered on this device from the options on screen ("option 1", "table 41"); no model call. */
+  | { id: number; role: "local"; text: string; ref: number; ranks: number[] };
 
-const EXAMPLES: Record<string, string[]> = {
-  "dinner-peak": [
-    "Party of 8 just walked in — where, and how soon?",
-    "One guest uses a wheelchair, party of 4",
-    "Party of 3 wants a booth",
-    "Couple asking for a quiet table with a view",
-  ],
-  "demo-night": [
-    "Generate tonight's layout for 17:00–22:00 — what can't we fit?",
-    "Where does the 24-top at 6:00 PM go, and what do we pull from storage?",
-    "Party of 6 walked in at 17:15 — where?",
-  ],
-  "next-day": [
-    "Plan tonight's large-party builds 17:00–20:00",
-    "Do we have enough extenders and chairs for tonight?",
-    "Party of 4 with a stroller at 18:00 — what works?",
-  ],
-};
 const MAX_HISTORY = 10;
+/** A request that takes longer than this gets a plain error (the host is mid-service). */
+const TIMEOUT_MS = 8000;
 
 interface Props {
   room: Room;
   highlight: HighlightControls;
-  onApplyRows: (rows: string[][]) => void;
-  onSelectTables: (ids: string[], partySize: number) => void;
+  /** An option's action: opens the review screen pre-filled (nothing changes until the host confirms there). */
+  onPick: (d: WalkInReviewDraft) => void;
   onOpenShift: () => void;
+  /** Result lines of options the host acted on, by card key ("rec-<turn>-<rank>"). */
+  done: Readonly<Record<string, { text: string; undo: () => void }>>;
+  /** Tables already promised or seated in this session, with the demo clock time. */
+  taken: ReadonlyMap<string, string>;
+  /** The panel is on screen (kept mounted when hidden so the thread survives). */
+  visible: boolean;
+  /** Started with "New chat": no recorded opening thread. */
+  fresh?: boolean;
+  /** This thread's id (ratings on replies answered on this device are keyed by it + the message index). */
+  threadId: string;
 }
 
 /** What a recommendation can turn into — always a confirmable host action, never a seat. */
 export interface RecActions {
-  onApplyRows: (rows: string[][]) => void;
-  onSelectTables: (ids: string[], partySize: number) => void;
+  onPick: (rec: Recommendation, partySize: number) => void;
   onOpenShift: () => void;
 }
 
@@ -68,6 +74,7 @@ export function toHistory(turns: Turn[]): AgentRequest["history"] {
   const all: AgentRequest["history"] = [];
   for (const t of turns) {
     if (t.role === "user") all.push({ role: "user", text: t.text });
+    else if (t.role === "local") all.push({ role: "assistant", text: t.text });
     else if (t.role === "assistant") {
       const text = [t.res.answer, t.res.clarifyingQuestion].filter(Boolean).join("\n");
       all.push({ role: "assistant", text });
@@ -96,23 +103,138 @@ function scenarioTurns(room: Room): Turn[] {
   ];
 }
 
-export function AgentPanel({ room, highlight, ...actions }: Props) {
-  const [turns, setTurns] = useState<Turn[]>(() => scenarioTurns(room));
+export function AgentPanel({
+  room,
+  highlight,
+  onPick,
+  onOpenShift,
+  done,
+  taken,
+  visible,
+  fresh = false,
+  threadId,
+}: Props) {
+  const [turns, setTurns] = useState<Turn[]>(() => (fresh ? [] : scenarioTurns(room)));
   const [input, setInput] = useState("");
   const [pending, setPending] = useState(false);
+  const [micHint, setMicHint] = useState(false);
   const nextId = useRef(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const examples = EXAMPLES[room.id] ?? EXAMPLES["dinner-peak"] ?? [];
+  const logRef = useRef<HTMLDivElement>(null);
+  const scrollTop = useRef(0);
+  const demo = activeScenario() !== null;
+
+  // Back from Table details or the review screen: the thread is where the host left it, the box is ready.
+  useLayoutEffect(() => {
+    if (!visible) return;
+    if (logRef.current) logRef.current.scrollTop = scrollTop.current;
+    inputRef.current?.focus({ preventScroll: true });
+  }, [visible]);
+  // a new turn scrolls into view from its top (the opening thread stays at its start)
+  const seen = useRef(turns.length);
+  useEffect(() => {
+    const el = logRef.current;
+    if (!el || !visible || turns.length + Number(pending) === seen.current) return;
+    seen.current = turns.length + Number(pending);
+    const last = el.lastElementChild as HTMLElement | null;
+    if (!last) return;
+    el.scrollTop += last.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
+    scrollTop.current = el.scrollTop;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [turns.length, pending]);
+
+  // back from the review screen: the card with the new result line is in view
+  const doneCount = Object.keys(done).length;
+  useLayoutEffect(() => {
+    const el = logRef.current;
+    const card = el?.querySelector<HTMLElement>(
+      ".rec-card.is-done:last-of-type, .rec-card.is-done",
+    );
+    if (!el || !card || !visible) return;
+    const cardBox = card.getBoundingClientRect();
+    const box = el.getBoundingClientRect();
+    if (cardBox.bottom > box.bottom || cardBox.top < box.top)
+      el.scrollTop += cardBox.bottom - box.bottom + 12;
+    scrollTop.current = el.scrollTop;
+  }, [doneCount, visible]);
+
+  /** The latest answer with options, and its party size + needs from the host's message before it. */
+  const latest = (() => {
+    for (let i = turns.length - 1; i >= 0; i--) {
+      const t = turns[i];
+      if (t?.role === "assistant" && t.res.recommendations.length) return { turn: t, index: i };
+    }
+    return null;
+  })();
+  const pick = (turnId: number, res: AgentResponse, rec: Recommendation, size: number, i: number) =>
+    onPick({
+      key: `rec-${turnId}-${rec.rank}`,
+      traceId: res.traceId,
+      tables: rec.tables,
+      waitMin: rec.waitMin,
+      size,
+      needs: needsFromMessage(hostText(turns, i)),
+    });
 
   const send = async () => {
     const message = input.trim();
     if (!message || pending || message.length > MAX_MESSAGE_CHARS) return;
-    const history = toHistory(turns);
     const userTurn: Turn = { id: nextId.current++, role: "user", text: message };
-    setTurns((t) => [...t, userTurn]);
     setInput("");
+    // "go ahead with option 1", "the fastest one", "table 41": answered here from the options on screen
+    if (latest) {
+      const recs = latest.turn.res.recommendations.filter(
+        (r) => !done[`rec-${latest.turn.id}-${r.rank}`],
+      );
+      const r = resolveOption(message, recs);
+      if (r.kind !== "none") {
+        const size = partyHint(turns, latest.index) ?? recs[0]?.seats ?? 2;
+        const text =
+          r.kind === "one"
+            ? (() => {
+                const rec = recs.find((x) => x.rank === r.rank) as Recommendation;
+                return `Option #${rec.rank}: ${actionSentence(rec, size)}. Review it, then confirm; nothing changes until you do.`;
+              })()
+            : `Which one? ${r.ranks
+                .map((n) => {
+                  const rec = recs.find((x) => x.rank === n) as Recommendation;
+                  return `#${n} ${tablesPhrase(rec.tables)}`;
+                })
+                .join(", ")}.`;
+        setTurns((t) => [
+          ...t,
+          userTurn,
+          {
+            id: nextId.current++,
+            role: "local",
+            text,
+            ref: latest.turn.id,
+            ranks: r.kind === "one" ? [r.rank] : r.ranks,
+          },
+        ]);
+        return;
+      }
+    }
+    const history = toHistory(turns);
+    setTurns((t) => [...t, userTurn]);
     setPending(true);
-    const result = await postAgent({ roomId: room.id, room, message, history });
+    const timeout = new Promise<{ ok: false; error: ClientError }>((resolve) =>
+      window.setTimeout(
+        () =>
+          resolve({
+            ok: false,
+            error: {
+              code: "timeout",
+              message: "The AI Planner took too long. Try again, or pick a table yourself.",
+            } as ClientError,
+          }),
+        TIMEOUT_MS,
+      ),
+    );
+    const result = await Promise.race([
+      postAgent({ roomId: room.id, room, message, history }),
+      timeout,
+    ]);
     void activityActions.recordAssistant(room.id, message, result);
     const id = nextId.current++;
     setTurns((t) => [
@@ -134,22 +256,31 @@ export function AgentPanel({ room, highlight, ...actions }: Props) {
       void send();
     }
   };
-  const pickExample = (text: string) => {
-    setInput(text);
-    inputRef.current?.focus();
-  };
 
   return (
     <div className="agent">
-      <p className="principle" role="note">
-        <strong>Recommend, never auto-seat</strong> — you approve every change.
-      </p>
+      {demo && (
+        <p className="principle info-callout" role="note">
+          <span className="info-icon" aria-hidden="true">
+            ⓘ
+          </span>{" "}
+          <span>
+            <strong>Recommend, never auto-seat</strong> — you approve every change.
+          </span>
+        </p>
+      )}
 
-      <div className="transcript" aria-live="polite" aria-busy={pending}>
+      <div
+        className="transcript"
+        ref={logRef}
+        aria-live="polite"
+        aria-busy={pending}
+        onScroll={(e) => (scrollTop.current = e.currentTarget.scrollTop)}
+      >
         {turns.length === 0 && (
           <p className="muted small">
-            Ask where to seat a party. The agent reads the current floor (including your edits) and
-            ranks options; nothing changes until you apply it.
+            Tell the AI Planner who is at the door. It reads the current floor (including your
+            edits) and ranks options; nothing changes until you confirm one.
           </p>
         )}
         {turns.map((t, i) =>
@@ -159,6 +290,27 @@ export function AgentPanel({ room, highlight, ...actions }: Props) {
             </div>
           ) : t.role === "error" ? (
             <ErrorTurn key={t.id} error={t.error} />
+          ) : t.role === "local" ? (
+            <LocalTurn
+              key={t.id}
+              turn={t}
+              index={i}
+              threadId={threadId}
+              source={turns.find((x) => x.id === t.ref)}
+              done={done}
+              onPick={(res, rec) =>
+                pick(
+                  t.ref,
+                  res,
+                  rec,
+                  partyHint(
+                    turns,
+                    turns.findIndex((x) => x.id === t.ref),
+                  ) ?? rec.seats,
+                  turns.findIndex((x) => x.id === t.ref),
+                )
+              }
+            />
           ) : (
             <AssistantTurn
               key={t.id}
@@ -166,7 +318,12 @@ export function AgentPanel({ room, highlight, ...actions }: Props) {
               res={t.res}
               room={room}
               highlight={highlight}
-              actions={actions}
+              done={done}
+              taken={taken}
+              actions={{
+                onPick: (rec, size) => pick(t.id, t.res, rec, size, i),
+                onOpenShift,
+              }}
               partyHint={partyHint(turns, i)}
             />
           ),
@@ -178,19 +335,9 @@ export function AgentPanel({ room, highlight, ...actions }: Props) {
         )}
       </div>
 
-      <div className="chips" aria-label="Example prompts">
-        {examples
-          .filter((ex) => !turns.some((t) => t.role === "user" && t.text === ex))
-          .map((ex) => (
-            <button key={ex} type="button" className="chip" onClick={() => pickExample(ex)}>
-              {ex}
-            </button>
-          ))}
-      </div>
-
       <form className="composer" onSubmit={onSubmit}>
         <label htmlFor="agent-input" className="sr-only">
-          Message to the floor agent
+          Message to the AI Planner
         </label>
         <textarea
           id="agent-input"
@@ -198,23 +345,99 @@ export function AgentPanel({ room, highlight, ...actions }: Props) {
           value={input}
           maxLength={MAX_MESSAGE_CHARS}
           rows={3}
-          placeholder="e.g. Party of 6 at the door, one in a wheelchair"
+          placeholder={
+            turns.length
+              ? "Reply, or say which option: “option 1”"
+              : "e.g. Party of 6 at the door, one in a wheelchair"
+          }
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          aria-describedby="agent-count"
         />
         <div className="composer-foot">
-          <span
-            id="agent-count"
-            className={`small ${input.length >= MAX_MESSAGE_CHARS ? "warn-text" : "muted"}`}
+          <button
+            type="button"
+            className="mic-btn"
+            aria-disabled="true"
+            aria-label="Dictate (future idea)"
+            aria-describedby="mic-hint"
+            title="Future: dictate instead of typing — hands are busy on the floor"
+            onClick={() => setMicHint((v) => !v)}
           >
-            {input.length}/{MAX_MESSAGE_CHARS}
+            <MicIcon />
+          </button>
+          <span id="mic-hint" className={`small muted mic-hint${micHint ? "" : " sr-only"}`}>
+            Future: dictate instead of typing — hands are busy on the floor
           </span>
+          {input.length > MAX_MESSAGE_CHARS * 0.8 && (
+            <span className={`small ${input.length >= MAX_MESSAGE_CHARS ? "warn-text" : "muted"}`}>
+              {input.length}/{MAX_MESSAGE_CHARS}
+            </span>
+          )}
+          <span className="spacer" />
           <button type="submit" className="tonal" disabled={pending || !input.trim()}>
-            {pending ? "Asking…" : "Ask"}
+            {pending ? "Asking…" : "Send"}
           </button>
         </div>
       </form>
+    </div>
+  );
+}
+
+/** The host's message right before turn i (for the needs it names). */
+function hostText(turns: Turn[], i: number): string {
+  for (let j = i - 1; j >= 0; j--) {
+    const t = turns[j];
+    if (t?.role === "user") return t.text;
+  }
+  return "";
+}
+
+/** A reply answered from the options on screen: the action as a button (it opens the review screen). */
+function LocalTurn({
+  turn,
+  index,
+  threadId,
+  source,
+  done,
+  onPick,
+}: {
+  turn: Extract<Turn, { role: "local" }>;
+  index: number;
+  threadId: string;
+  source: Turn | undefined;
+  done: Props["done"];
+  onPick: (res: AgentResponse, rec: Recommendation) => void;
+}) {
+  const res = source?.role === "assistant" ? source.res : null;
+  return (
+    <div className="bubble assistant">
+      <p className="answer">{turn.text}</p>
+      {res && (
+        <div className="btn-row local-actions">
+          {turn.ranks.map((n) => {
+            const rec = res.recommendations.find((r) => r.rank === n);
+            if (!rec) return null;
+            const key = `rec-${source?.id}-${n}`;
+            return done[key] ? (
+              <span key={n} className="ok-text small">
+                {done[key].text}
+              </span>
+            ) : (
+              <button
+                key={n}
+                type="button"
+                className={turn.ranks.length === 1 ? "primary" : "outline"}
+                onClick={() => onPick(res, rec)}
+              >
+                {turn.ranks.length === 1
+                  ? turn.text.replace(/^Option #\d+: /, "").replace(/\. Review it.*$/, "")
+                  : `#${n} ${tablesPhrase(rec.tables)} · ${rec.waitMin ? `~${rec.waitMin} min` : "free now"}`}
+              </button>
+            );
+          })}
+        </div>
+      )}
+      <SourceFeedback rowId={`row-${threadId}-${index}`} what="AI Planner reply" compact />
     </div>
   );
 }
@@ -236,6 +459,8 @@ interface AssistantProps {
   highlight: HighlightControls;
   actions: RecActions;
   partyHint: number | undefined;
+  done: Props["done"];
+  taken: Props["taken"];
 }
 
 /** Party size from the most recent host message before turn i. */
@@ -263,50 +488,85 @@ function AnswerLead({ text }: { text: string }) {
   );
 }
 
-function AssistantTurn({ turnId, res, room, highlight, actions, partyHint }: AssistantProps) {
+function AssistantTurn({
+  turnId,
+  res,
+  room,
+  highlight,
+  actions,
+  partyHint,
+  done,
+  taken,
+}: AssistantProps) {
   const recs = [...res.recommendations].sort((a, b) => a.rank - b.rank);
+  // once the host acts on one option, the others clear (the chosen card keeps its result line)
+  const chosen = recs.find((r) => done[`rec-${turnId}-${r.rank}`]);
+  const shown = chosen ? [chosen] : recs;
+  const takenAt = (r: Recommendation) => r.tables.map((id) => taken.get(id)).find(Boolean);
   return (
     <div className="bubble assistant">
-      {res.answer && <AnswerLead text={times12(plainTables(res.answer))} />}
-      {res.answer && <SourceFeedback rowId={`row-${res.traceId}`} what="AI Planner answer" />}
+      {res.answer && <AnswerLead text={fixCopy(times12(plainTables(res.answer)))} />}
       {res.clarifyingQuestion && (
         <p className="clarify">
-          <span className="pill">Question</span> {times12(plainTables(res.clarifyingQuestion))}
+          <span className="pill">Question</span>{" "}
+          {fixCopy(times12(plainTables(res.clarifyingQuestion)))}
         </p>
       )}
       {recs.length > 0 && (
         <div className="recs">
-          {recs.map((r, i) => (
+          {shown.map((r) => (
             <RecommendationCard
-              primary={i === 0}
+              primary={r.rank === recs[0]?.rank}
               key={r.rank}
               rec={r}
               hlKey={`rec-${turnId}-${r.rank}`}
               room={room}
               highlight={highlight}
-              actions={{
-                ...actions,
-                onApplyRows: (rows) => {
-                  activityActions.recordApplied(
-                    res.traceId,
-                    `Combined ${rows.map((x) => tablesPhrase(x)).join("; ")} by the host`,
-                  );
-                  actions.onApplyRows(rows);
-                },
-                onSelectTables: (ids, size) => {
-                  activityActions.recordApplied(
-                    res.traceId,
-                    `Host opened seating for ${size} at ${tablesPhrase(ids)}`,
-                  );
-                  actions.onSelectTables(ids, size);
-                },
-              }}
+              actions={actions}
               partySize={partyHint ?? r.seats}
+              tag={reasonTag(room, r, recs)}
+              done={done[`rec-${turnId}-${r.rank}`]}
+              taken={chosen ? undefined : takenAt(r)}
             />
           ))}
+          {chosen && recs.length > 1 && (
+            <p className="muted small">
+              {recs.length - 1} other option{recs.length === 2 ? "" : "s"} cleared
+            </p>
+          )}
         </div>
       )}
-      <Metrics res={res} />
+      <div className="reply-foot">
+        <Metrics res={res} />
+        {(res.answer || recs.length > 0) && (
+          <SourceFeedback rowId={`row-${res.traceId}`} what="AI Planner answer" compact />
+        )}
+      </div>
     </div>
+  );
+}
+
+/** A microphone outline (decorative). */
+function MicIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" className="mic-icon">
+      <rect
+        x="5.5"
+        y="1.5"
+        width="5"
+        height="8.5"
+        rx="2.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+      />
+      <path
+        d="M3.5 7.5a4.5 4.5 0 0 0 9 0M8 12v2.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

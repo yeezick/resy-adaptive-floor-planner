@@ -81,10 +81,13 @@ test("assistant renders ranked recommendations and never auto-seats", async ({ p
     .allTextContents();
   await hostButton(page, "AI Planner").click();
   await page.locator("#agent-input").fill("Party of 8 — where, and how soon?");
-  await page.getByRole("button", { name: "Ask", exact: true }).click();
+  await page.getByRole("button", { name: "Send", exact: true }).click();
   await expect(page.locator(".rec-card").first()).toContainText("table 41");
   await expect(page.locator(".answer")).toHaveText("Table 41 frees in about 11 minutes.");
-  await expect(page.getByText(/never auto-seat/i)).toBeVisible();
+  // the option's action opens the review screen; nothing is seated from the card
+  await expect(page.locator(".rec-card").first().locator(".rec-go")).toHaveText(
+    "Waitlist · ~11 min",
+  );
   expect(
     await page
       .locator(".rail")

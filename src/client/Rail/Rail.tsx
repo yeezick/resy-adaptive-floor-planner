@@ -207,7 +207,11 @@ export function Rail(p: Props) {
                 <span className="row-time">{clock12(w.addedAt)}</span>
                 <span className="row-party">{w.partySize}</span>
                 <span className="row-main">
-                  <span className="row-sub">quoted ~{w.quoteMin} min</span>
+                  <span className="row-sub">
+                    {w.name ? `${w.name} · ` : ""}quoted ~{w.quoteMin} min
+                    {w.tables?.length ? ` · for ${tablesPhrase(w.tables)}` : ""}
+                    {w.note ? ` · ${w.note}` : ""}
+                  </span>
                   {w.needs.length > 0 && (
                     <span className="needs">
                       {w.needs.map((n) => (

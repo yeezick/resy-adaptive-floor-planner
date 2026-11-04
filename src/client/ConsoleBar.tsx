@@ -4,7 +4,8 @@ import { planHolds } from "./lib/holds";
 import { NIGHTS } from "./nights";
 import { decisionOf, useRequests, type RequestsState } from "./requests/store";
 
-export type PanelMode = "details" | "walkin" | "assistant" | "shift" | "reservation" | "request";
+export type PanelMode =
+  "details" | "walkin" | "assistant" | "shift" | "reservation" | "request" | "review";
 
 interface Props {
   room: Room;

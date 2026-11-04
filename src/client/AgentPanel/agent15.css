@@ -1,0 +1,197 @@
+/* AI Planner: the thread scrolls, the message box stays pinned at the bottom of the panel */
+.side-col .tabpanel.agent-tab:not([hidden]) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding-bottom: 0;
+}
+.agent-tab .agent {
+  flex: 1;
+  min-height: 0;
+}
+.agent-tab .transcript {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 2px;
+}
+.agent-tab .composer {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface);
+  padding: 8px 0 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+.agent .composer textarea {
+  min-height: 84px;
+  font-size: 16px;
+  line-height: 1.4;
+  resize: none;
+}
+.agent .composer-foot {
+  gap: 8px;
+}
+.mic-btn {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: inline-grid;
+  place-items: center;
+  background: transparent;
+  border-color: var(--border);
+  color: var(--disabled-fg);
+  cursor: help;
+}
+.mic-btn:hover {
+  background: transparent;
+}
+.mic-hint {
+  max-width: 220px;
+  line-height: 1.25;
+}
+.agent .composer button[type="submit"] {
+  min-height: 44px;
+  min-width: 72px;
+}
+
+/* Demo-only info callout (not the Dessert/Check amber) */
+.principle.info-callout {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  background: var(--note-soft);
+  color: var(--note-ink);
+  border: 1px solid var(--note-border);
+  border-left: 1px solid var(--note-border);
+}
+.info-icon {
+  font-weight: 700;
+}
+
+/* Option cards: "#1 table 41 · Fastest" with the wait as an orange pill on the right */
+.rec-head {
+  align-items: center;
+}
+.rec-tag {
+  color: var(--muted);
+  font-weight: 600;
+}
+.wait-pill {
+  margin-left: auto;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: var(--warn-soft);
+  color: var(--warn-ink);
+  border: 1px solid var(--warn-border);
+  font-weight: 650;
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.rec-check {
+  margin: 4px 0 0;
+}
+button.outline {
+  background: transparent;
+  border: 1.5px solid var(--primary);
+  color: var(--text);
+  font-weight: 600;
+}
+button.outline:hover:not(:disabled) {
+  background: var(--surface-3);
+}
+.rec-go {
+  min-height: 44px;
+}
+.rec-done {
+  margin: 6px 0 0;
+  padding: 8px 10px;
+  border-radius: 7px;
+  background: var(--ok-soft);
+  color: var(--ok);
+  font-weight: 600;
+}
+.rec-done .link-btn {
+  color: inherit;
+  text-decoration: underline;
+  min-height: 44px;
+  padding: 0 4px;
+}
+.rec-card.is-taken .rec-tables,
+.rec-card.is-taken .rec-reason {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+.rec-taken {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-weight: 600;
+}
+.local-actions {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.local-actions button {
+  min-height: 44px;
+}
+
+/* Ratings on every reply: a small muted icon, bottom-right, with a full-size hit area */
+.reply-foot {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 8px;
+}
+.bubble.assistant .source-fb {
+  margin-left: auto;
+  justify-content: flex-end;
+}
+.bubble.assistant .fb-thumb {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  border-color: transparent;
+  color: var(--muted);
+  display: inline-grid;
+  place-items: center;
+}
+.bubble.assistant .fb-thumb svg {
+  width: 16px;
+  height: 16px;
+}
+.bubble.assistant .fb-thumb.is-on {
+  border-color: var(--accent);
+}
+
+.new-chat,
+.back-to {
+  min-height: 44px;
+  color: var(--accent);
+  font-weight: 600;
+}
+.back-to {
+  align-self: flex-start;
+  padding: 0 12px;
+}
+.panel-head .new-chat {
+  margin-left: auto;
+  margin-right: 12px;
+}
+.rec-card .rec-head {
+  flex-wrap: nowrap;
+}
+.rec-card .rec-tables {
+  min-width: 0;
+}
+.rec-card .rec-tag {
+  white-space: nowrap;
+}
+.rec-card .rec-tables {
+  white-space: nowrap;
+}
+.rec-card .rec-tag {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
