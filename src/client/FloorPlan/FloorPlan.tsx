@@ -65,6 +65,8 @@ export function FloorPlan({
   const panRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const [zoom, setZoom] = useState(1);
+  // Fit = the whole room in the panel. Off, a single room keeps a touch-sized minimum width and scrolls.
+  const [fitted, setFitted] = useState(false);
   const [fitFor, setFitFor] = useState(fitKey);
   if (fitFor !== fitKey) {
     setFitFor(fitKey);
@@ -222,6 +224,9 @@ export function FloorPlan({
   };
 
   const zi = ZOOMS.indexOf(zoom);
+  // at 100% a single room is shown at touch scale; one more step out fits the whole room
+  const canFit = preset !== "all" && !fitted;
+  const isFit = zoom === 1 && (fitted || preset === "all");
   const tabs = roomTabs(room);
 
   return (
@@ -246,12 +251,20 @@ export function FloorPlan({
           <button
             type="button"
             aria-label="Zoom out"
-            disabled={zi <= 0}
-            onClick={() => setZoom(ZOOMS[zi - 1] ?? 1)}
+            disabled={zi <= 0 && !canFit}
+            onClick={() => (zi <= 0 ? setFitted(true) : setZoom(ZOOMS[zi - 1] ?? 1))}
           >
             −
           </button>
-          <button type="button" aria-label="Fit to panel" onClick={() => setZoom(1)}>
+          <button
+            type="button"
+            aria-label="Fit to panel"
+            aria-pressed={isFit}
+            onClick={() => {
+              setZoom(1);
+              setFitted(true);
+            }}
+          >
             {zoom === 1 ? "Fit" : `${Math.round(zoom * 100)}%`}
           </button>
           <button
@@ -288,7 +301,7 @@ export function FloorPlan({
               ...(floorH ? { "--floor-h": `${floorH}px` } : {}),
               "--ar": box.w / box.h,
               // single rooms keep ≥11px per grid unit on tablets (2-tops ≥32px); the panel scrolls
-              "--min-w": preset === "all" ? "0px" : `${box.w * 11}px`,
+              "--min-w": preset === "all" || fitted ? "0px" : `${box.w * 11}px`,
             } as CSSProperties
           }
         >

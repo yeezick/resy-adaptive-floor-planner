@@ -52,7 +52,7 @@
   --btn-hover: #303033;
   --input-bg: #141414;
   --code-bg: #141414;
-  --disabled-fg: #8a8a8f;
+  --disabled-fg: #6e6e73;
   --disabled-bg: #212123;
   --disabled-border: #333335;
   --chart-2: #7d82b8;
@@ -157,7 +157,7 @@
   --btn-hover: #f0eeea;
   --input-bg: #ffffff;
   --code-bg: rgb(255 255 255 / 0.6);
-  --disabled-fg: #5f666d;
+  --disabled-fg: #858a91;
   --disabled-bg: #f1efeb;
   --disabled-border: #d6d1c8;
   --chart-2: #8a90bf;
@@ -304,6 +304,7 @@ code,
 .topbar nav {
   margin-left: auto;
   display: flex;
+  align-items: center;
   gap: 4px;
 }
 /* Theme toggle: compact visual, 44px-tall hit area via ::after */
@@ -342,6 +343,8 @@ code,
   box-shadow: inset 0 0 0 1px var(--border-strong);
 }
 .topbar nav a {
+  display: inline-flex;
+  align-items: center;
   color: var(--muted);
   text-decoration: none;
   padding: 3px 10px;
@@ -3225,16 +3228,26 @@ button,
   position: relative;
 }
 .scenario-menu summary {
-  gap: 6px;
+  gap: 4px;
   cursor: pointer;
-  min-height: 44px;
   display: flex;
   align-items: center;
-  padding: 0 12px;
-  border: 1px solid var(--btn-border);
-  border-radius: var(--radius);
-  background: var(--btn-bg);
+  padding: 3px 10px;
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 13px;
   list-style: none;
+}
+.scenario-menu summary:hover,
+.scenario-menu[open] summary {
+  background: var(--surface-2);
+  color: var(--text);
+}
+@media (pointer: coarse) {
+  .scenario-menu summary {
+    min-height: 44px;
+    padding: 0 12px;
+  }
 }
 .scenario-menu summary::-webkit-details-marker {
   display: none;
@@ -3865,6 +3878,10 @@ button.tonal:hover:not(:disabled) {
 button[aria-pressed="true"]:not(.primary):not(.fb-thumb) {
   color: var(--text);
 }
+/* the picked party size sits on the primary fill: keep its own ink in both themes */
+.size-grid button[aria-pressed="true"]:not(.primary) {
+  color: var(--on-primary);
+}
 .principle,
 .positioning {
   background: var(--surface-2);
@@ -4382,4 +4399,76 @@ html.planner-shell .console > .preview-bar .link-btn {
 }
 .accept-why {
   text-align: left;
+}
+
+/* Toasts float over the floor (top centre); they never take room in the bar or the panel. */
+.toast {
+  position: fixed;
+  top: 72px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 8px 8px 8px 14px;
+  background: var(--surface-3);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px rgb(0 0 0 / 0.35);
+}
+.toast.is-ok {
+  border-left: 3px solid var(--ok);
+}
+.toast.is-warn {
+  border-left: 3px solid var(--warn);
+}
+.toast-close {
+  min-width: 32px;
+  min-height: 32px;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--muted);
+}
+@media (pointer: coarse) {
+  .toast-close {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Desktop: no empty panel. The right column shows only while a sheet or a table is open. */
+@media (min-width: 1281px) {
+  html.planner-shell .console:not(.has-sheet) .console-body {
+    grid-template-columns: 240px minmax(0, 1fr);
+  }
+  html.planner-shell .console:not(.has-sheet) .side-col {
+    display: none;
+  }
+}
+
+/* iPad: with a sheet open, "Lists ›" opens the rail as a drawer over the floor (the floor keeps its width). */
+@media (max-width: 1280px) {
+  html.planner-shell .console.has-sheet.rail-open .console-body {
+    grid-template-columns: 64px minmax(0, 1fr) 340px;
+    position: relative;
+  }
+  html.planner-shell .console.has-sheet .floor-col {
+    grid-column: 2;
+  }
+  html.planner-shell .console.has-sheet .side-col {
+    grid-column: 3;
+  }
+  html.planner-shell .console.has-sheet.rail-open .rail {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 300px;
+    z-index: 30;
+    background: var(--surface);
+    box-shadow: 12px 0 32px rgb(0 0 0 / 0.45);
+  }
 }

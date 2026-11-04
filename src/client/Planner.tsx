@@ -125,6 +125,12 @@ export function Planner({
   const request = requests.book?.requests.find((r) => r.id === openRequest) ?? null;
 
   const [notice, setNotice] = useState<ActionResult | null>(null);
+  // a toast floats over the floor and clears itself; it never takes room in the bar or the panel
+  useEffect(() => {
+    if (!notice) return;
+    const t = window.setTimeout(() => setNotice(null), notice.ok ? 3500 : 6000);
+    return () => window.clearTimeout(t);
+  }, [notice]);
   const [draft, setDraft] = useState<WalkInDraft>({ size: 2, needs: [] });
   const [waitlist, setWaitlist] = useState<WaitEntry[]>([]);
   const [done, setDone] = useState<DoneEntry[]>([]);
@@ -311,7 +317,6 @@ export function Planner({
         roomSelect={roomSelect}
         layoutName={layouts.active.name}
         edited={edited}
-        notice={notice}
         mode={mode}
         onMode={(m) => (m === "walkin" ? openWalkIn() : setMode(m))}
         onReset={reset}
@@ -323,6 +328,23 @@ export function Planner({
           apply it
           <button type="button" className="link-btn" onClick={() => setProposal(null)}>
             Exit preview
+          </button>
+        </div>
+      )}
+      {notice && (
+        <div
+          key={notice.message}
+          className={`toast small ${notice.ok ? "is-ok" : "is-warn"}`}
+          role={notice.ok ? "status" : "alert"}
+        >
+          <span>{notice.message}</span>
+          <button
+            type="button"
+            className="link-btn toast-close"
+            aria-label="Dismiss"
+            onClick={() => setNotice(null)}
+          >
+            ×
           </button>
         </div>
       )}
@@ -425,14 +447,6 @@ export function Planner({
             )}
           </div>
           <div className="tabpanel" hidden={mode !== "details"}>
-            {notice && (
-              <p
-                className={`panel-notice small ${notice.ok ? "is-ok" : "warn-text"}`}
-                role="status"
-              >
-                {notice.message}
-              </p>
-            )}
             <TableDetails
               room={room}
               selected={selected}

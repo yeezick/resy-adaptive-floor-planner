@@ -3,7 +3,6 @@ import { clock12, toMinutes, type Room } from "../domain";
 import { planHolds } from "./lib/holds";
 import { NIGHTS } from "./nights";
 import { decisionOf, useRequests, type RequestsState } from "./requests/store";
-import type { ActionResult } from "./Planner";
 
 export type PanelMode = "details" | "walkin" | "assistant" | "shift" | "reservation" | "request";
 
@@ -12,7 +11,6 @@ interface Props {
   roomSelect: ReactNode;
   layoutName: string;
   edited: boolean;
-  notice: ActionResult | null;
   mode: PanelMode;
   onMode: (m: PanelMode) => void;
   onReset: () => void;
@@ -59,16 +57,7 @@ export function heldCount(room: Room, s: Pick<RequestsState, "book" | "decisions
   return ids.size;
 }
 
-export function ConsoleBar({
-  room,
-  roomSelect,
-  layoutName,
-  edited,
-  notice,
-  mode,
-  onMode,
-  onReset,
-}: Props) {
+export function ConsoleBar({ room, roomSelect, layoutName, edited, mode, onMode, onReset }: Props) {
   const c = roomCounts(room);
   const reqs = useRequests();
   const held = heldCount(room, reqs);
@@ -127,9 +116,6 @@ export function ConsoleBar({
         </button>
       </div>
       <div className="cb-right">
-        <span className="cb-notice small" aria-live="polite">
-          {notice && <span className={notice.ok ? "ok-text" : "warn-text"}>{notice.message}</span>}
-        </span>
         {edited && (
           <span className="pill pill-accent" title="The AI Planner sees your current layout">
             Edited
