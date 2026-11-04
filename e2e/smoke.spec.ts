@@ -572,7 +572,7 @@ test.describe("manager copy carries no fixture ids", () => {
       await expect(page.locator(".banner")).toBeVisible();
       await page.waitForLoadState("networkidle");
       const text = await page.locator("body").innerText();
-      expect(text).not.toMatch(/\b[QPF]\d+\b/);
+      expect(text).not.toMatch(/\b[QPFDEHRNdefhpt]\d+\b/);
     });
   }
 

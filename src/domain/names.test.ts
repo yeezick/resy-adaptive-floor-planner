@@ -15,6 +15,16 @@ describe("party names", () => {
     expect(new Set(fri).size).toBe(51);
   });
 
+  it("small bookings (lower-case ids) never share a name with the night's large parties", () => {
+    const ids = [
+      ...Array.from({ length: 11 }, (_, i) => `D${i + 1}`),
+      ...Array.from({ length: 40 }, (_, i) => `d${i + 1}`),
+    ];
+    expect(new Set(ids.map((id) => partyName(id))).size).toBe(ids.length);
+    expect(["F1", "f1"].map((id) => partyName(id))).toHaveLength(2);
+    expect(partyName("f1")).not.toBe(partyName("F1"));
+  });
+
   it("other ids pass through", () => {
     expect(partyName("T41")).toBe("T41");
     expect(partyName("seed-a1")).toBe("seed-a1");
