@@ -193,7 +193,13 @@ function AcceptedCard({
         {f.hold.tables.length > 0 && (
           <>
             <dt>Held</dt>
-            <dd>{times12(`${f.hold.from}–${f.hold.until}`)}</dd>
+            <dd>
+              {f.hold.runs.length > 1
+                ? f.hold.runs
+                    .map((r) => `${tableNumbers(r.tables)} from ${clock12(r.from)}`)
+                    .join(" · ") + ` · until ${clock12(f.hold.until)}`
+                : times12(`${f.hold.from}–${f.hold.until}`)}
+            </dd>
           </>
         )}
       </dl>
@@ -258,6 +264,17 @@ function Proposal({
 
       <section aria-label="Crew build list">
         <h3 className="section-title">Setup checklist</h3>
+        {p.conflicts.length > 0 && (
+          <ul className="hold-conflicts small" role="alert" aria-label="Hold conflicts">
+            {p.conflicts.map((c) => (
+              <li key={`${c.reservationId}-${c.table}-${c.seatedId}`} className="warn-text">
+                Conflict: {partyName(c.reservationId)}&rsquo;s setup starts {clock12(c.from)} on{" "}
+                {tablesPhrase([c.table])}, but {partyName(c.seatedId)} is seated there until ~
+                {clock12(c.seatedUntil)}
+              </li>
+            ))}
+          </ul>
+        )}
         <ol className="crew">
           {p.crew.map((c) => {
             const b = p.builds.find((x) => x.reservationId === c.reservationId);

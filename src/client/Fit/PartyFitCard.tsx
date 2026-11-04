@@ -63,8 +63,19 @@ export function PartyFitCard({
         )}
         <dt>Hold</dt>
         <dd>
-          {f.hold.tables.length ? f.hold.byArea.join(" · ") : "spare tables only"} held from{" "}
-          <strong>{clock12(f.hold.from)}</strong> · {f.hold.slotsBlocked} slot
+          {f.hold.tables.length ? (
+            f.hold.runs.map((r, i) => (
+              <span key={r.from}>
+                {i > 0 && " · "}
+                {r.byArea.join(" · ")} held from <strong>{clock12(r.from)}</strong>
+              </span>
+            ))
+          ) : (
+            <>
+              spare tables only held from <strong>{clock12(f.hold.from)}</strong>
+            </>
+          )}{" "}
+          · {f.hold.slotsBlocked} slot
           {f.hold.slotsBlocked === 1 ? "" : "s"} blocked ·{" "}
           <strong className={f.hold.coversLost ? "warn-text" : undefined}>
             ~{f.hold.coversLost} covers lost (est.)
