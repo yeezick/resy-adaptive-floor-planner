@@ -90,7 +90,7 @@ export function surname(contact: string): string {
 export function partyName(id: string, contacts: ReadonlyMap<string, string> = CONTACTS): string {
   const contact = contacts.get(id);
   if (contact) return surname(contact);
-  const m = /^([A-Z])(\d{1,4})$/.exec(id);
+  const m = /^([DEFHNPQR])(\d{1,4})$/.exec(id);
   if (!m) return id;
   const [, letter, digits] = m as unknown as [string, string, string];
   const offset = Math.max(0, PREFIXES.indexOf(letter)) * 7;
