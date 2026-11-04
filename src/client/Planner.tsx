@@ -134,6 +134,13 @@ export function Planner({
   const [openRequest, setOpenRequest] = useState<string | null>(
     focusView === "request" ? (focus ?? null) : null,
   );
+  // A highlight pinned in one panel (e.g. "AI option 1") ends when that panel closes or another opens.
+  const [pinnedFor, setPinnedFor] = useState(mode);
+  if (pinnedFor !== mode) {
+    setPinnedFor(mode);
+    setPinned(null);
+    setHover(null);
+  }
   const requests = useRequests();
   // every stamp the demo writes reads the clock of the night on screen
   useEffect(() => setDemoNight(room.id, room.clock), [room.id, room.clock]);
@@ -496,6 +503,7 @@ export function Planner({
               room={room}
               selected={selected}
               onFinish={finish}
+              onSeatHere={(ids) => openWalkIn({ ids })}
               holds={holds}
               phaseByHost={phaseByHost}
               seatedAgo={seatedAgo}

@@ -9,7 +9,14 @@ function currentTheme(): Theme {
 }
 
 function applyTheme(theme: Theme) {
-  document.documentElement.dataset.theme = theme;
+  // switch in one frame: no 150 ms colour transitions, so nothing flashes the old theme's colours
+  const root = document.documentElement;
+  root.classList.add("theme-switching");
+  root.dataset.theme = theme;
+  void root.offsetHeight;
+  window.requestAnimationFrame(() =>
+    window.requestAnimationFrame(() => root.classList.remove("theme-switching")),
+  );
   try {
     window.localStorage.setItem(KEY, theme);
   } catch {
