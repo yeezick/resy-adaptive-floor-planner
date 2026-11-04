@@ -340,8 +340,9 @@ export function Planner({
               <>
                 <span>Lists ›</span>
                 {openCount > 0 && (
-                  <span className="badge" aria-label={`${openCount} open requests`}>
-                    {openCount}
+                  <span className="badge">
+                    <span aria-hidden="true">{openCount}</span>
+                    <span className="sr-only">{openCount} open requests</span>
                   </span>
                 )}
               </>

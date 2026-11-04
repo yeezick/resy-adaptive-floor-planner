@@ -248,8 +248,9 @@ export function Rail(p: Props) {
                   <span className="row-main">
                     <span className="row-name">
                       <strong>{partyName(r.id)}</strong>
-                      <span className="row-party-inline" aria-label={`party of ${r.partySize}`}>
-                        {r.partySize}
+                      <span className="row-party-inline">
+                        <span aria-hidden="true">{r.partySize}</span>
+                        <span className="sr-only">party of {r.partySize}</span>
                       </span>
                       <span className="row-table">
                         {build ? tablesPhrase(build.tables) : "unassigned"}
@@ -423,8 +424,9 @@ function RequestsSection({
                   <br />
                   {clock12(r.time)}
                 </span>
-                <span className="row-party" aria-label={`party of ${r.partySize}`}>
-                  {r.partySize} ppl
+                <span className="row-party">
+                  <span aria-hidden="true">{r.partySize} ppl</span>
+                  <span className="sr-only">party of {r.partySize}</span>
                 </span>
                 <span className="row-main">
                   <span className="row-sub">
@@ -496,8 +498,9 @@ function RailSection({
             <span className="rail-name-row">
               {title}
               {badge ? (
-                <span className="badge" aria-label={`${badge} waiting`}>
-                  {badge}
+                <span className="badge">
+                  <span aria-hidden="true">{badge}</span>
+                  <span className="sr-only">{badge} waiting</span>
                 </span>
               ) : null}
             </span>
