@@ -11,6 +11,9 @@
 
 **Host tools today plan the layout ahead of time. This plans tonight's layout from tonight's book.**
 
+**Live demo:** https://adaptive-floor-planner-production.up.railway.app (fictional data; each scenario below opens from
+that URL, e.g. [`/?scenario=party-22-agent`](https://adaptive-floor-planner-production.up.railway.app/?scenario=party-22-agent)).
+
 Give it tonight's reservations, the base floor plan and what is in storage. It proposes tonight's layout as a list of
 changes — tables pushed together, dividers opened, extenders, chairs and spare tables pulled from storage — with an
 ordered crew build list, time windows and a reason for every choice. When something can't fit, it says why and keeps
@@ -69,7 +72,8 @@ is labelled "est.".
 
 ## Scenarios (deep links)
 
-The header's **Scenarios** menu opens a named demo state in one click. Each one has a stable URL and opens from
+The header's **Scenarios** menu opens a named demo state in one click. Each one has a stable URL (on the
+[live demo](https://adaptive-floor-planner-production.up.railway.app) or locally) and opens from
 fixtures, with AI answers replayed from recordings in `fixtures/scenarios/`, so no model is called:
 
 | URL                            | Opens                                                         |
