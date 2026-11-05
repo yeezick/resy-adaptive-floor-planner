@@ -403,6 +403,7 @@ export const requestsActions = {
       message,
       request: { partySize: r.partySize, day: r.day, time: r.time, needs: r.needs },
       constraints: current,
+      bookRoomId: r.bookRoomId,
     });
     clearTimeout(hard);
     // the turn as it stands now (it may carry the timeout line, which the answer replaces)

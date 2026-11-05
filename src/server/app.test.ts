@@ -282,6 +282,7 @@ describe("server", () => {
         needs: ["accessible"],
         notes: [],
       },
+      bookRoomId: "book-fri",
     };
     const post = (id: string, b: unknown) =>
       fetch(`${base}/api/requests/${id}/chat`, {
@@ -299,8 +300,51 @@ describe("server", () => {
     expect(out.input.length).toBe(body.message.length);
     // the manager's words go to the model fenced as data, never into the response
     expect(JSON.stringify(f.requests[0]?.messages)).toContain("<message>");
+    // the night's seating rooms come from the server's own copy of the night, inside the data tags
+    expect(JSON.stringify(f.requests[0]?.messages)).toContain("Seating rooms tonight: Dining room");
+    expect(JSON.stringify(f.requests[0]?.messages)).not.toContain("Service station");
     expect((await post("Q2", { ...body, message: "" })).status).toBe(400);
+    expect((await post("Q2", { ...body, bookRoomId: "nowhere" })).status).toBe(400);
     expect((await post("bad-id", body)).status).toBe(404);
+  });
+
+  it("Shift setup's floor chat returns floor changes only, for a known night", async () => {
+    const op = {
+      op: "move",
+      tables: [{ by: "range", n: 0, from: 63, to: 66, shape: "any", seats: 0, room: "" }],
+      to: "Garden Room",
+      seats: 0,
+      count: 0,
+      rows: [],
+    };
+    const none = {
+      tableRange: null,
+      partySize: null,
+      time: null,
+      addNeeds: [],
+      removeNeeds: [],
+      notes: [],
+      clarify: null,
+      rooms: [],
+      oneRoom: "unchanged",
+    };
+    const f = scripted([finalAnswer({ ...none, ops: [op] })]);
+    const base = await start({ create: f.create });
+    const post = (b: unknown) =>
+      fetch(`${base}/api/floor/chat`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(b),
+      });
+    const res = await post({
+      message: "move tables 63-66 into the garden room",
+      roomId: "book-fri",
+    });
+    expect(res.status).toBe(200);
+    const out = (await res.json()) as { output: { ops: unknown[] } };
+    expect(out.output.ops).toHaveLength(1);
+    expect(JSON.stringify(f.requests[0]?.messages)).toContain("Shift setup: no request is open");
+    expect((await post({ message: "move 63", roomId: "nowhere" })).status).toBe(400);
   });
 
   it("returns 503 no_key for the request chat without an API key", async () => {
@@ -312,6 +356,7 @@ describe("server", () => {
         message: "headcount is now 26",
         request: { partySize: 22, day: "Fri", time: "18:30", needs: [] },
         constraints: { tableRange: null, partySize: null, time: null, needs: [], notes: [] },
+        bookRoomId: "book-fri",
       }),
     });
     expect(res.status).toBe(503);

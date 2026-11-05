@@ -27,6 +27,8 @@ const none: ChatTurnOutput = {
   removeNeeds: [],
   notes: [],
   clarify: null,
+  // the floor-edit fields (spread, so this reads under older and newer output types alike)
+  ...{ rooms: [] as string[], oneRoom: "unchanged" as const, ops: [] },
 };
 
 describe("chatTurnProblems (solver-first)", () => {
