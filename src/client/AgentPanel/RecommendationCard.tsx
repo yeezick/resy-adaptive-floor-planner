@@ -15,7 +15,8 @@ import type { Highlight, HighlightControls } from "../highlight";
 import { waitLabel } from "../lib/format";
 import { PHASE_LABEL } from "../lib/service";
 import type { RecActions } from "./AgentPanel";
-import { plainTables, tableNo, tablesPhrase } from "../../domain/wording";
+import { tableNo, tablesPhrase } from "../../domain/wording";
+import { plannerText } from "./screen";
 import { clock12, times12 } from "../../domain/time";
 import { actionLabel, needsBuild } from "./options";
 
@@ -133,11 +134,11 @@ export function RecommendationCard({
           : ""}
         {needsBuild(room, rec) ? " · tables pushed together when you confirm" : ""}
       </p>
-      <p className="rec-reason">{times12(plainTables(rec.reasoning))}</p>
+      <p className="rec-reason">{times12(plannerText(rec.reasoning))}</p>
       {rec.tradeoffs.length > 0 && (
         <ul className="tradeoffs small">
           {rec.tradeoffs.map((t, i) => (
-            <li key={i}>{times12(plainTables(t))}</li>
+            <li key={i}>{times12(plannerText(t))}</li>
           ))}
         </ul>
       )}

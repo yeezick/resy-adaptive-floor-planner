@@ -166,7 +166,14 @@ export function createApp(opts: AppOptions = {}) {
     inFlight++;
     try {
       const { response } = await runAgent(
-        { room, message: body.data.message, history: body.data.history, traceId },
+        {
+          room,
+          message: body.data.message,
+          history: body.data.history,
+          traceId,
+          partySize: body.data.partySize,
+          openRequests: body.data.openRequests,
+        },
         cfg,
       );
       logEvent("agent_response", {
