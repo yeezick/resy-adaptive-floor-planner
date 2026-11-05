@@ -125,9 +125,8 @@ export function planLine(
   const rows = b.rows.length ? b.rows : [b.tables];
   const storage = storagePhrase(b);
   const extra = storage ? ` + ${storage} from storage` : "";
-  const rooms = b.area.includes(" + ")
-    ? ` (${b.area}${b.dividersOpened.length ? ", divider open" : ""})`
-    : "";
+  // the rooms, in a few words, only when the plan spans them ("Garden Room + Library")
+  const rooms = b.area.includes(" + ") ? ` (${b.area})` : "";
   if (rows.length === 1 && (rows[0]?.length ?? 0) <= 1)
     return `Set: ${tablesPhrase(b.tables)}${extra} as ${article(b.seats)} ${b.seats}-top${rooms}.`;
   const what =

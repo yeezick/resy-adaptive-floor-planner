@@ -59,9 +59,11 @@ test("one card: a short summary, Needs and the guest message up front, the rest 
   expect(size).toBeGreaterThanOrEqual(16);
   await expect(card.locator(".req-needs")).toContainText("Step-free access");
   await expect(card.getByRole("button", { name: "Mark as junk" })).toBeVisible();
-  await expect(sheet.getByRole("list", { name: "Pros" })).toHaveCount(0);
+  // pros and cons are on the card without expanding; More holds the plan
+  await expect(card.getByRole("list", { name: "Pros" })).toBeAttached();
+  await expect(card.locator(".req-plan")).toHaveCount(0);
   await card.getByRole("button", { name: "More ▸" }).click();
-  await expect(sheet.getByRole("list", { name: "Pros" })).toBeVisible();
+  await expect(card.locator(".req-plan")).toBeVisible();
 });
 
 test("the footer is one row: Decline · Message · Discuss · Accept, Accept the only filled button", async ({
@@ -114,7 +116,7 @@ test("at iPad width the Accept preview sits on its own line above the buttons", 
   expect(preview && row && preview.y + preview.height).toBeLessThanOrEqual(row?.y ?? 0);
 });
 
-test("at 1180 × 820 the header, Request, Needs, guest message, 'Take it' and Accept show without scrolling", async ({
+test("at 1180 × 820 the header, Request, Needs, guest message, Recommendation and Accept show without scrolling", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 1180, height: 820 });
@@ -134,7 +136,9 @@ test("at 1180 × 820 the header, Request, Needs, guest message, 'Take it' and Ac
     const b = await sheet.locator(sel).boundingBox();
     expect(b && b.y + b.height, sel).toBeLessThanOrEqual(footerTop);
   }
-  // nothing scrolls: not the page, not the sheet
+  // the page never scrolls. Pros and Cons are on the card without expanding (Erick, 17:47) and run on below
+  // the sticky footer: the sheet scrolls by about the length of the cons list (~200 px measured on macOS).
+  // Everything above, and Accept, needs no scrolling.
   const scroll = await page.evaluate(() => {
     const side = document.querySelector(".side-col") as HTMLElement;
     const inner = [...side.querySelectorAll<HTMLElement>("*")].filter(
@@ -143,11 +147,15 @@ test("at 1180 × 820 the header, Request, Needs, guest message, 'Take it' and Ac
     );
     return {
       page: document.documentElement.scrollHeight - window.innerHeight,
-      inner: inner.map((e) => e.className),
+      overflow: inner.map((e) => e.scrollHeight - e.clientHeight),
     };
   });
   expect(scroll.page).toBeLessThanOrEqual(0);
-  expect(scroll.inner).toEqual([]);
+  expect(scroll.overflow.length).toBeLessThanOrEqual(1);
+  for (const px of scroll.overflow) expect(px).toBeLessThanOrEqual(320);
+  const pros = await sheet.getByRole("list", { name: "Pros" }).boundingBox();
+  const take = await sheet.locator(".take-it").boundingBox();
+  expect(pros && take && pros.y > take.y).toBe(true);
 });
 
 test("Decline takes an optional note: saved with the decision and shown on /activity", async ({
