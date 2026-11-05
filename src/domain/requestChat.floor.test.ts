@@ -163,6 +163,22 @@ describe("rooms and oneRoom constraints", () => {
     });
     expect(a.fit.ok && a.fit.build.area).toBe("Garden Room + Library");
   });
+  it('rooms the model wrote with "the" ("the Library") still limit the plan to those rooms', () => {
+    const a = checkAdjusted(parseRoom(friJson), whitaker, {
+      ...baseConstraints(whitaker),
+      rooms: ["the Garden Room", "the Library"],
+    });
+    expect(a.fit.ok && a.fit.build.area).toBe("Garden Room + Library");
+  });
+  it('"the Library" alone matches the Library (a party it fits finds a fit there)', () => {
+    const a = checkAdjusted(parseRoom(friJson), whitaker, {
+      ...baseConstraints(whitaker),
+      partySize: 12,
+      rooms: ["the Library"],
+    });
+    expect(a.fit.ok && a.fit.build.area).toBe("Library");
+    expect(a.line).not.toContain("the the");
+  });
   it("a recorded answer without the floor fields still reads (they default to none)", () => {
     const { rooms: _r, oneRoom: _o, ops: _p, ...old } = none;
     expect(ChatTurnRecorded.parse(old)).toEqual(none);
