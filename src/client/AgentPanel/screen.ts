@@ -13,7 +13,7 @@ export const FLOOR_EDIT_ANSWER =
 
 const ROOMS = "(?:atrium|cellar|dining room|gallery|garden room|library|loft|terrace|east suite)";
 const VERB =
-  "(?:move|moving|moved|pull|pulling|swap|swapping|put|putting|take|taking|bring|bringing|add|adding|remove|removing|push|pushing|join|joining|split|splitting)";
+  "(?:move|moving|moved|pull|pulling|swap|swapping|put|putting|bring|bringing|add|adding|remove|removing|push|pushing|join|joining|split|splitting)";
 /** A table number: "56", "T56", "table 56" — not a headcount, time or wait ("2 people", "8:30", "10 min"). */
 const NUM =
   "(?:t|tables?\\s*)?\\d{1,3}(?![\\d:])(?!\\s*(?:more|extra|people|persons?|guests?|pax|covers?|kids?|adults?|min|mins|minutes?|hours?|hrs?|pm|am|p\\.m|a\\.m|o'?clock|now|-?\\s?tops?)\\b)";
@@ -27,13 +27,25 @@ const DIVIDER = new RegExp(
   `\\b(?:open|opening|close|closing)\\s+(?:up\\s+)?(?:the\\s+)?(?:dividers?|partitions?|walls?|doors?|rooms?\\s+between|${ROOMS})\\b`,
   "i",
 );
+/** "take table 81 out", "take out 2 tables", "take the Terrace tables away" — not "can they take table 12?". */
+const TAKE_OUT = new RegExp(
+  `\\btak(?:e|es|ing)\\s+(?:(?:out|away)\\s+${OBJECT}|${OBJECT}\\s+(?:out|away)\\b)`,
+  "i",
+);
 
 /**
  * True when the host asks the AI Planner to change the floor: move, swap, join or split tables, add chairs, bring
  * tables from storage, or open or close a divider. A seating ask ("seat them at 41", "they want the Terrace") is not.
  */
 export function isFloorEdit(message: string): boolean {
-  return EDIT.test(message) || DIVIDER.test(message);
+  return EDIT.test(message) || DIVIDER.test(message) || TAKE_OUT.test(message);
+}
+
+/** Clock times and durations ("8:30", "9 pm", "15 minutes") are never a headcount. */
+function withoutTimes(text: string): string {
+  return text
+    .replace(/\b\d{1,2}:\d{2}\s*(?:[ap]\.?m\.?)?/gi, " ")
+    .replace(/\b\d{1,3}\s*(?:[ap]\.?m\.?|o'?clock|min|mins|minutes?|hrs?|hours?)(?![a-z])/gi, " ");
 }
 
 /** "they're 10 now", "now 6": a corrected headcount the general reader misses. */
@@ -48,7 +60,8 @@ function correctedParty(text: string): number | undefined {
 
 /** Party size stated in one host message, if any. */
 export function partyInMessage(text: string): number | undefined {
-  return partyFromMessage(text) ?? correctedParty(text);
+  const plain = withoutTimes(text);
+  return partyFromMessage(plain) ?? correctedParty(plain);
 }
 
 /**
@@ -75,7 +88,7 @@ export function openRequestBriefs(requests: readonly GuestRequest[]): OpenReques
     name: surname(r.contact).slice(0, 60),
     partySize: r.partySize,
     time: r.time,
-    needs: [...r.needs],
+    needs: [...new Set(r.needs)],
   }));
 }
 
