@@ -8,6 +8,7 @@ import {
   RoomSummary,
   TriageResult,
   RequestChatResult,
+  type FloorChatBody,
   type RequestChatBody,
   type AgentRequest,
   type RequestDecision,
@@ -116,6 +117,15 @@ export function postRequestChat(
   body: RequestChatBody,
 ): Promise<Result<RequestChatResult>> {
   return call(`/api/requests/${encodeURIComponent(id)}/chat`, schemaParser(RequestChatResult), {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+  });
+}
+
+/** Shift setup's "Tell the AI": floor changes for the night on screen (the engine runs on this device). */
+export function postFloorChat(body: FloorChatBody): Promise<Result<RequestChatResult>> {
+  return call("/api/floor/chat", schemaParser(RequestChatResult), {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify(body),

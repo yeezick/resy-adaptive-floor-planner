@@ -4,11 +4,17 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { ChatTurnOutput, chatTurnProblems, ESCALATED_NOTE } from "../domain/requestChat";
-import type { CallMetrics, RequestChatBody, RequestChatResult } from "../shared/api";
+import {
+  ChatTurnOutput,
+  ChatTurnRecorded,
+  chatTurnProblems,
+  ESCALATED_NOTE,
+  type TurnContext,
+} from "../domain/requestChat";
+import type { CallMetrics, FloorChatBody, RequestChatBody, RequestChatResult } from "../shared/api";
 import { checkModel } from "./config";
 import type { SpendGate } from "./guards/budget";
-import { hashText, logCall } from "./log";
+import { hashText, logCall, logEvent } from "./log";
 import { callMetrics } from "./metrics";
 import { reservationUsd } from "./pricing";
 import { parsePrompt, type LoadedPrompt } from "./agent/prompt";
@@ -43,7 +49,7 @@ export function requestChatConfigFromEnv(create: CreateMessage): RequestChatConf
   return {
     create,
     model,
-    maxTokens: Number(process.env.REQUEST_CHAT_MAX_TOKENS ?? 500),
+    maxTokens: Number(process.env.REQUEST_CHAT_MAX_TOKENS ?? 1000),
     timeoutMs: Number(process.env.REQUEST_CHAT_TIMEOUT_MS ?? 15_000),
   };
 }
@@ -58,23 +64,40 @@ export class RequestChatError extends Error {
   }
 }
 
-function userMessage(b: RequestChatBody): string {
+function roomsLine(ctx: TurnContext): string | null {
+  return ctx.rooms?.length ? `Seating rooms tonight: ${ctx.rooms.join(", ")}` : null;
+}
+
+function userMessage(b: RequestChatBody, ctx: TurnContext): string {
   const c = b.constraints;
   const facts = [
     `Request: party of ${b.request.partySize} on ${b.request.day} at ${b.request.time}`,
     b.request.needs.length ? `Needs on file: ${b.request.needs.join(", ")}` : "Needs on file: none",
+    b.planRooms?.length ? `Current plan uses: ${b.planRooms.join(" + ")}` : null,
+    roomsLine(ctx),
     c.tableRange ? `Current table range: ${c.tableRange.from}–${c.tableRange.to}` : null,
     c.partySize !== null ? `Current headcount: ${c.partySize}` : null,
     c.time !== null ? `Current time: ${c.time}` : null,
+    c.rooms?.length ? `Current rooms: ${c.rooms.join(", ")}` : null,
+    c.oneRoom ? "Currently kept in one room" : null,
     c.notes.length ? `Crew notes so far: ${c.notes.join(", ")}` : null,
   ].filter(Boolean);
   // Every fact above comes from the client, so it sits inside data tags like the message itself.
   return `<request>\n${asData(facts.join("\n"))}\n</request>\n\n<message>\n${asData(b.message)}\n</message>`;
 }
 
+/** Shift setup's "Tell the AI": no request is open, so only floor changes apply. */
+function floorMessage(b: FloorChatBody, ctx: TurnContext): string {
+  const facts = [
+    "Shift setup: no request is open. Return floor changes (ops) only; leave every request field unchanged.",
+    roomsLine(ctx),
+  ].filter(Boolean);
+  return `<request>\n${asData(facts.join("\n"))}\n</request>\n\n<message>\n${asData(b.message)}\n</message>`;
+}
+
 function parseOutput(text: string): ChatTurnOutput | null {
   try {
-    const p = ChatTurnOutput.safeParse(JSON.parse(text));
+    const p = ChatTurnRecorded.safeParse(JSON.parse(text));
     return p.success ? p.data : null;
   } catch {
     return null;
@@ -82,18 +105,42 @@ function parseOutput(text: string): ChatTurnOutput | null {
 }
 
 /** One chat turn. Throws RequestChatError on timeout, budget or API failure (calls made so far attached). */
-export async function requestChatTurn(
+export function requestChatTurn(
   requestId: string,
   body: RequestChatBody,
   traceId: string,
   cfg: RequestChatConfig,
+  ctx: TurnContext = {},
+): Promise<RequestChatResult> {
+  return chatTurn(requestId, userMessage(body, ctx), body.message, traceId, cfg, ctx);
+}
+
+/** One Shift setup turn: floor changes only (no request facts, no constraint fields). */
+export function floorChatTurn(
+  roomId: string,
+  body: FloorChatBody,
+  traceId: string,
+  cfg: RequestChatConfig,
+  ctx: TurnContext = {},
+): Promise<RequestChatResult> {
+  return chatTurn(roomId, floorMessage(body, ctx), body.message, traceId, cfg, {
+    ...ctx,
+    floorOnly: true,
+  });
+}
+
+async function chatTurn(
+  requestId: string,
+  user: string,
+  message: string,
+  traceId: string,
+  cfg: RequestChatConfig,
+  ctx: TurnContext,
 ): Promise<RequestChatResult> {
   const prompt = loadRequestChatPrompt();
   const schema = toStrictJsonSchema(ChatTurnOutput);
   const calls: CallMetrics[] = [];
-  const messages: Anthropic.Beta.BetaMessageParam[] = [
-    { role: "user", content: userMessage(body) },
-  ];
+  const messages: Anthropic.Beta.BetaMessageParam[] = [{ role: "user", content: user }];
   const started = Date.now();
   let rejects = 0;
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -151,6 +198,9 @@ export async function requestChatTurn(
     hold?.settle(m.costUsd);
     calls.push(m);
     logCall(m);
+    // a cut-off answer is rejected as invalid JSON: say so in the log, so max_tokens hits can be counted
+    if (msg.stop_reason === "max_tokens")
+      logEvent("request_chat_max_tokens", { traceId, attempt, maxTokens: cfg.maxTokens });
 
     const done = (out: ChatTurnOutput | null, note: string | null): RequestChatResult => ({
       requestId,
@@ -161,7 +211,7 @@ export async function requestChatTurn(
       escalated: out === null,
       note,
       validatorRejects: rejects,
-      input: hashText(body.message),
+      input: hashText(message),
       metrics: {
         costUsd: calls.reduce((n, c) => n + c.costUsd, 0),
         latencyMs: Date.now() - started,
@@ -175,7 +225,7 @@ export async function requestChatTurn(
       .join("");
     const parsed = parseOutput(text);
     const problems = parsed
-      ? chatTurnProblems(parsed, body.message)
+      ? chatTurnProblems(parsed, message, ctx)
       : ["the answer was not valid JSON"];
     if (parsed && problems.length === 0) return done(parsed, null);
     rejects++;

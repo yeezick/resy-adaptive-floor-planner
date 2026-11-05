@@ -1,7 +1,7 @@
 // Contract between the client and the server. Change both sides together.
 import { z } from "zod";
 import { Room } from "../domain/types";
-import { ChatConstraints, ChatTurnOutput } from "../domain/requestChat";
+import { ChatConstraints, ChatTurnRecorded } from "../domain/requestChat";
 import { NEEDS } from "../domain/requests";
 
 export const MAX_MESSAGE_CHARS = 500;
@@ -156,9 +156,23 @@ export const RequestChatBody = z
       })
       .strict(),
     constraints: ChatConstraints,
+    /** The room fixture that holds the request's night: the server derives the trusted room names from it. */
+    bookRoomId: z.string().min(1).max(40),
+    /** Rooms the request's current plan uses (data only, e.g. "Garden Room + Library"). */
+    planRooms: z.array(z.string().min(1).max(40)).max(4).optional(),
   })
   .strict();
 export type RequestChatBody = z.infer<typeof RequestChatBody>;
+
+/** Shift setup's "Tell the AI": a floor change for the night on screen, with no request. */
+export const FloorChatBody = z
+  .object({
+    message: z.string().trim().min(1).max(300),
+    /** The room fixture of the night on screen: the trusted room names come from it. */
+    roomId: z.string().min(1).max(40),
+  })
+  .strict();
+export type FloorChatBody = z.infer<typeof FloorChatBody>;
 
 export const RequestChatResult = z
   .object({
@@ -167,7 +181,7 @@ export const RequestChatResult = z
     promptVersion: z.string(),
     model: z.string(),
     /** The validated constraints for this turn; null when the AI couldn't produce usable ones. */
-    output: ChatTurnOutput.nullable(),
+    output: ChatTurnRecorded.nullable(),
     escalated: z.boolean(),
     /** Why there is no output (refusal, two rejects), in one line. */
     note: z.string().nullable(),

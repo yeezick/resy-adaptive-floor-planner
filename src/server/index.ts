@@ -5,7 +5,13 @@ import { isIP } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Room } from "../domain";
-import { AgentRequest, RequestChatBody, RequestDecision, type ApiError } from "../shared/api";
+import {
+  AgentRequest,
+  FloorChatBody,
+  RequestChatBody,
+  RequestDecision,
+  type ApiError,
+} from "../shared/api";
 import {
   AgentError,
   agentConfigFromEnv,
@@ -28,6 +34,7 @@ import {
   type TriageConfig,
 } from "./triage";
 import {
+  floorChatTurn,
   RequestChatError,
   requestChatConfigFromEnv,
   requestChatTurn,
@@ -48,6 +55,11 @@ export interface AppOptions {
   triage?: Partial<Pick<TriageConfig, "maxTokens" | "timeoutMs" | "model">>;
   /** Overrides on the env-derived request-chat config (tests). */
   requestChat?: Partial<Pick<RequestChatConfig, "maxTokens" | "timeoutMs" | "model">>;
+}
+
+/** The night's seating rooms (not the service station or the bar), by name: the chat's trusted room list. */
+function seatingRooms(room: Room): string[] {
+  return room.areas.filter((a) => a.kind === "dining" || a.kind === "private").map((a) => a.name);
 }
 
 function sendError(res: Response, status: number, code: ApiError["code"], error: string) {
@@ -284,6 +296,9 @@ export function createApp(opts: AppOptions = {}) {
     const body = RequestChatBody.safeParse(req.body);
     if (!body.success)
       return sendError(res, 400, "bad_request", body.error.issues[0]?.message ?? "invalid message");
+    // the trusted room names come from the server's own copy of the request's night
+    const night = getRoom(body.data.bookRoomId);
+    if (!night) return sendError(res, 400, "bad_request", "unknown room");
     if (!limiter.hit(req.ip ?? "unknown"))
       return sendError(res, 429, "rate_limited", "Too many requests — try again in a minute.");
     const call = create();
@@ -308,7 +323,9 @@ export function createApp(opts: AppOptions = {}) {
         ...opts.requestChat,
         budget,
       };
-      const result = await requestChatTurn(req.params.id, body.data, traceId, cfg);
+      const result = await requestChatTurn(req.params.id, body.data, traceId, cfg, {
+        rooms: seatingRooms(night),
+      });
       logEvent("request_chat_response", {
         traceId,
         requestId: req.params.id,
@@ -319,6 +336,8 @@ export function createApp(opts: AppOptions = {}) {
         validatorRejects: result.validatorRejects,
         costUsd: result.metrics.costUsd,
         latencyMs: result.metrics.latencyMs,
+        ops: result.output?.ops.length ?? 0,
+        stopReasons: result.metrics.calls.map((c) => c.stopReason),
       });
       res.json(result);
     } catch (e) {
@@ -328,6 +347,66 @@ export function createApp(opts: AppOptions = {}) {
         message: hashText(body.data.message),
         code,
         costUsd: e instanceof RequestChatError ? e.calls.reduce((n, c) => n + c.costUsd, 0) : null,
+      });
+      const status = code === "timeout" ? 504 : code === "budget" ? 429 : 502;
+      return sendError(res, status, code, e instanceof Error ? e.message : "chat failed");
+    }
+  });
+
+  // Shift setup's "Tell the AI": the manager's words → floor changes for the night on screen (no request). The
+  // client runs the engine on its own floor; nothing changes until the manager applies it.
+  app.post("/api/floor/chat", async (req, res) => {
+    const body = FloorChatBody.safeParse(req.body);
+    if (!body.success)
+      return sendError(res, 400, "bad_request", body.error.issues[0]?.message ?? "invalid message");
+    const night = getRoom(body.data.roomId);
+    if (!night) return sendError(res, 400, "bad_request", "unknown room");
+    if (!limiter.hit(req.ip ?? "unknown"))
+      return sendError(res, 429, "rate_limited", "Too many requests — try again in a minute.");
+    const call = create();
+    if (!call)
+      return sendError(
+        res,
+        503,
+        "no_key",
+        "The floor chat is not configured on this server (no API key). Nothing changed. You can move tables in the layout editor.",
+      );
+    if (budget.exhausted())
+      return sendError(
+        res,
+        429,
+        "budget",
+        "The demo budget reached its daily limit — try again tomorrow.",
+      );
+    const traceId = randomUUID();
+    try {
+      const cfg: RequestChatConfig = {
+        ...requestChatConfigFromEnv(call),
+        ...opts.requestChat,
+        budget,
+      };
+      const result = await floorChatTurn(body.data.roomId, body.data, traceId, cfg, {
+        rooms: seatingRooms(night),
+      });
+      logEvent("floor_chat_response", {
+        traceId,
+        roomId: body.data.roomId,
+        message: result.input,
+        promptVersion: result.promptVersion,
+        escalated: result.escalated,
+        validatorRejects: result.validatorRejects,
+        ops: result.output?.ops.length ?? 0,
+        costUsd: result.metrics.costUsd,
+        latencyMs: result.metrics.latencyMs,
+        stopReasons: result.metrics.calls.map((c) => c.stopReason),
+      });
+      res.json(result);
+    } catch (e) {
+      const code = e instanceof RequestChatError ? e.code : "upstream";
+      logEvent("floor_chat_error", {
+        roomId: body.data.roomId,
+        message: hashText(body.data.message),
+        code,
       });
       const status = code === "timeout" ? 504 : code === "budget" ? 429 : 502;
       return sendError(res, status, code, e instanceof Error ? e.message : "chat failed");

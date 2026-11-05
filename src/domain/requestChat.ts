@@ -5,10 +5,11 @@
 // also a manual control on the sheet.
 import { z } from "zod";
 import { fitRequest, type RequestFit } from "./buildplan";
+import { LayoutOp, type TableRef } from "./layoutOps";
 import { NEEDS, SERVICE, toReservation, type GuestRequest } from "./requests";
 import { toMinutes } from "./time";
 import { HHMM, type Room } from "./types";
-import { tableNo, tablesPhrase } from "./wording";
+import { listAnd, tableNo, tablesPhrase } from "./wording";
 
 export const TableRange = z
   .object({ from: z.number().int().min(1).max(999), to: z.number().int().min(1).max(999) })
@@ -24,6 +25,10 @@ export const ChatConstraints = z
     needs: z.array(z.enum(NEEDS)),
     /** Things the planner can't place but the crew should know ("high chair"). */
     notes: z.array(z.string().min(1).max(40)).max(4),
+    /** Rooms the party may use ("put them in the Library"); absent = any. */
+    rooms: z.array(z.string().min(1).max(40)).max(4).optional(),
+    /** Keep the party in any ONE room (the divider closed); absent = either. */
+    oneRoom: z.boolean().optional(),
   })
   .strict();
 export type ChatConstraints = z.infer<typeof ChatConstraints>;
@@ -36,20 +41,42 @@ export function baseConstraints(r: GuestRequest): ChatConstraints {
   return { tableRange: null, partySize: null, time: null, needs: [...r.needs], notes: [] };
 }
 
-/** What the model returns for one chat turn. null / [] = no change to that constraint. */
+/**
+ * What the model returns for one chat turn. null / [] / "unchanged" = no change to that constraint. New fields are
+ * never nullable (the API allows at most 16 union-typed parameters per request): sentinels instead.
+ */
+const turnFields = {
+  tableRange: TableRange.nullable(),
+  partySize: z.number().int().min(1).max(500).nullable(),
+  time: z.string().nullable(),
+  addNeeds: z.array(z.enum(NEEDS)),
+  removeNeeds: z.array(z.enum(NEEDS)),
+  notes: z.array(z.string().min(1).max(40)).max(3),
+  /** One short question when the message can't be turned into a constraint. */
+  clarify: z.string().max(140).nullable(),
+};
 export const ChatTurnOutput = z
   .object({
-    tableRange: TableRange.nullable(),
-    partySize: z.number().int().min(1).max(500).nullable(),
-    time: z.string().nullable(),
-    addNeeds: z.array(z.enum(NEEDS)),
-    removeNeeds: z.array(z.enum(NEEDS)),
-    notes: z.array(z.string().min(1).max(40)).max(3),
-    /** One short question when the message can't be turned into a constraint. */
-    clarify: z.string().max(140).nullable(),
+    ...turnFields,
+    /** Rooms the party may use (by name, as typed); [] = no change. */
+    rooms: z.array(z.string().max(40)),
+    /** "yes" = keep the party in one room (close the divider); "no" = rooms may open; "unchanged". */
+    oneRoom: z.enum(["yes", "no", "unchanged"]),
+    /** Floor edits for tonight (move, swap, join, split, storage, rows); [] = none. The engine checks them. */
+    ops: z.array(LayoutOp),
   })
   .strict();
 export type ChatTurnOutput = z.infer<typeof ChatTurnOutput>;
+
+/** The same answer read back from a recording or an older client: the floor-edit fields default to "none". */
+export const ChatTurnRecorded = z
+  .object({
+    ...turnFields,
+    rooms: z.array(z.string().max(40)).default([]),
+    oneRoom: z.enum(["yes", "no", "unchanged"]).default("unchanged"),
+    ops: z.array(LayoutOp).default([]),
+  })
+  .strict();
 
 const numbersIn = (text: string): Set<number> =>
   new Set([...text.matchAll(/\d+/g)].map((m) => Number(m[0])));
@@ -91,11 +118,52 @@ export function timesIn(text: string): Set<number> {
   return out;
 }
 
+/** Facts the validator trusts (from the server's own room data, never from the client). */
+export interface TurnContext {
+  /** The night's seating-room names. */
+  rooms?: readonly string[];
+  /** Shift setup (no request): only floor changes are allowed. */
+  floorOnly?: boolean;
+}
+
+const roomKey = (s: string) =>
+  s
+    .trim()
+    .toLowerCase()
+    .replace(/^the\s+/, "");
+/** Words that describe a table, not a crew task ("the round 8-top", "a 4-top", "booth"). */
+const TABLE_WORDS =
+  /\b(\d+-?tops?|round|rectangular|rect|diamond|booth|deuce|four-?top|eight-?top|table)\b/i;
+
+/** Every table number an op's references use, and the room names they mention. */
+function refFacts(ops: readonly LayoutOp[]): { numbers: number[]; rooms: string[] } {
+  const numbers: number[] = [];
+  const rooms: string[] = [];
+  const ref = (r: TableRef) => {
+    if (r.by === "number") numbers.push(r.n);
+    if (r.by === "range") numbers.push(r.from, r.to);
+    if (r.by === "description" && r.seats > 0) numbers.push(r.seats);
+    if (r.room) rooms.push(r.room);
+  };
+  for (const o of ops) {
+    o.tables.forEach(ref);
+    if (o.to) rooms.push(o.to);
+    if (o.seats) numbers.push(o.seats);
+    numbers.push(...o.rows);
+  }
+  return { numbers, rooms };
+}
+
 /**
  * Problems that make a turn unusable (empty = valid). Solver-first: every number the model sets must be in the
- * manager's own message, and nothing it writes may name a table.
+ * manager's own message (a storage count is the one exception: "two 4-tops" → 2), every room must be one of the
+ * night's seating rooms, and nothing it writes may name a table.
  */
-export function chatTurnProblems(out: ChatTurnOutput, message: string): string[] {
+export function chatTurnProblems(
+  out: ChatTurnOutput,
+  message: string,
+  ctx: TurnContext = {},
+): string[] {
   const problems: string[] = [];
   const nums = numbersIn(message);
   if (out.tableRange) {
@@ -120,14 +188,35 @@ export function chatTurnProblems(out: ChatTurnOutput, message: string): string[]
   if (out.notes.some((n) => /\d/.test(n))) problems.push("a note carries a number");
   if (/\b(booked|confirmed|reserved|accepted)\b/i.test(words))
     problems.push("says something is booked — nothing is decided");
-  const changes =
+  // floor edits: table numbers and sizes only as typed; rooms only from tonight's floor
+  const facts = refFacts(out.ops);
+  if (facts.numbers.some((n) => !nums.has(n)))
+    problems.push("a floor change uses a number the manager didn't type");
+  if (out.ops.some((o) => o.op === "from_storage" && (o.count < 1 || o.count > 6)))
+    problems.push("bring between 1 and 6 tables from storage");
+  if (ctx.rooms) {
+    const known = new Set(ctx.rooms.map(roomKey));
+    const unknown = [...out.rooms, ...facts.rooms].filter((r) => !known.has(roomKey(r)));
+    if (unknown.length)
+      problems.push(`not a seating room tonight: ${[...new Set(unknown)].join(", ")}`);
+    // a crew note that is really a room or a table ("library room", "the round 8-top") is not a note (T13)
+    if (out.notes.some((n) => ctx.rooms?.some((r) => roomKey(n).includes(roomKey(r)))))
+      problems.push("a note names a room — use rooms or a floor change instead");
+  }
+  if (out.notes.some((n) => TABLE_WORDS.test(n)))
+    problems.push("a note describes a table — use a floor change instead");
+  const requestChange =
     out.tableRange ||
     out.partySize !== null ||
     out.time !== null ||
     out.addNeeds.length ||
     out.removeNeeds.length ||
-    out.notes.length;
-  if (!changes && !out.clarify) problems.push("no change and no question");
+    out.notes.length ||
+    out.rooms.length ||
+    out.oneRoom !== "unchanged";
+  if (ctx.floorOnly && requestChange)
+    problems.push("Shift setup has no request: return floor changes only");
+  if (!requestChange && !out.ops.length && !out.clarify) problems.push("no change and no question");
   return problems;
 }
 
@@ -139,12 +228,17 @@ export function mergeTurn(c: ChatConstraints, out: ChatTurnOutput): ChatConstrai
   const notes = [...c.notes];
   for (const n of out.notes)
     if (!notes.some((x) => x.toLowerCase() === n.toLowerCase())) notes.push(n);
+  const rooms = out.rooms.length ? out.rooms : c.rooms;
+  const oneRoom = out.oneRoom === "unchanged" ? c.oneRoom : out.oneRoom === "yes";
   return {
     tableRange: out.tableRange ?? c.tableRange,
     partySize: out.partySize ?? c.partySize,
     time: out.time ?? c.time,
     needs: NEEDS.filter((n) => needs.has(n)),
     notes: notes.slice(-4),
+    // absent unless set, so a turn that doesn't touch them leaves the constraints byte-identical
+    ...(rooms?.length ? { rooms: [...rooms] } : {}),
+    ...(oneRoom ? { oneRoom: true } : {}),
   };
 }
 
@@ -185,6 +279,8 @@ export function changeList(r: GuestRequest, c: ChatConstraints): string[] {
   const removed = r.needs.filter((n) => !c.needs.includes(n));
   if (added.length) out.push(`needs ${added.join(", ")}`);
   if (removed.length) out.push(`no longer ${removed.join(", ")}`);
+  if (c.rooms?.length) out.push(`only the ${listAnd(c.rooms)}`);
+  if (c.oneRoom) out.push("one room");
   for (const n of c.notes) out.push(n);
   return out;
 }
@@ -198,16 +294,37 @@ export interface AdjustedFit {
   closest: string | null;
 }
 
+/** Where the manager's constraints let the party sit: a table range, named rooms, both, or anywhere (undefined). */
+function allowedTables(room: Room, c: ChatConstraints): { tables?: string[]; label?: string } {
+  const range = c.tableRange;
+  // same normalisation as the validator, so a "the Library" it accepted matches the Library's tables
+  const inRooms = c.rooms?.length ? new Set(c.rooms.map(roomKey)) : null;
+  if (!range && !inRooms) return {};
+  const ids = room.tables.filter((t) => !inRooms || inRooms.has(roomKey(t.area))).map((t) => t.id);
+  const tables = range ? tablesInRange(room, range).filter((id) => ids.includes(id)) : ids;
+  const label = [
+    range ? rangeLabel(range) : null,
+    inRooms
+      ? `in the ${listAnd((c.rooms ?? []).map((n) => n.trim().replace(/^the\s+/i, "")))}`
+      : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  return { tables, label };
+}
+
 /** Re-run the capacity fit for the adjusted request. Deterministic; no model involved. */
 export function checkAdjusted(room: Room, r: GuestRequest, c: ChatConstraints): AdjustedFit {
   const req = adjusted(r, c);
+  if (c.oneRoom) return checkOneRoom(room, r, req, c);
   const res = toReservation(req);
   const range = c.tableRange;
-  const tables = range ? tablesInRange(room, range) : undefined;
+  const allowed = allowedTables(room, c);
+  const tables = allowed.tables;
   const fit = fitRequest(room, res, SERVICE.from, SERVICE.to, {
     privateOnly: r.privateRoom,
     tables,
-    tablesLabel: range ? rangeLabel(range) : undefined,
+    tablesLabel: allowed.label,
   });
   if (fit.ok)
     return {
@@ -217,14 +334,15 @@ export function checkAdjusted(room: Room, r: GuestRequest, c: ChatConstraints): 
       line: `Capacity fit: ${tablesPhrase(fit.build.tables)} · ${fit.build.area} · seats ${fit.build.seats} for ${req.partySize} at ${req.time}.`,
     };
   let closest: string | null = fit.nextFit ? `arrive at ${fit.nextFit}` : null;
-  if (range) {
+  if (tables) {
     const anywhere = fitRequest(room, res, SERVICE.from, SERVICE.to, {
       privateOnly: r.privateRoom,
     });
+    const outside =
+      range && !c.rooms?.length ? `outside tables ${range.from}–${range.to}` : "elsewhere";
     if (anywhere.ok)
-      closest = `${tablesPhrase(anywhere.build.tables)} (${anywhere.build.area}), outside tables ${range.from}–${range.to}`;
-    else if (!closest && anywhere.nextFit)
-      closest = `outside tables ${range.from}–${range.to}, arriving at ${anywhere.nextFit}`;
+      closest = `${tablesPhrase(anywhere.build.tables)} (${anywhere.build.area}), ${outside}`;
+    else if (!closest && anywhere.nextFit) closest = `${outside}, arriving at ${anywhere.nextFit}`;
   }
   const partial = fit.plan.unplaced.find((u) => u.reservationId === r.id)?.partial;
   if (!closest && partial) closest = partial;
@@ -232,8 +350,76 @@ export function checkAdjusted(room: Room, r: GuestRequest, c: ChatConstraints): 
     request: req,
     fit,
     closest,
-    line: `No capacity fit ${range ? `${rangeLabel(range)} ` : ""}for ${req.partySize} at ${req.time}.${
+    line: `No capacity fit ${allowed.label ? `${allowed.label} ` : ""}for ${req.partySize} at ${req.time}.${
       closest ? ` Closest: ${closest}.` : ""
     }`,
+  };
+}
+
+/**
+ * The party kept in ONE room (the divider closed): each allowed room is tried at the asked time with its own
+ * tables plus storage; the first fit with the least storage wins. When none fits, the closest is the room that
+ * comes nearest in seats.
+ */
+function checkOneRoom(
+  room: Room,
+  r: GuestRequest,
+  req: GuestRequest,
+  c: ChatConstraints,
+): AdjustedFit {
+  const res = toReservation(req);
+  const allowed = allowedTables(room, { ...c, oneRoom: false });
+  const pool = allowed.tables ? new Set(allowed.tables) : null;
+  const areas = [...new Set(room.tables.filter((t) => !pool || pool.has(t.id)).map((t) => t.area))];
+  const fits: RequestFit[] = [];
+  let first: RequestFit | null = null;
+  let largest: { area: string; seats: number } | null = null;
+  for (const area of areas) {
+    const tables = room.tables
+      .filter((t) => t.area === area && (!pool || pool.has(t.id)))
+      .map((t) => t.id);
+    const f = fitRequest(room, res, SERVICE.from, SERVICE.to, {
+      privateOnly: r.privateRoom,
+      tables,
+      tablesLabel: `in the ${area}`,
+      latest: req.time,
+    });
+    first ??= f;
+    if (f.ok) {
+      if (!f.build.area.includes(" + ")) fits.push(f);
+      continue;
+    }
+    const m = /largest: (\d+)/.exec(f.reason);
+    const seats = m ? Number(m[1]) : 0;
+    if (seats > 0 && (!largest || seats > largest.seats)) largest = { area, seats };
+  }
+  const best = fits.sort((a, b) =>
+    a.ok && b.ok
+      ? a.build.spareTables + a.build.extenders - (b.build.spareTables + b.build.extenders) ||
+        a.build.tables.length - b.build.tables.length
+      : 0,
+  )[0];
+  if (best?.ok)
+    return {
+      request: req,
+      fit: best,
+      closest: null,
+      line: `Capacity fit: ${tablesPhrase(best.build.tables)} · ${best.build.area} · seats ${best.build.seats} for ${req.partySize} at ${req.time}.`,
+    };
+  const closest = largest ? `${largest.area}, ${largest.seats} seats` : null;
+  const fit: RequestFit =
+    first && !first.ok
+      ? { ...first, reason: `No single room fits ${req.partySize} at ${req.time}.` }
+      : {
+          ok: false,
+          reason: `No single room fits ${req.partySize} at ${req.time}.`,
+          nextFit: null,
+          plan: fitRequest(room, res, SERVICE.from, SERVICE.to, { latest: req.time }).plan,
+        };
+  return {
+    request: req,
+    fit,
+    closest,
+    line: `No capacity fit in one room for ${req.partySize} at ${req.time}.${closest ? ` Closest: ${closest}.` : ""}`,
   };
 }

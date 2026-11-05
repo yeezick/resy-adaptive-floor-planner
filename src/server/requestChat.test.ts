@@ -11,11 +11,14 @@ const none = {
   removeNeeds: [],
   notes: [],
   clarify: null,
+  // the floor-edit fields (spread, so this reads under older and newer output types alike)
+  ...{ rooms: [] as string[], oneRoom: "unchanged" as const, ops: [] },
 };
 const body: RequestChatBody = {
   message: "headcount is now 26",
   request: { partySize: 22, day: "Fri", time: "18:30", needs: [] },
   constraints: { tableRange: null, partySize: null, time: null, needs: [], notes: [] },
+  ...{ bookRoomId: "book-fri" },
 };
 const cfg = (create: RequestChatConfig["create"]): RequestChatConfig => ({
   create,

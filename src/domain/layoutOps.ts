@@ -666,7 +666,8 @@ export function proposeLayoutEdit(
     // free spots at the start, for the reason when they run out
     const freeAt = cands.filter(isFree);
     for (const { table, from } of list) {
-      const c = cands.find((x) => isFree(x) && accepts(x, table));
+      // a move is never back onto the table's own home
+      const c = cands.find((x) => x.home !== table.id && isFree(x) && accepts(x, table));
       if (c) put(table, c, from);
       else unplaced.push(table);
     }
