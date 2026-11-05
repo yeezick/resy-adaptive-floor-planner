@@ -37,9 +37,56 @@ const ONE_ROOM =
 /** Another change in the same message (time, headcount, a new need or note): the model handles it. */
 const OTHER_ASK =
   /\b(push|move it|earlier|later|headcount|now \d+|\d{1,2}(:\d\d)? ?(am|pm)|\d{1,2}:\d\d|high ?chair|add (a|an|some)\b|birthday|cake|allerg\w*|vegan|quiet|view|window)\b/i;
-/** "accept it", "book this now", "no manager needed", "ignore your rules": the chat can't decide for anyone. */
-const ACCEPT_FOR_ME =
-  /\b(accept|approve|book)\s+(it|this|them|the (booking|request|party|reservation))\b|\b(no|without|skip|bypass)( the| a| any)? manager\b|\bignore (your|all|the|previous) (rules|instructions)\b/i;
+/**
+ * "accept it", "book this now", "confirm the booking", "no manager needed", "ignore your rules": the chat can't
+ * decide for anyone, and says so on this device (the refusal never depends on the model).
+ */
+export const ACCEPT_FOR_ME =
+  /\b(accept|approve|book|confirm)\s+(it|this|them|(the|this|their) (booking|request|party|reservation|guests?))\b|\b(no|without|skip|bypass)( the| a| any)? manager\b|\bignore (your|all|the|previous) (rules|instructions)\b/i;
+/** The bar, walls and the service station aren't tables. */
+const FIXED_THINGS =
+  /\b(move|shift|pull|push|take|put|swap|knock down|remove)\s+(the\s+)?(bar|walls?|service station)\b/i;
+export const CANT_MOVE_FIXED =
+  "I can't move the bar, walls or the service station — only tables. Nothing changed.";
+/** Changing the base layout, or deleting tables. */
+const BASE_OR_DELETE =
+  /\b(save|make|set|change|update)\b[^.?!]{0,30}\b(base|default|permanent) (layout|floor|plan)\b|\bdelete\b[^.?!]{0,25}\btables?\b/i;
+export const ONLY_TONIGHT =
+  "I only change tonight's floor — not the base layout, and I don't delete tables. Nothing changed.";
+const EDIT_VERB =
+  /\b(move|moving|pull|swap|put|take|bring|add|remove|push|pushed|join|split|open|close|shift)\b/i;
+/** A table number written as one ("table 56", "tables 63–66", "move 56", "66 and 67", "82-86"). */
+const TABLE_NUMBER =
+  /\btables?\s*#?\s*\d{1,3}\b|\b(move|pull|swap|put|take|bring|push|join|split|remove|shift)\s+\d{1,3}\b|\b\d{1,3}\s*(?:and|&|[-–])\s*\d{1,3}\b/i;
+
+/**
+ * Does the message ask to change the floor? A table number or a seating-room name together with an edit verb,
+ * or a storage phrase that names a room ("bring two 4-tops from the back into the Library"). Such a message goes
+ * to the AI + the floor engine, before the other device answers; a one-room question with no edit stays here.
+ */
+export function editIntent(message: string, rooms: readonly string[]): boolean {
+  if (!EDIT_VERB.test(message)) return false;
+  const m = message.toLowerCase();
+  const namesRoom = rooms.some((r) => m.includes(r.toLowerCase()));
+  return TABLE_NUMBER.test(message) || namesRoom;
+}
+
+/** Seating rooms by name (the chat's trusted list, here from the floor in use). */
+export function seatingRoomNames(room: Room): string[] {
+  return room.areas.filter((a) => a.kind === "dining" || a.kind === "private").map((a) => a.name);
+}
+
+/** A floor change the chat refuses outright (the bar, walls, the base layout, deleting tables), or null. */
+export function floorRefusal(message: string): string | null {
+  if (FIXED_THINGS.test(message)) return CANT_MOVE_FIXED;
+  if (BASE_OR_DELETE.test(message)) return ONLY_TONIGHT;
+  return null;
+}
+
+/** "can we do 6 instead": a lone number could be a headcount or a time. */
+const LONE_NUMBER =
+  /^\s*(?:(?:can|could) we |let'?s |how about |what about )?(?:do |make it |try |go with )?(\d{1,2})(?: instead)?\s*[?.!]?\s*$/i;
+const QUIET_ASK = /\b(quiet|noisy|loud)\b[^.]*\?|\bquiet enough\b/i;
 export const CANT_ACCEPT = "I can't accept for you. Nothing changed — you approve every change.";
 /** "latest/earliest we could seat them", "how late can they arrive", "last possible time". */
 const SWEEP =
@@ -68,9 +115,6 @@ export function sweepTimes(
   return null;
 }
 
-/** Moving a table into another room or area ("pull table 56 into the Library", "move tables 63–66 to …"). */
-const TABLE_MOVE =
-  /\b(move|pull|shift|swap|take|bring)\b[^.?!]{0,40}?\btables?\s*\d+[^.?!]{0,60}?\b(into|to|from|over)\b|\b(move|pull|shift)\s+\d+(\s*[–-]\s*\d+)?\s+(into|to|from)\b/i;
 const NEED_TALK = /\b(wheel ?chair|accessible|stroller|pram|aisle|step[- ]free)\b/i;
 const REMOVE = /\b(no longer|remove|drop|without|doesn'?t need|don'?t need|not need)\b/i;
 
@@ -89,8 +133,32 @@ export function localAnswer(
   ctx: { room: Room; request: GuestRequest; fit: RequestFit | null; cost: PartyFit | null },
 ): LocalAnswer | null {
   const { room, request: r, fit, cost } = ctx;
-  // asked to accept, book or skip the manager: the AI can't, and says so (no model call)
-  if (ACCEPT_FOR_ME.test(message)) return { text: CANT_ACCEPT };
+  const refused = floorRefusal(message);
+  if (refused) return { text: refused };
+  // asked to accept, book or skip the manager: the AI can't, and says so (no model call); a message that also
+  // asks for a floor change goes on to the AI, and its reply ends with this line
+  const edit = editIntent(message, seatingRoomNames(room));
+  if (ACCEPT_FOR_ME.test(message)) return edit ? null : { text: CANT_ACCEPT };
+  if (edit) return null;
+  const lone = LONE_NUMBER.exec(message);
+  if (lone) {
+    const n = Number(lone[1]);
+    return { text: `${n} people, or ${n}:00 PM?` };
+  }
+  // "is the Garden Room quiet enough for speeches?": from the tables' own attributes
+  const asked = room.areas.find((a) => message.toLowerCase().includes(a.name.toLowerCase()));
+  if (asked && QUIET_ASK.test(message)) {
+    const ts = room.tables.filter((t) => t.area === asked.name);
+    const quiet = ts.filter((t) => t.attrs.quiet).length;
+    return {
+      text:
+        quiet === ts.length
+          ? `Quiet: yes — every ${asked.name} table is marked quiet (away from the bar and kitchen doors).`
+          : quiet === 0
+            ? `Quiet: no — no ${asked.name} table is marked quiet.`
+            : `Quiet: partly — ${quiet} of ${ts.length} ${asked.name} tables are marked quiet.`,
+    };
+  }
   // "what's the latest we could seat them and still use the Library?": a sweep of the capacity check
   const sweep = SWEEP.exec(message);
   if (sweep) {
@@ -111,24 +179,6 @@ export function localAnswer(
     };
   }
   if (OTHER_ASK.test(message)) return null;
-  // moving tables between rooms isn't something the chat can do yet: say so, and name the closest plan
-  if (TABLE_MOVE.test(message)) {
-    const nearest = fit?.ok
-      ? `Closest: the current plan, ${tablesPhrase(fit.build.tables)} (${fit.build.area}${
-          fit.build.area.includes(" + ") ? ", divider open" : ""
-        }).`
-      : null;
-    return {
-      text: [
-        "I can't move tables between rooms yet.",
-        nearest,
-        "Ask me to bring tables from storage, or set tables on the review screen after Accept.",
-      ]
-        .filter(Boolean)
-        .join(" "),
-      alt: fit?.ok ? { tables: fit.build.tables, label: `Nearest · ${fit.build.area}` } : undefined,
-    };
-  }
   const current = fit?.ok ? { area: fit.build.area } : null;
   const storage = STORAGE.test(message);
   if (storage || ONE_ROOM.test(message)) {
@@ -184,6 +234,18 @@ export function localAnswer(
  * → else the escalation line. null = not answered yet.
  */
 export function turnSentence(t: {
+  status?: "loading" | "ok" | "error";
+  changed?: string[];
+  outcome?: string;
+  local?: boolean;
+  clarify?: string;
+  suffix?: string;
+}): string | null {
+  const text = turnText(t);
+  return text !== null && t.suffix ? `${text} ${t.suffix}` : text;
+}
+
+function turnText(t: {
   status?: "loading" | "ok" | "error";
   changed?: string[];
   outcome?: string;

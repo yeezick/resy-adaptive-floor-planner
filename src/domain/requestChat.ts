@@ -4,7 +4,7 @@
 // new option and its cost. The model never names a table the solver didn't produce. Every constraint here is
 // also a manual control on the sheet.
 import { z } from "zod";
-import { fitRequest, type RequestFit } from "./buildplan";
+import { fitRequest, LARGE_PARTY, type RequestFit } from "./buildplan";
 import { LayoutOp, type TableRef } from "./layoutOps";
 import { NEEDS, SERVICE, toReservation, type GuestRequest } from "./requests";
 import { toMinutes } from "./time";
@@ -32,6 +32,10 @@ export const ChatConstraints = z
   })
   .strict();
 export type ChatConstraints = z.infer<typeof ChatConstraints>;
+
+/** A headcount under 7 needs no table build: the host seats it like any booking. */
+export const UNDER_LARGE =
+  "Parties under 7 don't need a large-party plan — the host seats them like any booking.";
 
 /** The chat's reply when the AI gave no usable change and no question back (a refusal, or two rejects). */
 export const ESCALATED_NOTE =
@@ -316,6 +320,13 @@ function allowedTables(room: Room, c: ChatConstraints): { tables?: string[]; lab
 /** Re-run the capacity fit for the adjusted request. Deterministic; no model involved. */
 export function checkAdjusted(room: Room, r: GuestRequest, c: ChatConstraints): AdjustedFit {
   const req = adjusted(r, c);
+  // the planner places parties of 7+; a smaller party is seated like any booking
+  if (req.partySize < LARGE_PARTY) {
+    const fit = fitRequest(room, toReservation(req), SERVICE.from, SERVICE.to, {
+      latest: req.time,
+    });
+    return { request: req, fit, closest: null, line: UNDER_LARGE };
+  }
   if (c.oneRoom) return checkOneRoom(room, r, req, c);
   const res = toReservation(req);
   const range = c.tableRange;

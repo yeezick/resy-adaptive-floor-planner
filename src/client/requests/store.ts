@@ -5,7 +5,14 @@ import { useSyncExternalStore } from "react";
 import type { GuestRequest, RequestBook } from "../../domain/requests";
 import { checkRequest, DEMO_WEEK_ISO, toReservation, walkInRequest } from "../../domain/requests";
 import { activeScenario, RECORDED_CHAT, RECORDED_TRIAGE } from "../scenarios";
-import type { Reservation } from "../../domain";
+import { oneRoomPlan, oneRoomSentence } from "../../domain/alternatives";
+import {
+  proposeLayoutEdit,
+  type FloorChange,
+  type LayoutOp,
+  type Reservation,
+  type Room,
+} from "../../domain";
 import type { RequestChatResult, TriageResult } from "../../shared/api";
 import {
   adjusted,
@@ -28,6 +35,9 @@ import { demoIso, demoStamp, receivedBy, setDemoNight } from "../lib/demoClock";
 import { NIGHTS } from "../nights";
 import { MAX_NOTE_CHARS } from "../../domain/activity";
 import { REQUEST_CHAT_HARD_MS, TOO_LONG } from "../lib/wait";
+import { layoutsStore } from "../layouts/useLayouts";
+import { nightDate } from "../nights";
+import { partyName } from "../lib/names";
 
 export type DeclineReason = "fit" | "policy" | "other";
 
@@ -67,6 +77,37 @@ export interface ChatTurn {
   after?: ChatConstraints;
   /** The AI's question back, verbatim, when it asked one. */
   clarify?: string;
+  /** A line added after the reply (a message that mixed a floor change with "accept it": CANT_ACCEPT). */
+  suffix?: string;
+}
+
+/** A floor change the chat proposed, checked by the engine on the request's night (nothing applied yet). */
+export interface FloorProposal {
+  ops: LayoutOp[];
+  /** The night's layout in use it was made from. */
+  base: Room;
+  edited: Room;
+  changes: FloorChange[];
+  crew: string[];
+  crewMinutes: number;
+}
+
+/** A floor change the manager applied: a new one-day layout for the request's night (Undo removes it). */
+export interface AppliedFloor {
+  layoutId: string;
+  prevActiveId: string;
+  /** The night's base fixture (the layouts store is keyed by it). */
+  fixture: Room;
+  changes: string[];
+}
+
+/** What the request chat needs from the sheet to answer floor changes on this device. */
+export interface ChatContext {
+  /** The request's night as it stands: its layout in use with the night's book. */
+  room: Room;
+  /** Rooms and tables of the request's current plan. */
+  planArea: string | null;
+  planTables: readonly string[];
 }
 
 export interface RequestsState {
@@ -86,7 +127,9 @@ export interface RequestsState {
   adjust: Record<string, ChatConstraints>;
   chat: Record<string, ChatTurn[]>;
   /** A change the chat proposed and the manager hasn't applied yet (nothing changes until Apply). */
-  proposals: Record<string, { constraints: ChatConstraints }>;
+  proposals: Record<string, { constraints: ChatConstraints; floor?: FloorProposal }>;
+  /** Floor changes applied from the chat, per request. */
+  floorApplied: Record<string, AppliedFloor>;
   /** Who made the request's current changes: the chat (applied) or the manual controls. */
   changedBy: Record<string, "chat" | "controls">;
   /** The manager's correction of an AI triage verdict, per request ("Wrong? Mark as junk"). */
@@ -133,6 +176,7 @@ let state: RequestsState = {
   overrides: {},
   proposals: {},
   changedBy: {},
+  floorApplied: {},
   replies: {},
   alt: {},
   openPlan: null,
@@ -360,18 +404,56 @@ export const requestsActions = {
     const { [id]: _gone, ...adjust } = state.adjust;
     const { [id]: _who, ...changedBy } = state.changedBy;
     const { [id]: _stale, ...proposals } = state.proposals;
-    set({ adjust, changedBy, proposals });
+    // Revert = Undo for a floor change too: the one-day layout goes, the previous layout is back in use
+    const floor = state.floorApplied[id];
+    const { [id]: _f, ...floorApplied } = state.floorApplied;
+    set({ adjust, changedBy, proposals, floorApplied });
+    if (floor) {
+      layoutsStore.remove(floor.fixture, floor.layoutId, floor.prevActiveId);
+      reopenOnNight(id);
+    }
   },
-  /** Apply the chat's proposed change: only now does the request's capacity check change. */
-  applyProposal(id: string) {
+  /**
+   * Apply the chat's proposed change: only now does the request's capacity check change. A floor change becomes a
+   * NEW one-day layout for the request's night (made from the layout in use, which is kept); the base layout is
+   * never changed. `fixture` = the night's base room (its book, without accepted parties).
+   */
+  applyProposal(id: string, fixture?: Room) {
     const p = state.proposals[id];
     if (!p) return;
     const { [id]: _gone, ...proposals } = state.proposals;
+    let floorApplied = state.floorApplied;
+    if (p.floor && fixture) {
+      const prev = layoutsStore.active(fixture);
+      const r = state.book?.requests.find((x) => x.id === id);
+      const day = r?.day;
+      const layout = layoutsStore.save(
+        fixture,
+        { ...p.floor.edited, reservations: fixture.reservations },
+        {
+          name: `${day ?? "Tonight"} plan — floor change`,
+          date: day ? nightDate(day) : undefined,
+          note: `One-day edit · from ${prev.name} · made in the request chat`,
+        },
+      );
+      floorApplied = {
+        ...state.floorApplied,
+        [id]: {
+          layoutId: layout.id,
+          prevActiveId: prev.id,
+          fixture,
+          changes: p.floor.changes.map((c) => c.text),
+        },
+      };
+    }
     set({
       proposals,
       adjust: { ...state.adjust, [id]: p.constraints },
       changedBy: { ...state.changedBy, [id]: "chat" },
+      floorApplied,
     });
+    // a saved layout remounts that night's planner: reopen the request there
+    if (p.floor && fixture) reopenOnNight(id);
   },
   discardProposal(id: string) {
     const { [id]: _gone, ...proposals } = state.proposals;
@@ -382,7 +464,12 @@ export const requestsActions = {
    * from shared state, so two turns can't show the same reply. A slow answer is kept: if it lands after the
    * timeout line, it replaces that line.
    */
-  async sendChat(r: GuestRequest, message: string) {
+  async sendChat(
+    r: GuestRequest,
+    message: string,
+    ctx?: ChatContext,
+    opts: { suffix?: string } = {},
+  ) {
     const id = `turn-${++seq}`;
     if (state.alt[r.id]) {
       const { [r.id]: _old, ...alt } = state.alt;
@@ -396,6 +483,7 @@ export const requestsActions = {
       status: "loading",
       before: current,
       sentMs: Date.now(),
+      ...(opts.suffix ? { suffix: opts.suffix } : {}),
     };
     put(r.id, turn);
     const hard = setTimeout(() => requestsActions.timeoutTurn(r.id, id), REQUEST_CHAT_HARD_MS);
@@ -404,6 +492,7 @@ export const requestsActions = {
       request: { partySize: r.partySize, day: r.day, time: r.time, needs: r.needs },
       constraints: current,
       bookRoomId: r.bookRoomId,
+      ...(ctx?.planArea ? { planRooms: ctx.planArea.split(" + ").slice(0, 4) } : {}),
     });
     clearTimeout(hard);
     // the turn as it stands now (it may carry the timeout line, which the answer replaces)
@@ -426,19 +515,88 @@ export const requestsActions = {
       });
     // a proposal, shown as a diff: nothing changes until the manager presses Apply
     const latest = state.proposals[r.id]?.constraints ?? state.adjust[r.id] ?? baseConstraints(r);
-    const next = mergeTurn(latest, out);
+    let next = mergeTurn(latest, out);
     const applied = state.adjust[r.id] ?? baseConstraints(r);
-    put(r.id, {
-      ...turn,
-      status: "ok",
-      result: res.data,
-      after: next,
-      changed: changeDelta(r, latest, next),
-      ...(out.clarify ? { clarify: out.clarify } : {}),
+    const done = (extra: Partial<ChatTurn>) =>
+      put(r.id, {
+        ...turn,
+        status: "ok",
+        result: res.data,
+        after: next,
+        changed: changeDelta(r, latest, next),
+        ...(out.clarify ? { clarify: out.clarify } : {}),
+        ...extra,
+      });
+    // plan-state answers are code, not model: the rooms asked for are the ones the plan already opens (G3)
+    if (ctx && !out.ops.length && out.rooms.length && out.oneRoom === "unchanged" && ctx.planArea) {
+      const asked = new Set(out.rooms.map((x) => x.trim().toLowerCase()));
+      const plan = ctx.planArea.split(" + ");
+      if (plan.length === asked.size && plan.every((a) => asked.has(a.toLowerCase()))) {
+        next = latest;
+        return done({
+          outcome: `Already open in this plan: ${ctx.planArea}.`,
+          changed: [],
+          local: true,
+        });
+      }
+    }
+    // "close the divider" with no floor change: if no single room fits, the plain closest + the offer (G4b)
+    if (ctx && !out.ops.length && out.oneRoom === "yes") {
+      const one = checkAdjusted(ctx.room, r, next);
+      if (!one.fit.ok) {
+        next = latest;
+        const plan = oneRoomPlan(ctx.room, adjusted(r, latest));
+        return done({
+          outcome: oneRoomSentence(adjusted(r, latest), plan),
+          changed: [],
+          local: true,
+        });
+      }
+    }
+    let floor: FloorProposal | undefined;
+    if (out.ops.length) {
+      if (!ctx) return done({ outcome: ESCALATED_NOTE, changed: [], local: true });
+      const e = proposeLayoutEdit(ctx.room, out.ops, { nameOf: partyName, near: ctx.planTables });
+      if (!e.ok) {
+        // rejected as a whole: every reason, one plain line each; a question back stays a question (R1)
+        next = latest;
+        const lines = [...e.rejects.map((x) => x.text), ...e.notes];
+        const question = lines.length === 1 && lines[0]?.endsWith("?");
+        return done({
+          outcome: question ? (lines[0] as string) : `${lines.join(" ")} Nothing changed.`,
+          changed: [],
+          local: true,
+        });
+      }
+      floor = {
+        ops: out.ops,
+        base: ctx.room,
+        edited: e.edited as Room,
+        changes: e.changes,
+        crew: e.crew,
+        crewMinutes: e.crewMinutes,
+      };
+    }
+    const changed = changeDelta(r, latest, next);
+    if (floor)
+      changed.unshift(
+        `the floor (${floor.changes.length} change${floor.changes.length === 1 ? "" : "s"})`,
+      );
+    // a later turn without floor changes keeps a pending floor change, and its capacity sentence uses it
+    floor ??= state.proposals[r.id]?.floor;
+    done({
+      changed,
+      // a floor change's capacity sentence is worked out on the edited floor, now
+      ...(floor ? { outcome: checkAdjusted(floor.edited, r, next).line } : {}),
     });
     // a turn that changes nothing (or only asks a question) proposes nothing
-    if (JSON.stringify(next) !== JSON.stringify(applied))
-      set({ proposals: { ...state.proposals, [r.id]: { constraints: next } } });
+    if (floor || JSON.stringify(next) !== JSON.stringify(applied))
+      set({
+        proposals: {
+          ...state.proposals,
+          [r.id]: { constraints: next, ...(floor ? { floor } : {}) },
+        },
+      });
   },
   /**
    * A message the capacity check can answer by itself ("one room?", "bring tables from the back", a need that
@@ -519,6 +677,12 @@ export const requestsActions = {
   },
 };
 
+/** After a layout save remounts the request's night: show that night with the request open again. */
+function reopenOnNight(id: string): void {
+  const r = state.book?.requests.find((x) => x.id === id);
+  if (r) set({ openPlan: { roomId: r.bookRoomId, requestId: r.id, seq: ++seq, view: "request" } });
+}
+
 export function decisionOf(s: Pick<RequestsState, "decisions">, id: string): Decision {
   return s.decisions[id] ?? { kind: "pending" };
 }
@@ -580,6 +744,7 @@ export function resetRequestsStore(): void {
     overrides: {},
     proposals: {},
     changedBy: {},
+    floorApplied: {},
     replies: {},
     alt: {},
     openPlan: null,

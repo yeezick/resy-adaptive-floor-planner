@@ -12,13 +12,13 @@ const q2 = book.requests.find((r) => r.id === "Q2");
 if (!q2) throw new Error("Q2 missing");
 
 describe("one room for the 22-top, with storage", () => {
-  it("no single room seats 22 on Friday, even with storage; the closest room is named", () => {
+  it("no single room seats 22 on Friday, even with storage; the ceiling is stated and a move offered", () => {
     const plan = oneRoomPlan(room, q2);
     expect(plan.ok).toBe(false);
     if (plan.ok) return;
     expect(plan.largest).toEqual({ area: "Garden Room", seats: 20 });
     expect(oneRoomSentence(q2, plan, { area: "Garden Room + Library" })).toBe(
-      "No single room fits 22, even with tables from storage (closest: Garden Room, 20 seats). The nearest is the current plan: Garden Room + Library with the divider open.",
+      "No single room fits 22 as the floor stands (today's Garden Room tables top out at 20). Ask me to move tables to make one room.",
     );
   });
 
@@ -45,7 +45,7 @@ describe("one room for the 22-top, with storage", () => {
       "One room works: tables 63–66 in the Library with 2 chairs from storage, seats 12. It's shown on the floor; ask to switch and I'll propose it.",
     );
     expect(oneRoomSentence({ partySize: 40 }, { ok: false, largest: null, busy: [] }, null)).toBe(
-      "No single room fits 40, even with tables from storage.",
+      "No single room fits 40 as the floor stands. Ask me to move tables to make one room.",
     );
     expect(
       oneRoomSentence(
@@ -54,7 +54,7 @@ describe("one room for the 22-top, with storage", () => {
         null,
       ),
     ).toBe(
-      "No single room fits 22, even with tables from storage (closest: Garden Room, 20 seats). Cellar isn't free at that time.",
+      "No single room fits 22 as the floor stands (today's Garden Room tables top out at 20). Cellar isn't free at that time. Ask me to move tables to make one room.",
     );
   });
 });

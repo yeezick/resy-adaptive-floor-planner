@@ -12,7 +12,28 @@ const none = {
   removeNeeds: [],
   notes: [],
   clarify: null,
+  rooms: [],
+  oneRoom: "unchanged",
+  ops: [],
 };
+const ref = (p: Record<string, unknown>) => ({
+  by: "number",
+  n: 0,
+  from: 0,
+  to: 0,
+  shape: "any",
+  seats: 0,
+  room: "",
+  ...p,
+});
+const move = (tables: Record<string, unknown>[], to: string) => ({
+  op: "move",
+  tables,
+  to,
+  seats: 0,
+  count: 0,
+  rows: [],
+});
 const chatBody = (output: Record<string, unknown> | null, note: string | null = null) =>
   JSON.stringify({
     requestId: "Q2",
@@ -58,6 +79,12 @@ test.describe("request chat: one reply per turn", () => {
     page,
   }) => {
     const { seen } = await openChat(page, {
+      [MOVE]: chatBody({
+        ops: [
+          move([ref({ n: 56 })], "Library"),
+          move([ref({ by: "range", from: 63, to: 66 })], "Garden Room"),
+        ],
+      }),
       "what was the response?": chatBody({
         clarify: "Which change would you like me to check: party size, time, tables or needs?",
       }),
@@ -65,7 +92,7 @@ test.describe("request chat: one reply per turn", () => {
     });
     await say(page, MOVE);
     await expect(replies(page).nth(0)).toHaveText(
-      "I can't move tables between rooms yet. Closest: the current plan, tables 57–61 and 63–66 (Garden Room + Library, divider open). Ask me to bring tables from storage, or set tables on the review screen after Accept.",
+      "I'd change the floor (5 changes) — see Proposed changes above. Capacity fit: tables 57–61 and 63–66 · Garden Room · seats 22 for 22 at 6:30 PM.",
     );
     await say(page, "what was the response?");
     await expect(replies(page).nth(1)).toHaveText(
@@ -75,13 +102,18 @@ test.describe("request chat: one reply per turn", () => {
     await expect(replies(page).nth(2)).toContainText(
       "I'd change party of 26 — see Proposed changes above. Capacity fit:",
     );
-    // the earlier turns still read their own answers
-    await expect(replies(page).nth(0)).toContainText("I can't move tables between rooms yet.");
+    // the earlier turns still read their own answers, and the floor change is still proposed
+    await expect(replies(page).nth(0)).toContainText("I'd change the floor (5 changes)");
     await expect(replies(page).nth(1)).toContainText("Which change would you like me to check");
     const texts = await replies(page).allTextContents();
     expect(new Set(texts).size).toBe(3);
-    // the move request was answered on the device: only the two other messages reached the model
-    expect(seen).toEqual(["what was the response?", "Headcount is now 26"]);
+    await expect(
+      page
+        .getByRole("group", { name: "Change proposed in chat" })
+        .getByRole("list", { name: "Floor changes" }),
+    ).toContainText("Table 56 · Garden Room → Library front (round spot)");
+    // the move request now goes to the AI + the floor engine
+    expect(seen).toEqual([MOVE, "what was the response?", "Headcount is now 26"]);
   });
 
   test("clarify → change → change: three distinct replies, the question verbatim in 12-hour time", async ({

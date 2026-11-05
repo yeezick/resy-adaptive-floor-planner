@@ -70,11 +70,15 @@ export function oneRoomPlan(room: Room, r: GuestRequest): OneRoomPlan {
   return best ? { ok: true, area: best.area, build: best.build } : { ok: false, largest, busy };
 }
 
-/** "No single room fits 22, even with tables from storage (closest: Garden Room, 20 seats)." */
+/**
+ * "No single room fits 22 as the floor stands (today's Garden Room tables top out at 20). Ask me to move tables to
+ * make one room." — the ceiling counts storage (header chairs, extenders, spare tables), so it is the real limit
+ * of the room's tables tonight; moving tables is the way past it.
+ */
 export function oneRoomSentence(
   r: Pick<GuestRequest, "partySize">,
   plan: OneRoomPlan,
-  current: { area: string } | null,
+  _current?: { area: string } | null,
 ): string {
   if (plan.ok) {
     const s = storagePhrase(plan.build);
@@ -82,17 +86,16 @@ export function oneRoomSentence(
       s ? ` with ${s} from storage` : ""
     }, seats ${plan.build.seats}. It's shown on the floor; ask to switch and I'll propose it.`;
   }
-  const closest = plan.largest
-    ? ` (closest: ${plan.largest.area}, ${plan.largest.seats} seats)`
-    : "";
-  const nearest = current?.area.includes(" + ")
-    ? ` The nearest is the current plan: ${current.area} with the divider open.`
+  const ceiling = plan.largest
+    ? ` (today's ${plan.largest.area} tables top out at ${plan.largest.seats})`
     : "";
   const busy = plan.busy.length
     ? ` ${listAnd(plan.busy)} ${plan.busy.length === 1 ? "isn't" : "aren't"} free at that time.`
     : "";
-  return `No single room fits ${r.partySize}, even with tables from storage${closest}.${busy}${nearest}`;
+  return `No single room fits ${r.partySize} as the floor stands${ceiling}.${busy} ${MOVE_OFFER}`;
 }
+
+export const MOVE_OFFER = "Ask me to move tables to make one room.";
 
 /**
  * What storage still has once the night's other builds take theirs: "Storage tonight: 4 of 6 spare tables free,
