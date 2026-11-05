@@ -118,6 +118,37 @@ describe("server", () => {
     expect(budget.spentToday()).toBeCloseTo(body.metrics.costUsd, 12);
   });
 
+  it("passes the screen's party size and open requests to the agent; rejects bad ones", async () => {
+    const { create, requests } = scripted([finalAnswer(answer), finalAnswer(answer)]);
+    const base = await start({ create });
+    const ok = await post(base, {
+      roomId: "dinner-peak",
+      message: "where can they go?",
+      partySize: 6,
+      openRequests: [{ name: "Whitaker", partySize: 22, time: "21:00", needs: [] }],
+    });
+    expect(ok.status).toBe(200);
+    // T11 seats 4 (+1 header chair): fewer than the party of 6, though no tool gave a size
+    const body = (await ok.json()) as {
+      recommendations: unknown[];
+      validator: { notes: string[] };
+    };
+    expect(body.recommendations).toEqual([]);
+    expect(body.validator.notes.join(" ")).toMatch(/fewer than the party of 6/);
+    const sent = JSON.stringify(requests[0]?.messages.at(-1)?.content);
+    expect(sent).toContain("<party_size>6</party_size>");
+    expect(sent).toContain("Whitaker · party of 22 · 21:00");
+
+    const bad = (extra: object) => post(base, { roomId: "dinner-peak", message: "hi", ...extra });
+    expect((await bad({ partySize: 0 })).status).toBe(400);
+    expect((await bad({ partySize: 501 })).status).toBe(400);
+    expect((await bad({ partySize: 2.5 })).status).toBe(400);
+    const brief = { name: "Whitaker", partySize: 22, time: "21:00", needs: [] };
+    expect((await bad({ openRequests: Array(13).fill(brief) })).status).toBe(400);
+    expect((await bad({ openRequests: [{ ...brief, id: "Q2" }] })).status).toBe(400);
+    expect((await bad({ openRequests: [{ ...brief, time: "9 PM" }] })).status).toBe(400);
+  });
+
   it("maps agent failures to upstream", async () => {
     const base = await start({ create: scripted([]).create });
     const res = await post(base, { roomId: "dinner-peak", message: "party of 4" });

@@ -1,5 +1,6 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { checkTableSet, clearanceFor, type Table } from "../../domain";
+import { checkTableSet, clearanceFor, parseRoom, type Table } from "../../domain";
 import { nextDay } from "../../domain/__fixtures__/build";
 import type { Recommendation } from "../../shared/api";
 import { TEST_ROOM as room } from "../testRoom";
@@ -153,5 +154,58 @@ describe("helpers", () => {
     expect(meetsNeeds([t("T11"), t("T12")], ["stroller"])).toBe(true);
     expect(meetsNeeds([t("T22")], ["view"])).toBe(false);
     expect(meetsNeeds([t("T1")], ["booth"])).toBe(true);
+  });
+});
+
+describe("party size from the host's screen", () => {
+  // the walk-in-8-peak floor (dinner-peak, 7:10 PM): tables 39 + 40 seat 6 joined, +1 header chair each = 8
+  const peak = parseRoom(
+    JSON.parse(readFileSync("fixtures/rooms/dinner-peak.json", "utf8")) as unknown,
+  );
+  const join = (seats: number) => rec({ tables: ["T39", "T40"], seats, waitMin: 80 });
+  // only propose_combine + estimate_free_time ran: no party size from the tools
+  const tools = [
+    { name: "propose_combine", ok: true, input: { tables: ["T39", "T40"] } },
+    { name: "estimate_free_time", ok: true, input: { tableId: "T40" } },
+  ];
+
+  it("golden: tables 39 + 40 seat 8 using their 2 header chairs (6 joined + 1 + 1)", () => {
+    const set = checkTableSet(peak, ["T39", "T40"]);
+    expect(set.ok && set.baseSeats).toBe(6);
+    expect(headerChairs(peak, ["T39", "T40"])).toBe(2);
+    expect(expectedWait(peak, ["T39", "T40"])).toBe(80);
+  });
+
+  it("golden: a recommendation claiming 6 seats for a party of 8 is rejected; 8 is accepted", () => {
+    const ctx = validationContext(tools, 8);
+    expect(ctx.partySize).toBe(8);
+    expect(msgs(validateRecommendations(peak, [join(6)], ctx))).toBe(
+      "6 seats is fewer than the party of 8",
+    );
+    expect(validateRecommendations(peak, [join(8)], ctx)).toEqual([]);
+    // before: no tool-derived size, so the short recommendation slipped through
+    expect(validateRecommendations(peak, [join(6)], validationContext(tools))).toEqual([]);
+  });
+
+  it("wins over the tool-derived size; the tools stay the fallback", () => {
+    const find = { name: "find_tables_for_party", ok: true, input: { partySize: 4, needs: [] } };
+    expect(msgs(validateRecommendations(peak, [join(6)], validationContext([find], 8)))).toContain(
+      "fewer than the party of 8",
+    );
+    expect(validateRecommendations(peak, [join(6)], validationContext([find]))).toEqual([]);
+    const ten = { ...find, input: { partySize: 10, needs: [] } };
+    expect(msgs(validateRecommendations(peak, [join(8)], validationContext([ten])))).toContain(
+      "fewer than the party of 10",
+    );
+  });
+
+  it("a plan_builds build keeps its own party", () => {
+    const ctx: ValidationContext = {
+      partySize: 2,
+      builds: [{ reservationId: "F1", partySize: 12, tables: ["T39", "T40"] }],
+    };
+    expect(msgs(validateRecommendations(peak, [join(8)], ctx))).toContain(
+      "fewer than the party of 12",
+    );
   });
 });
