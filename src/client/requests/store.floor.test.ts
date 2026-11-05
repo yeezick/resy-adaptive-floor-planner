@@ -131,6 +131,21 @@ describe("floor changes by conversation (store)", () => {
     expect(layoutsStore.entry(fri).stored.variants.some((v) => v.id === l.id)).toBe(false);
   });
 
+  it("stacked changes: apply A, apply B, revert A → the layout in use is still B's", async () => {
+    await say(W9, { ...none, ops: W9_OPS });
+    requestsActions.applyProposal("Q2", fri);
+    const la = layoutsStore.active(fri);
+    expect(la.kind).toBe("variant");
+
+    // a later change B is applied on top of A (its previous layout is A's)
+    const lb = layoutsStore.save(fri, la.room, { name: "B" });
+    expect(layoutsStore.active(fri).id).toBe(lb.id);
+
+    requestsActions.resetConstraints("Q2");
+    expect(layoutsStore.entry(fri).stored.variants.some((v) => v.id === la.id)).toBe(false);
+    expect(layoutsStore.active(fri).id).toBe(lb.id);
+  });
+
   it("G3: rooms the plan already opens are answered from plan state, with no proposal", async () => {
     const t = await say("open the rooms between Library and Garden Room", {
       ...none,
