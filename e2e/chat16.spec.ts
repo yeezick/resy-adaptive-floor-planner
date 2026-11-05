@@ -138,6 +138,39 @@ test.describe("request chat: one reply per turn", () => {
   });
 });
 
+test("(c) a second send before the first returns: each answer lands on its own turn", async ({
+  page,
+}) => {
+  const held = new Map<string, Route>();
+  await page.route("**/api/requests/*/triage", (route) => route.abort());
+  await page.route("**/api/requests/*/chat", (route) => {
+    held.set((route.request().postDataJSON() as { message: string }).message, route);
+  });
+  await page.goto("/?scenario=party-22-agent");
+  await page.locator(".request-sheet").getByRole("button", { name: "Discuss" }).click();
+  await say(page, "Headcount is now 26");
+  await say(page, "Could they come a bit later?");
+  await expect(replies(page)).toHaveCount(2);
+  await expect(replies(page).nth(0).locator(".typing-dots")).toBeVisible();
+  await expect(replies(page).nth(1).locator(".typing-dots")).toBeVisible();
+  await expect.poll(() => held.size).toBe(2);
+  // the second answer comes back first
+  await fulfill(
+    held.get("Could they come a bit later?") as Route,
+    chatBody({ clarify: "Which arrival time should I check, for example 19:30?" }),
+  );
+  await expect(replies(page).nth(1)).toHaveText(
+    "Which arrival time should I check, for example 7:30 PM?",
+  );
+  // the first is still working: its own pending state, not the other turn's answer
+  await expect(replies(page).nth(0).locator(".typing-dots")).toBeVisible();
+  await fulfill(held.get("Headcount is now 26") as Route, chatBody({ partySize: 26 }));
+  await expect(replies(page).nth(0)).toContainText("I'd change party of 26");
+  await expect(replies(page).nth(1)).toHaveText(
+    "Which arrival time should I check, for example 7:30 PM?",
+  );
+});
+
 test("“latest we could seat them and keep the Library” is answered from the capacity check, no model call", async ({
   page,
 }) => {
@@ -166,12 +199,12 @@ test.describe("waiting for the AI", () => {
     const out = replies(page).nth(0);
     await expect(out.locator(".typing-dots")).toBeVisible();
     await expect(out).toContainText(/Checking the plan · \d+ s/);
-    const send = page.locator(".req-chat button[type=submit]");
-    await expect(send).toBeDisabled();
-    await expect(send.locator(".btn-spinner")).toBeVisible();
+    // Send stays open while the turn is pending (a follow-up is its own turn)
     const box = page.getByRole("textbox", { name: "Message about this request" });
     await box.fill("still typing");
     await expect(box).toHaveValue("still typing");
+    await expect(page.locator(".req-chat button[type=submit]")).toBeEnabled();
+    await box.fill("");
     await page.clock.runFor(9_000);
     await expect(out).toContainText("Still working — the answer will appear here");
     await page.clock.runFor(30_000);
@@ -197,6 +230,10 @@ test.describe("waiting for the AI", () => {
     await box.press("Enter");
     const working = page.locator(".agent-working");
     await expect(working.locator(".typing-dots")).toBeVisible();
+    await expect(page.locator(".composer button[type=submit]")).toBeDisabled(); // empty box only
+    await box.fill("and one uses a wheelchair");
+    await expect(page.locator(".composer button[type=submit]")).toBeEnabled();
+    await box.fill("");
     await page.clock.runFor(14_700);
     await expect(working).toContainText("Still working — the answer will appear here");
     await expect.poll(() => held !== null).toBe(true);
