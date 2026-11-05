@@ -5,7 +5,7 @@ import type { PartyFit, RequestFit, Room } from "../../domain";
 import { times12 } from "../../domain/time";
 import { plainTables } from "../../domain/wording";
 import { currentRequest, requestsActions, useRequests, type ChatTurn } from "./store";
-import { Spinner, Working } from "../lib/wait";
+import { Working } from "../lib/wait";
 import { localAnswer, notedLine, turnSentence } from "./chatReply";
 import { oneRoomPlan, oneRoomSentence } from "../../domain/alternatives";
 import "./chat15.css";
@@ -43,7 +43,6 @@ export function RequestChat({
   const [text, setText] = useState("");
   const [micHint, setMicHint] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
-  const busy = turns.some((t) => t.status === "loading");
 
   // Once a model turn has its own constraints, work out ITS capacity sentence (from those constraints only)
   // and record it on that turn by id, for the chat and the activity log.
@@ -66,7 +65,8 @@ export function RequestChat({
 
   const send = () => {
     const m = text.trim();
-    if (!m || busy) return;
+    // Send stays open while a turn is pending: each message is its own turn and gets its own answer
+    if (!m) return;
     setText("");
     const current = currentRequest(s, r);
     const local = room ? localAnswer(m, { room, request: current, fit, cost }) : null;
@@ -186,14 +186,8 @@ export function RequestChat({
             </span>
           )}
           <span className="spacer" />
-          <button type="submit" className="tonal" disabled={busy || !text.trim()}>
-            {busy ? (
-              <>
-                <Spinner /> Checking…
-              </>
-            ) : (
-              "Send"
-            )}
+          <button type="submit" className="tonal" disabled={!text.trim()}>
+            Send
           </button>
         </div>
       </form>

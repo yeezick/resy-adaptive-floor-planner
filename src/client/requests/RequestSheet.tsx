@@ -354,12 +354,15 @@ export function RequestSheet({
           <q className="field-value">{r.message}</q>
         </div>
 
-        <div className="req-decision">
-          {/* the rule's recommendation, with the one capacity-fit pill beside it (inline, so it wraps with the text) */}
+        <div className={`req-decision${takeIt ? " field" : ""}`}>
+          {/* the fixed rule (fit ✓ and cancelled = 0), never model text, with the one capacity-fit pill beside it */}
           {takeIt ? (
-            <p className="take-it" role="note">
-              <span className="take-it-text">{takeIt}</span> {fitPill}
-            </p>
+            <>
+              <span className="field-label muted">Recommendation</span>
+              <p className="take-it field-value" role="note">
+                <span className="take-it-text">{takeIt}</span> {fitPill}
+              </p>
+            </>
           ) : fit && !fit.ok ? (
             <p className="small cant-fit-line">
               {times12(adj ? adj.line : fit.reason)} {fitPill}
@@ -451,6 +454,30 @@ export function RequestSheet({
           )}
         </div>
 
+        {/* pros, then cons: in view without expanding (one column at every width) */}
+        {impacts && (
+          <div className="req-impacts small">
+            <div className="field req-pros">
+              <span className="field-label is-pro">Pros</span>
+              <ul className="field-value" aria-label="Pros">
+                {impacts.pros.map((p) => (
+                  <li key={p}>{times12(p)}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="field req-cons">
+              <span className="field-label is-con">Cons</span>
+              <ul className="field-value" aria-label="Cons">
+                {impacts.cons.length ? (
+                  impacts.cons.map((c) => <li key={c}>{times12(c)}</li>)
+                ) : (
+                  <li className="muted">None</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        )}
+
         {more && (
           <div className="req-more small" id={`more-${r0.id}`}>
             {fit?.ok && (
@@ -458,28 +485,6 @@ export function RequestSheet({
                 <span className="field-label muted">Plan</span>
                 <span className="field-value">{times12(planLine(fit.build))}</span>
               </div>
-            )}
-            {impacts && (
-              <>
-                <div className="field req-pros">
-                  <span className="field-label is-pro">Pros</span>
-                  <ul className="field-value" aria-label="Pros">
-                    {impacts.pros.map((p) => (
-                      <li key={p}>{times12(p)}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="field req-cons">
-                  <span className="field-label is-con">Cons</span>
-                  <ul className="field-value" aria-label="Cons">
-                    {impacts.cons.length ? (
-                      impacts.cons.map((c) => <li key={c}>{times12(c)}</li>)
-                    ) : (
-                      <li className="muted">None</li>
-                    )}
-                  </ul>
-                </div>
-              </>
             )}
             {fit?.ok && cost && (
               <div className="field req-covers">
@@ -755,20 +760,24 @@ function ChatDiff({
   /** Covers and hold window before → after the change (null where it doesn't fit). */
   impact?: { before: string | null; after: string | null };
 }) {
-  const rows: string[] = [];
+  // label on its own line, value on the next (no "Label: value" pairs)
+  const rows: { label: string; value: string }[] = [];
   const range = (c: ChatConstraints) =>
     c.tableRange ? `${c.tableRange.from}–${c.tableRange.to}` : "any";
-  if (range(before) !== range(after)) rows.push(`Tables: ${range(before)} → ${range(after)}`);
+  if (range(before) !== range(after))
+    rows.push({ label: "Tables", value: `${range(before)} → ${range(after)}` });
   const size = (c: ChatConstraints) => c.partySize ?? r.partySize;
-  if (size(before) !== size(after)) rows.push(`Party: ${size(before)} → ${size(after)}`);
+  if (size(before) !== size(after))
+    rows.push({ label: "Party", value: `${size(before)} → ${size(after)}` });
   const time = (c: ChatConstraints) => clock12(c.time ?? r.time);
-  if (time(before) !== time(after)) rows.push(`Time: ${time(before)} → ${time(after)}`);
+  if (time(before) !== time(after))
+    rows.push({ label: "Time", value: `${time(before)} → ${time(after)}` });
   const added = after.needs.filter((n) => !before.needs.includes(n));
   const removed = before.needs.filter((n) => !after.needs.includes(n));
-  if (added.length) rows.push(`Needs: + ${added.join(", ")}`);
-  if (removed.length) rows.push(`Needs: − ${removed.join(", ")}`);
+  if (added.length) rows.push({ label: "Needs", value: `+ ${added.join(", ")}` });
+  if (removed.length) rows.push({ label: "Needs", value: `− ${removed.join(", ")}` });
   const notes = after.notes.filter((n) => !before.notes.includes(n));
-  if (notes.length) rows.push(`Notes: + ${notes.join(", ")}`);
+  if (notes.length) rows.push({ label: "Notes", value: `+ ${notes.join(", ")}` });
   const word = (ok: boolean) => (ok ? "capacity fit ✓" : "no capacity fit");
   const loses = fitBefore && !result.fit.ok;
   return (
@@ -781,26 +790,33 @@ function ChatDiff({
       </p>
       <ol className="chat-diff-rows small">
         {rows.map((x) => (
-          <li key={x}>{x}</li>
+          <li key={`${x.label}-${x.value}`}>
+            <span className="field-label muted">{x.label}</span>
+            <span className="field-value">{x.value}</span>
+          </li>
         ))}
       </ol>
       {impact && (impact.before || impact.after) && impact.before !== impact.after && (
         <p className="chat-diff-impact small">
-          <span className="muted">Covers and hold: </span>
-          {impact.before ?? "no fit"} → {impact.after ?? "no fit"}
+          <span className="field-label muted">Covers and hold</span>
+          <span className="field-value">
+            {impact.before ?? "no fit"} → {impact.after ?? "no fit"}
+          </span>
         </p>
       )}
       <p className="chat-diff-check small">
-        <span className="muted">Capacity check: </span>
-        {word(fitBefore)} →{" "}
-        <span className={`verdict ${result.fit.ok ? "verdict-real" : "verdict-unsure"}`}>
-          {word(result.fit.ok)}
+        <span className="field-label muted">Capacity check</span>
+        <span className="field-value">
+          {word(fitBefore)} →{" "}
+          <span className={`verdict ${result.fit.ok ? "verdict-real" : "verdict-unsure"}`}>
+            {word(result.fit.ok)}
+          </span>
+          {result.fit.ok ? (
+            <span> · {tablesPhrase(result.fit.build.tables)}</span>
+          ) : result.closest ? (
+            <span className="muted"> · closest: {times12(result.closest)}</span>
+          ) : null}
         </span>
-        {result.fit.ok ? (
-          <span> · {tablesPhrase(result.fit.build.tables)}</span>
-        ) : result.closest ? (
-          <span className="muted"> · closest: {times12(result.closest)}</span>
-        ) : null}
       </p>
       {loses && (
         <p className="warn-text small">Applying this leaves the request with no capacity fit.</p>
