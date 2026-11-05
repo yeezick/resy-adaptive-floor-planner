@@ -301,15 +301,16 @@ export interface AdjustedFit {
 /** Where the manager's constraints let the party sit: a table range, named rooms, both, or anywhere (undefined). */
 function allowedTables(room: Room, c: ChatConstraints): { tables?: string[]; label?: string } {
   const range = c.tableRange;
-  const inRooms = c.rooms?.length ? new Set(c.rooms.map((n) => n.trim().toLowerCase())) : null;
+  // same normalisation as the validator, so a "the Library" it accepted matches the Library's tables
+  const inRooms = c.rooms?.length ? new Set(c.rooms.map(roomKey)) : null;
   if (!range && !inRooms) return {};
-  const ids = room.tables
-    .filter((t) => !inRooms || inRooms.has(t.area.toLowerCase()))
-    .map((t) => t.id);
+  const ids = room.tables.filter((t) => !inRooms || inRooms.has(roomKey(t.area))).map((t) => t.id);
   const tables = range ? tablesInRange(room, range).filter((id) => ids.includes(id)) : ids;
   const label = [
     range ? rangeLabel(range) : null,
-    inRooms ? `in the ${listAnd(c.rooms ?? [])}` : null,
+    inRooms
+      ? `in the ${listAnd((c.rooms ?? []).map((n) => n.trim().replace(/^the\s+/i, "")))}`
+      : null,
   ]
     .filter(Boolean)
     .join(" ");
