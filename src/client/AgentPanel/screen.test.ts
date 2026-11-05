@@ -76,6 +76,16 @@ describe("party size from the screen", () => {
     expect(partyInMessage("push the 8:30 back")).toBeUndefined();
   });
 
+  it("does not read a time or a duration after 'for' as a headcount", () => {
+    expect(partyInMessage("anything free for 8:30?")).toBeUndefined();
+    expect(partyInMessage("hold table 41 for 15 minutes")).toBeUndefined();
+    expect(partyInMessage("hold it for 10 min")).toBeUndefined();
+    expect(partyInMessage("anything for 2 hours?")).toBeUndefined();
+    expect(partyInMessage("table for 7pm")).toBeUndefined();
+    expect(partyInMessage("table for 6 at 8:30")).toBe(6);
+    expect(partyForMessage("hold it for 15 minutes", ["party of 4"], undefined)).toBe(4);
+  });
+
   it("message, then the thread's latest stated size, then the walk-in form / open request", () => {
     expect(partyForMessage("party of 4", ["party of 8"], 22)).toBe(4);
     expect(partyForMessage("where can they go?", ["party of 8", "they're 10 now"], 22)).toBe(10);

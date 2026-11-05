@@ -169,7 +169,8 @@ export function partyFromMessage(text: string): number | undefined {
   const m =
     /party of (\d{1,2})/i.exec(text) ??
     /(\d{1,2})[\s-]?(?:top|people|guests|pax|covers)\b/i.exec(text) ??
-    /\bfor (\d{1,2})\b/i.exec(text);
+    // "for 8:30" and "for 15 minutes" are a time or a duration, not a headcount.
+    /\bfor (\d{1,2})\b(?!\s*(?::\d|min(?:ute)?s?\b|hrs?\b|hours?\b|[ap]\.?m\b))/i.exec(text);
   const n = m ? Number(m[1]) : NaN;
   return Number.isInteger(n) && n > 0 ? n : undefined;
 }
