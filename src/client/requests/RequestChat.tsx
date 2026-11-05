@@ -3,6 +3,7 @@ import { checkAdjusted } from "../../domain/requestChat";
 import type { GuestRequest } from "../../domain/requests";
 import type { PartyFit, RequestFit, Room } from "../../domain";
 import { times12 } from "../../domain/time";
+import { plainTables } from "../../domain/wording";
 import { currentRequest, requestsActions, useRequests, type ChatTurn } from "./store";
 import { Working } from "../lib/wait";
 import { localAnswer, notedLine, turnSentence } from "./chatReply";
@@ -204,6 +205,8 @@ function ChatReply({ turn: t }: { turn: ChatTurn }) {
       </p>
     );
   return (
-    <p className={`chat-out small${t.status === "error" ? " warn-text" : ""}`}>{times12(text)}</p>
+    <p className={`chat-out small${t.status === "error" ? " warn-text" : ""}`}>
+      {times12(plainTables(text))}
+    </p>
   );
 }
