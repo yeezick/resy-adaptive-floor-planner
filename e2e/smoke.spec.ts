@@ -1223,6 +1223,9 @@ test("/evals leads with the published deterministic checks", async ({ page }) =>
   ];
   for (const [label, n] of rows)
     await expect(card.getByRole("row", { name: new RegExp(label) })).toContainText(n);
+  await expect(card.locator(".scenario-count")).toContainText(
+    "9 scenarios · 5 adversarial · 9/9 pass",
+  );
   await expect(page.getByText("No evaluation run is published yet")).toHaveCount(0);
 });
 

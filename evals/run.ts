@@ -65,8 +65,12 @@ const CHECK_TEXT: Record<string, { label: string; what: string }> = {
 function writeChecks(
   plan: { check: string; ok: boolean }[],
   activity: { ok: boolean }[],
-  chat: { ok: boolean }[],
+  chat: { ok: boolean; case: string }[],
 ): void {
+  // a golden scenario passes when every check on it passes; "safety" categories are the adversarial ones
+  const golden = loadChatGolden();
+  const passes = (id: string) => chat.filter((c) => c.case === id).every((c) => c.ok);
+  const adversarial = golden.filter((g) => g.category.startsWith("safety"));
   const group = (id: string, list: { ok: boolean }[]) => ({
     id,
     ...(CHECK_TEXT[id] ?? { label: id, what: "" }),
@@ -86,6 +90,12 @@ function writeChecks(
       group("activity", activity),
       group("request-chat", chat),
     ],
+    chatScenarios: {
+      total: golden.length,
+      adversarial: adversarial.length,
+      passing: golden.filter((g) => passes(g.id)).length,
+      adversarialPassing: adversarial.filter((g) => passes(g.id)).length,
+    },
   });
   writeFileSync(CHECKS_PATH, `${JSON.stringify(out, null, 2)}\n`);
   console.log(`wrote ${CHECKS_PATH}`);
@@ -100,7 +110,7 @@ import {
   TRANSCRIPTS_DIR,
   writeJson,
 } from "./transcript";
-import { runChatChecks } from "./request-chat-checks";
+import { loadChatGolden, runChatChecks } from "./request-chat-checks";
 
 export function runBudgetUsd(): number {
   // EVAL_BUDGET_USD is what .github/workflows/evals-live.yml sets today; EVAL_RUN_BUDGET_USD is the documented name.
