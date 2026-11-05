@@ -760,20 +760,24 @@ function ChatDiff({
   /** Covers and hold window before → after the change (null where it doesn't fit). */
   impact?: { before: string | null; after: string | null };
 }) {
-  const rows: string[] = [];
+  // label on its own line, value on the next (no "Label: value" pairs)
+  const rows: { label: string; value: string }[] = [];
   const range = (c: ChatConstraints) =>
     c.tableRange ? `${c.tableRange.from}–${c.tableRange.to}` : "any";
-  if (range(before) !== range(after)) rows.push(`Tables: ${range(before)} → ${range(after)}`);
+  if (range(before) !== range(after))
+    rows.push({ label: "Tables", value: `${range(before)} → ${range(after)}` });
   const size = (c: ChatConstraints) => c.partySize ?? r.partySize;
-  if (size(before) !== size(after)) rows.push(`Party: ${size(before)} → ${size(after)}`);
+  if (size(before) !== size(after))
+    rows.push({ label: "Party", value: `${size(before)} → ${size(after)}` });
   const time = (c: ChatConstraints) => clock12(c.time ?? r.time);
-  if (time(before) !== time(after)) rows.push(`Time: ${time(before)} → ${time(after)}`);
+  if (time(before) !== time(after))
+    rows.push({ label: "Time", value: `${time(before)} → ${time(after)}` });
   const added = after.needs.filter((n) => !before.needs.includes(n));
   const removed = before.needs.filter((n) => !after.needs.includes(n));
-  if (added.length) rows.push(`Needs: + ${added.join(", ")}`);
-  if (removed.length) rows.push(`Needs: − ${removed.join(", ")}`);
+  if (added.length) rows.push({ label: "Needs", value: `+ ${added.join(", ")}` });
+  if (removed.length) rows.push({ label: "Needs", value: `− ${removed.join(", ")}` });
   const notes = after.notes.filter((n) => !before.notes.includes(n));
-  if (notes.length) rows.push(`Notes: + ${notes.join(", ")}`);
+  if (notes.length) rows.push({ label: "Notes", value: `+ ${notes.join(", ")}` });
   const word = (ok: boolean) => (ok ? "capacity fit ✓" : "no capacity fit");
   const loses = fitBefore && !result.fit.ok;
   return (
@@ -786,26 +790,33 @@ function ChatDiff({
       </p>
       <ol className="chat-diff-rows small">
         {rows.map((x) => (
-          <li key={x}>{x}</li>
+          <li key={`${x.label}-${x.value}`}>
+            <span className="field-label muted">{x.label}</span>
+            <span className="field-value">{x.value}</span>
+          </li>
         ))}
       </ol>
       {impact && (impact.before || impact.after) && impact.before !== impact.after && (
         <p className="chat-diff-impact small">
-          <span className="muted">Covers and hold: </span>
-          {impact.before ?? "no fit"} → {impact.after ?? "no fit"}
+          <span className="field-label muted">Covers and hold</span>
+          <span className="field-value">
+            {impact.before ?? "no fit"} → {impact.after ?? "no fit"}
+          </span>
         </p>
       )}
       <p className="chat-diff-check small">
-        <span className="muted">Capacity check: </span>
-        {word(fitBefore)} →{" "}
-        <span className={`verdict ${result.fit.ok ? "verdict-real" : "verdict-unsure"}`}>
-          {word(result.fit.ok)}
+        <span className="field-label muted">Capacity check</span>
+        <span className="field-value">
+          {word(fitBefore)} →{" "}
+          <span className={`verdict ${result.fit.ok ? "verdict-real" : "verdict-unsure"}`}>
+            {word(result.fit.ok)}
+          </span>
+          {result.fit.ok ? (
+            <span> · {tablesPhrase(result.fit.build.tables)}</span>
+          ) : result.closest ? (
+            <span className="muted"> · closest: {times12(result.closest)}</span>
+          ) : null}
         </span>
-        {result.fit.ok ? (
-          <span> · {tablesPhrase(result.fit.build.tables)}</span>
-        ) : result.closest ? (
-          <span className="muted"> · closest: {times12(result.closest)}</span>
-        ) : null}
       </p>
       {loses && (
         <p className="warn-text small">Applying this leaves the request with no capacity fit.</p>
