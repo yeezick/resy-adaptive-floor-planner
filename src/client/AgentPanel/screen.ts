@@ -17,9 +17,9 @@ const VERB =
 /** A table number: "56", "T56", "table 56" — not a headcount, time or wait ("2 people", "8:30", "10 min"). */
 const NUM =
   "(?:t|tables?\\s*)?\\d{1,3}(?![\\d:])(?!\\s*(?:more|extra|people|persons?|guests?|pax|covers?|kids?|adults?|min|mins|minutes?|hours?|hrs?|pm|am|p\\.m|a\\.m|o'?clock|now|-?\\s?tops?)\\b)";
-/** Furniture, optionally after a count and up to two describing words ("2 chairs", "the Library tables"). */
+/** Furniture, after up to three describing words ("2 chairs", "the Library tables", "out 2 more chairs"). */
 const THING =
-  "(?:(?!(?:them|they|him|her|us|it|to|at|into|in|on|by|from|for|with)\\b)[\\w'-]+\\s+){0,2}?(?:tables?|chairs?|booths?|dividers?|partitions?)\\b";
+  "(?:(?!(?:them|they|him|her|us|it|to|at|into|in|on|by|from|for|with)\\b)[\\w'-]+\\s+){0,3}?(?:tables?|chairs?|booths?|dividers?|partitions?)\\b";
 const OBJECT = `(?:the\\s+|a\\s+|an\\s+|some\\s+|those\\s+|these\\s+|both\\s+)?(?:${THING}|${NUM})`;
 const EDIT = new RegExp(`\\b${VERB}\\s+${OBJECT}`, "i");
 /** Dividers and rooms: "open the divider", "close the rooms between …", "open up the Library". */
@@ -81,5 +81,6 @@ export function openRequestBriefs(requests: readonly GuestRequest[]): OpenReques
 
 /** AI Planner text for the host: "T41" → "table 41", "F4" → the party's name. */
 export function plannerText(text: string): string {
-  return namesIn(plainTables(text));
+  // a name ending in an initial at a sentence end ("for F1." → "for Oduya, C.") keeps one full stop
+  return namesIn(plainTables(text)).replace(/(, [A-Z]\.)\./g, "$1");
 }
