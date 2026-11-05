@@ -190,6 +190,14 @@ test.describe("floor changes by conversation", () => {
     await expect(replies(page).last()).toHaveText(
       "I can't move the bar, walls or the service station — only tables. Nothing changed.",
     );
+    // T22: after many sends the box is still fully above the sticky footer
+    await expect
+      .poll(async () => {
+        const b = await box(page).boundingBox();
+        const f = await page.locator(".decision-footer").boundingBox();
+        return b && f ? Math.round(f.y - (b.y + b.height)) : -1;
+      })
+      .toBeGreaterThanOrEqual(0);
   });
 });
 
