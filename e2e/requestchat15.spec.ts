@@ -31,7 +31,7 @@ test.describe("request chat", () => {
     );
     // the plan splits two rooms: the one-room answer (with storage) is offered up front
     await expect(chat.locator(".chat-offer")).toHaveText(
-      "This plan spans Garden Room + Library. No single room fits 22, even with tables from storage (closest: Garden Room, 20 seats).",
+      "This plan spans Garden Room + Library. No single room fits 22 as the floor stands (today's Garden Room tables top out at 20). Ask me to move tables to make one room.",
     );
     const box = chat.getByRole("textbox", { name: "Message about this request" });
     await expect(box).toBeFocused();
@@ -52,7 +52,7 @@ test.describe("request chat", () => {
     );
     const last = chat.locator(".chat-log > li").last();
     await expect(last).toContainText(
-      "No single room fits 22, even with tables from storage (closest: Garden Room, 20 seats). The nearest is the current plan: Garden Room + Library with the divider open.",
+      "No single room fits 22 as the floor stands (today's Garden Room tables top out at 20). Ask me to move tables to make one room.",
     );
     await expect(page.locator(".floor-highlight-tag")).toContainText(
       "Nearest · Garden Room + Library",
