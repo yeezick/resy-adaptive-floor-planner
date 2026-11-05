@@ -47,6 +47,7 @@ import {
   decisionOf,
   pendingCount,
   requestsActions,
+  requestsBy,
   useRequests,
 } from "./requests/store";
 import { setDemoNight } from "./lib/demoClock";
@@ -58,6 +59,9 @@ import { tablesPhrase } from "../domain/wording";
 import { activeScenario } from "./scenarios";
 import { NIGHTS, nightDate } from "./nights";
 import { partyName, surname } from "./lib/names";
+import { openRequestBriefs } from "./AgentPanel/screen";
+import { verdictOf } from "./requests/RequestSheet";
+import type { ViewPreset } from "./FloorPlan/geometry";
 
 const today = () => new Date().toLocaleDateString("en-CA"); // local YYYY-MM-DD
 
@@ -178,6 +182,9 @@ export function Planner({
     return () => window.clearTimeout(t);
   }, [notice]);
   const [draft, setDraft] = useState<WalkInDraft>({ size: 2, needs: [] });
+  // The party the AI Planner was opened for: the walk-in form's size, or the open request's party.
+  const [plannerParty, setPlannerParty] = useState<number | undefined>(undefined);
+  const [floorTab, setFloorTab] = useState<{ key: string; tab: ViewPreset } | null>(null);
   const [waitlist, setWaitlist] = useState<WaitEntry[]>([]);
   const [done, setDone] = useState<DoneEntry[]>([]);
   const nextId = useRef(1);
@@ -500,6 +507,25 @@ export function Planner({
     if (!hasSheet && railOpen) setRailOpen(false);
   }
   const openCount = pendingCount(requests, { roomId: room.id, clock: room.clock });
+  // The AI Planner reads this night's open large-party requests by guest name (never an id).
+  const openBriefs = useMemo(
+    () =>
+      openRequestBriefs(
+        requestsBy(requests, { roomId: room.id, clock: room.clock })
+          .filter(
+            (r) =>
+              r.bookRoomId === room.id &&
+              ["pending", "replied"].includes(decisionOf(requests, r.id).kind) &&
+              verdictOf(requests.triage[r.id], requests.overrides[r.id]) !== "junk",
+          )
+          .map((r) => currentRequest(requests, r)),
+      ),
+    [requests, room.id, room.clock],
+  );
+  // The floor tab on screen, by floor key: leaving a request's floor keeps the room the host was looking at.
+  const floorKey = proposal ? "preview" : reqTables.length ? `req-${request?.id}` : "live";
+  const keptTab =
+    floorKey === "live" && floorTab?.key.startsWith("req-") ? floorTab.tab : undefined;
   return (
     <div className={`console${hasSheet ? " has-sheet" : ""}${railOpen ? " rail-open" : ""}`}>
       <ConsoleBar
@@ -512,6 +538,16 @@ export function Planner({
           // a top-bar button starts over: no panel to go back to
           setBack([]);
           setReview(null);
+          if (m === "assistant" && mode !== "assistant")
+            setPlannerParty(
+              mode === "walkin"
+                ? draft.size
+                : mode === "request" && request
+                  ? currentRequest(requests, request).partySize
+                  : undefined,
+            );
+          // from a request, Back returns to it
+          if (m === "assistant" && mode === "request") setBack(["request"]);
           if (m === "walkin") {
             setDraft({ size: 2, needs: [] });
             setSelected([]);
@@ -602,14 +638,15 @@ export function Planner({
 
         <section className="floor-col" aria-label="Floor plan">
           <FloorPlan
-            key={proposal ? "preview" : reqTables.length ? `req-${request?.id}` : "live"}
+            key={floorKey}
             initialTab={
               proposal || focusTables.length
                 ? focusTab
                 : reqTables.length
                   ? tabForTables(room, reqTables)
-                  : undefined
+                  : keptTab
             }
+            onTab={(tab) => setFloorTab({ key: floorKey, tab })}
             room={proposal?.variant ?? room}
             selected={proposal ? [] : selected}
             highlight={highlight}
@@ -722,6 +759,8 @@ export function Planner({
               visible={mode === "assistant"}
               fresh={chatSeq > 0}
               threadId={`thread-${chatSeq}`}
+              screenParty={plannerParty}
+              openRequests={openBriefs}
             />
           </div>
           {mode === "review" && review && (

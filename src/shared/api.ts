@@ -8,6 +8,18 @@ export const MAX_MESSAGE_CHARS = 500;
 /** Total characters of prior turns a client may send back (keeps injected "assistant" text and spend small). */
 export const MAX_HISTORY_CHARS = 2000;
 export const MAX_TURN_CHARS = 1000;
+export const MAX_OPEN_REQUESTS = 12;
+
+/** One open large-party request as the AI Planner sees it: a guest name, never a request id. */
+export const OpenRequestBrief = z
+  .object({
+    name: z.string().min(1).max(60),
+    partySize: z.number().int().positive().max(500),
+    time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+    needs: z.array(z.enum(NEEDS)).max(4),
+  })
+  .strict();
+export type OpenRequestBrief = z.infer<typeof OpenRequestBrief>;
 
 export const AgentRequest = z
   .object({
@@ -26,6 +38,13 @@ export const AgentRequest = z
       .refine((h) => h.reduce((n, m) => n + m.text.length, 0) <= MAX_HISTORY_CHARS, {
         message: `history is limited to ${MAX_HISTORY_CHARS} characters`,
       }),
+    /**
+     * The party the host is asking about, when the screen knows it (the host's message, the walk-in form or the
+     * open request). The validator rejects any recommendation that seats fewer.
+     */
+    partySize: z.number().int().positive().max(500).optional(),
+    /** The night's open large-party requests, by guest name (never an id), so the planner can weigh them. */
+    openRequests: z.array(OpenRequestBrief).max(MAX_OPEN_REQUESTS).optional(),
   })
   .strict();
 export type AgentRequest = z.infer<typeof AgentRequest>;
