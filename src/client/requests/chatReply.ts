@@ -3,7 +3,8 @@
 // the request already has.
 import type { PartyFit, RequestFit, Room } from "../../domain";
 import { oneRoomPlan, oneRoomSentence, stockOf, storageSentence } from "../../domain/alternatives";
-import type { GuestRequest } from "../../domain/requests";
+import { checkRequest, SERVICE, type GuestRequest } from "../../domain/requests";
+import { clock12, toHHMM, toMinutes } from "../../domain/time";
 import { listAnd, tablesPhrase } from "../../domain/wording";
 
 const NEED_WORD: Record<string, string> = {
@@ -40,6 +41,33 @@ const OTHER_ASK =
 const ACCEPT_FOR_ME =
   /\b(accept|approve|book)\s+(it|this|them|the (booking|request|party|reservation))\b|\b(no|without|skip|bypass)( the| a| any)? manager\b|\bignore (your|all|the|previous) (rules|instructions)\b/i;
 export const CANT_ACCEPT = "I can't accept for you. Nothing changed — you approve every change.";
+/** "latest/earliest we could seat them", "how late can they arrive", "last possible time". */
+const SWEEP =
+  /\b(latest|earliest|last|first)\b[^.?!]{0,30}\b(seat|seating|time|arrival|arrive|start|sitting|slot)\w*|\bhow (late|early)\b/i;
+
+/**
+ * The latest (or earliest) arrival, in 15-minute steps over service, at which the capacity check still fits
+ * the party (in the named room, when one is named). Deterministic; the same check the card runs.
+ */
+export function sweepTimes(
+  room: Room,
+  r: GuestRequest,
+  which: "latest" | "earliest",
+  area: string | null,
+): { time: string; tables: string[]; area: string } | null {
+  const times: string[] = [];
+  for (let m = toMinutes(SERVICE.from); m <= toMinutes(SERVICE.to) - 30; m += 15)
+    times.push(toHHMM(m));
+  if (which === "latest") times.reverse();
+  for (const time of times) {
+    const fit = checkRequest(room, { ...r, time });
+    if (!fit.ok) continue;
+    if (area && !fit.build.area.split(" + ").includes(area)) continue;
+    return { time, tables: fit.build.tables, area: fit.build.area };
+  }
+  return null;
+}
+
 /** Moving a table into another room or area ("pull table 56 into the Library", "move tables 63–66 to …"). */
 const TABLE_MOVE =
   /\b(move|pull|shift|swap|take|bring)\b[^.?!]{0,40}?\btables?\s*\d+[^.?!]{0,60}?\b(into|to|from|over)\b|\b(move|pull|shift)\s+\d+(\s*[–-]\s*\d+)?\s+(into|to|from)\b/i;
@@ -63,6 +91,25 @@ export function localAnswer(
   const { room, request: r, fit, cost } = ctx;
   // asked to accept, book or skip the manager: the AI can't, and says so (no model call)
   if (ACCEPT_FOR_ME.test(message)) return { text: CANT_ACCEPT };
+  // "what's the latest we could seat them and still use the Library?": a sweep of the capacity check
+  const sweep = SWEEP.exec(message);
+  if (sweep) {
+    const which = /latest|last|late/i.test(sweep[0]) ? "latest" : "earliest";
+    const area =
+      room.areas.map((a) => a.name).find((n) => message.toLowerCase().includes(n.toLowerCase())) ??
+      null;
+    const hit = sweepTimes(room, r, which, area);
+    const where = area ? ` that keeps the ${area}` : "";
+    const word = which === "latest" ? "Latest" : "Earliest";
+    if (!hit)
+      return {
+        text: `No arrival time that night fits ${r.partySize}${area ? ` in the ${area}` : ""}.`,
+      };
+    return {
+      text: `${word} seating${where}: ${clock12(hit.time)} (${tablesPhrase(hit.tables)}, ${hit.area}). Asked for ${clock12(r.time)}.`,
+      alt: { tables: hit.tables, label: `${word} · ${clock12(hit.time)}` },
+    };
+  }
   if (OTHER_ASK.test(message)) return null;
   // moving tables between rooms isn't something the chat can do yet: say so, and name the closest plan
   if (TABLE_MOVE.test(message)) {
