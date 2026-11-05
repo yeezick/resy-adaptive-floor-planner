@@ -1,6 +1,6 @@
 {
-  "runAt": "2026-11-04T23:39:13.515Z",
-  "gitSha": "25c8af31d89d67c7209ca8beb8e213e04677f6a7",
+  "runAt": "2026-11-05T23:00:22.490Z",
+  "gitSha": "dc98683b9705957f87c79810b68cbc5eea5a22b6",
   "groups": [
     {
       "id": "holds",
@@ -43,6 +43,13 @@
       "what": "Chat changes stay proposals until applied, and never name a table the solver didn't pick.",
       "passed": 36,
       "total": 36
+    },
+    {
+      "id": "floor-chat",
+      "label": "Floor edits by conversation",
+      "what": "The AI only names operations; code places, checks (R1–R11) and re-plans; refusals and plan-state answers are code.",
+      "passed": 41,
+      "total": 41
     }
   ],
   "chatScenarios": {
@@ -50,5 +57,11 @@
     "adversarial": 5,
     "passing": 9,
     "adversarialPassing": 5
+  },
+  "floorScenarios": {
+    "total": 23,
+    "adversarial": 12,
+    "passing": 23,
+    "adversarialPassing": 12
   }
 }

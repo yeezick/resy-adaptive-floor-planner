@@ -59,6 +59,10 @@ const CHECK_TEXT: Record<string, { label: string; what: string }> = {
     label: "Request chat",
     what: "Chat changes stay proposals until applied, and never name a table the solver didn't pick.",
   },
+  "floor-chat": {
+    label: "Floor edits by conversation",
+    what: "The AI only names operations; code places, checks (R1–R11) and re-plans; refusals and plan-state answers are code.",
+  },
 };
 
 /** The deterministic checks, for /evals: public/evals/checks.json. */
@@ -66,6 +70,7 @@ function writeChecks(
   plan: { check: string; ok: boolean }[],
   activity: { ok: boolean }[],
   chat: { ok: boolean; case: string }[],
+  floor: { ok: boolean; case: string }[],
 ): void {
   // a golden scenario passes when every check on it passes; "safety" categories are the adversarial ones
   const golden = loadChatGolden();
@@ -89,6 +94,7 @@ function writeChecks(
       ),
       group("activity", activity),
       group("request-chat", chat),
+      group("floor-chat", floor),
     ],
     chatScenarios: {
       total: golden.length,
@@ -96,6 +102,17 @@ function writeChecks(
       passing: golden.filter((g) => passes(g.id)).length,
       adversarialPassing: adversarial.filter((g) => passes(g.id)).length,
     },
+    floorScenarios: (() => {
+      const fg = loadFloorGolden();
+      const ok = (id: string) => floor.filter((c) => c.case === id).every((c) => c.ok);
+      const adv = fg.filter((g) => g.category.startsWith("safety"));
+      return {
+        total: fg.length,
+        adversarial: adv.length,
+        passing: fg.filter((g) => ok(g.id)).length,
+        adversarialPassing: adv.filter((g) => ok(g.id)).length,
+      };
+    })(),
   });
   writeFileSync(CHECKS_PATH, `${JSON.stringify(out, null, 2)}\n`);
   console.log(`wrote ${CHECKS_PATH}`);
@@ -111,6 +128,7 @@ import {
   writeJson,
 } from "./transcript";
 import { loadChatGolden, runChatChecks } from "./request-chat-checks";
+import { loadFloorGolden, runFloorChecks } from "./floor-chat-checks";
 
 export function runBudgetUsd(): number {
   // EVAL_BUDGET_USD is what .github/workflows/evals-live.yml sets today; EVAL_RUN_BUDGET_USD is the documented name.
@@ -297,7 +315,8 @@ function replay(write: boolean): void {
   const plan = runPlanChecks(loadRooms(), requests);
   const activity = runActivityChecks(requests);
   const chat = runChatChecks(requests);
-  const planFails = [...plan, ...activity, ...chat].filter((c) => !c.ok);
+  const floor = runFloorChecks(requests);
+  const planFails = [...plan, ...activity, ...chat, ...floor].filter((c) => !c.ok);
   const byCheck = (k: string) => plan.filter((c) => c.check === k);
   console.log(
     JSON.stringify({
@@ -309,9 +328,10 @@ function replay(write: boolean): void {
       ),
       activityChecks: `${activity.filter((c) => c.ok).length}/${activity.length}`,
       requestChatChecks: `${chat.filter((c) => c.ok).length}/${chat.length}`,
+      floorChatChecks: `${floor.filter((c) => c.ok).length}/${floor.length}`,
     }),
   );
-  if (write) writeChecks(plan, activity, chat);
+  if (write) writeChecks(plan, activity, chat, floor);
   for (const f of planFails)
     console.error(`FAIL plan check ${f.check} ${f.case}: ${f.detail ?? ""}`);
   if (!coverage.ok) {

@@ -1,0 +1,29 @@
+{
+  "id": "floor-g9-routing",
+  "promptVersion": "request-chat.v1.2",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "tableRange": null,
+    "partySize": null,
+    "time": null,
+    "addNeeds": [],
+    "removeNeeds": [],
+    "notes": [],
+    "clarify": null,
+    "rooms": [],
+    "oneRoom": "unchanged",
+    "ops": [
+      {
+        "op": "from_storage",
+        "tables": [],
+        "to": "Library",
+        "seats": 4,
+        "count": 2,
+        "rows": []
+      }
+    ]
+  },
+  "validatorRejects": 0,
+  "costUsd": 0.00039070000000000006,
+  "latencyMs": 1571
+}
