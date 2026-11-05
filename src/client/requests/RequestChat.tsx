@@ -103,6 +103,8 @@ export function RequestChat({
   useEffect(() => {
     const el = log.current;
     if (el && pinnedToEnd.current) el.scrollTop = el.scrollHeight;
+    // the thread grows with each turn: keep the message box above the sheet's sticky footer
+    keepAboveFooter(box.current);
   }, [turnKey]);
   const noted = notedLine(currentRequest(s, r), cost);
   // A plan split across rooms: offer the one-room answer (storage included) up front, worked out after paint.

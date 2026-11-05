@@ -146,6 +146,16 @@ describe("floor changes by conversation (store)", () => {
     expect(layoutsStore.active(fri).id).toBe(lb.id);
   });
 
+  it("an accepted floor change drops a question the model sent alongside it (T10 on prod)", async () => {
+    const t = await say(W9, {
+      ...none,
+      clarify: "Which room should the 2 rows of 4 and 5 go in?",
+      ops: W9_OPS,
+    });
+    expect(t?.clarify).toBeUndefined();
+    expect(turnSentence(t ?? {})).toMatch(/^I'd change the floor \(5 changes\)/);
+  });
+
   it("G3: rooms the plan already opens are answered from plan state, with no proposal", async () => {
     const t = await say("open the rooms between Library and Garden Room", {
       ...none,
