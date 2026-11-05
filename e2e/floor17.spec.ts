@@ -188,3 +188,75 @@ test.describe("floor changes by conversation", () => {
     );
   });
 });
+
+test.describe("Shift setup: Tell the AI", () => {
+  test("G6 by words: 62 out, two 4-tops in → proposal drawn → Apply → Undo", async ({ page }) => {
+    const msg = "remove table 62 and add two 4-tops from storage in the Library";
+    const seen: { roomId?: string }[] = [];
+    await page.route("**/api/floor/chat", async (route) => {
+      seen.push(route.request().postDataJSON() as { roomId?: string });
+      return fulfill(
+        route,
+        chatBody({
+          ops: [
+            op({ op: "to_storage", tables: [ref({ n: 62 })] }),
+            op({ op: "from_storage", seats: 4, count: 2, to: "Library" }),
+          ],
+        }),
+      );
+    });
+    await page.goto("/?room=book-fri");
+    await page.locator(".room-select select").selectOption("book-fri");
+    await page
+      .getByRole("group", { name: "Host actions" })
+      .getByRole("button", { name: "Shift setup", exact: true })
+      .click();
+    const tell = page.getByRole("region", { name: "Tell the AI" });
+    await tell.getByRole("textbox").fill(msg);
+    await tell.getByRole("textbox").press("Enter");
+    const card = page.getByRole("group", { name: "Floor change proposed in Shift setup" });
+    await expect(card.getByRole("list", { name: "Floor changes" })).toHaveText(
+      [
+        "Table 62 · Library → set aside for tonight",
+        "New table 96 (4-top from storage) · → Library (where table 62 stood)",
+        "New table 97 (4-top from storage) · → Library spare spot",
+      ].join(""),
+    );
+    expect(seen[0]?.roomId).toBe("book-fri");
+    await expect(page.getByText("Previewing the floor change proposed in chat")).toBeVisible();
+    await card.getByRole("button", { name: "Apply" }).click();
+    await expect(tell.getByRole("status")).toContainText("Floor changed: Table 62");
+    const active = () =>
+      page.evaluate(
+        () =>
+          (
+            JSON.parse(localStorage.getItem("afp.layouts.v1.book-fri") ?? "{}") as {
+              activeId?: string;
+            }
+          ).activeId,
+      );
+    expect(await active()).not.toBe("base");
+    await tell.getByRole("button", { name: "Undo" }).click();
+    await expect.poll(active).toBe("base");
+  });
+
+  test("the bar is not a table: refused on the device", async ({ page }) => {
+    let calls = 0;
+    await page.route("**/api/floor/chat", (route) => {
+      calls++;
+      return route.abort();
+    });
+    await page.goto("/");
+    await page
+      .getByRole("group", { name: "Host actions" })
+      .getByRole("button", { name: "Shift setup", exact: true })
+      .click();
+    const tell = page.getByRole("region", { name: "Tell the AI" });
+    await tell.getByRole("textbox").fill("move the bar into the Library");
+    await tell.getByRole("textbox").press("Enter");
+    await expect(tell).toContainText(
+      "I can't move the bar, walls or the service station — only tables. Nothing changed.",
+    );
+    expect(calls).toBe(0);
+  });
+});
