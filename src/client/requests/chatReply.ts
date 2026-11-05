@@ -76,6 +76,13 @@ export function seatingRoomNames(room: Room): string[] {
   return room.areas.filter((a) => a.kind === "dining" || a.kind === "private").map((a) => a.name);
 }
 
+/** A floor change the chat refuses outright (the bar, walls, the base layout, deleting tables), or null. */
+export function floorRefusal(message: string): string | null {
+  if (FIXED_THINGS.test(message)) return CANT_MOVE_FIXED;
+  if (BASE_OR_DELETE.test(message)) return ONLY_TONIGHT;
+  return null;
+}
+
 /** "can we do 6 instead": a lone number could be a headcount or a time. */
 const LONE_NUMBER =
   /^\s*(?:(?:can|could) we |let'?s |how about |what about )?(?:do |make it |try |go with )?(\d{1,2})(?: instead)?\s*[?.!]?\s*$/i;
@@ -126,8 +133,8 @@ export function localAnswer(
   ctx: { room: Room; request: GuestRequest; fit: RequestFit | null; cost: PartyFit | null },
 ): LocalAnswer | null {
   const { room, request: r, fit, cost } = ctx;
-  if (FIXED_THINGS.test(message)) return { text: CANT_MOVE_FIXED };
-  if (BASE_OR_DELETE.test(message)) return { text: ONLY_TONIGHT };
+  const refused = floorRefusal(message);
+  if (refused) return { text: refused };
   // asked to accept, book or skip the manager: the AI can't, and says so (no model call); a message that also
   // asks for a floor change goes on to the AI, and its reply ends with this line
   const edit = editIntent(message, seatingRoomNames(room));

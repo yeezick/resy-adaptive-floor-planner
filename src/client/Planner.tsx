@@ -21,6 +21,7 @@ import type { AppliedPlan, EditRequest } from "./LayoutHost";
 import { LayoutsList } from "./layouts/LayoutsList";
 import { tonightName, type LayoutsApi } from "./layouts/useLayouts";
 import { TonightPanel } from "./Tonight/TonightPanel";
+import { FloorChat, shiftFloorStore, useShiftFloor } from "./Tonight/FloorChat";
 import { AgentPanel } from "./AgentPanel/AgentPanel";
 import { BuildPlan } from "./BuildPlan/BuildPlan";
 import { ConsoleBar, type PanelMode } from "./ConsoleBar";
@@ -135,15 +136,16 @@ export function Planner({
     };
   }, [hoverArmed]);
   const [pinned, setPinned] = useState<Highlight | null>(null);
-  const [mode, setMode] = useState<PanelMode>(
+  const [mode, setMode] = useState<PanelMode>(() =>
     focusView === "request"
       ? "request"
-      : focusRequest
+      : focusRequest || shiftFloorStore.wantsReopen(fixture.id)
         ? "shift"
         : activeScenario()?.panel === "assistant" && activeScenario()?.roomId === fixture.id
           ? "assistant"
           : "details",
   );
+  useEffect(() => shiftFloorStore.clearReopen(), []);
   const [openRequest, setOpenRequest] = useState<string | null>(
     focusView === "request" ? (focus ?? null) : null,
   );
@@ -269,18 +271,22 @@ export function Planner({
   );
   // A floor change the request chat proposed for the night on screen: drawn (before ghosted → after, arrows)
   // until the manager applies or discards it. Nothing on the floor changes until Apply.
+  const shiftFloor = useShiftFloor();
   const floorProposal =
     mode === "request" && request && request.bookRoomId === room.id
       ? requests.proposals[request.id]?.floor
-      : undefined;
+      : mode === "shift" && shiftFloor.proposal?.roomId === room.id
+        ? shiftFloor.proposal.edit
+        : undefined;
+  const previewParty = request?.id ?? "floor";
   const floorPreview = useMemo(() => {
-    if (!floorProposal || !request) return null;
+    if (!floorProposal) return null;
     const changes: LayoutChange[] = [];
     for (const c of floorProposal.changes) {
       if ((c.kind === "move" || c.kind === "swap") && c.from && c.to)
         changes.push({
           kind: "move",
-          reservationId: request.id,
+          reservationId: previewParty,
           tables: c.tables,
           from: { x: c.from.x, y: c.from.y },
           to: { x: c.to.x, y: c.to.y },
@@ -289,7 +295,7 @@ export function Planner({
       if (c.kind === "from_storage")
         changes.push({
           kind: "pull-table",
-          reservationId: request.id,
+          reservationId: previewParty,
           tables: c.tables,
           text: c.text,
         });
@@ -299,7 +305,7 @@ export function Planner({
       changes,
       moved: floorProposal.changes.filter((c) => c.from && c.to).length,
     };
-  }, [floorProposal, request, room.reservations]);
+  }, [floorProposal, previewParty, room.reservations]);
   const alt = request && request.bookRoomId === room.id ? requests.alt[request.id] : undefined;
   const altHighlight: Highlight | null =
     mode === "request" && alt
@@ -817,6 +823,12 @@ export function Planner({
           )}
           {mode === "shift" && (
             <div className="tabpanel">
+              <FloorChat
+                room={room}
+                layouts={layouts}
+                day={night?.day}
+                date={night ? nightDate(night.day) : today()}
+              />
               <TonightPanel
                 layouts={layouts}
                 autoGenerate={

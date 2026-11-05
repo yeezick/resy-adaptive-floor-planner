@@ -51,6 +51,41 @@ function bookedPlan(room: Room, r: GuestRequest, a: AdjustedFit): Build[] {
   return planBuilds(withR, SERVICE.from, SERVICE.to).builds.filter((b) => b.reservationId !== r.id);
 }
 
+/** Bookings whose tables change between two plans of the night, one line each. */
+function movedLines(
+  before: readonly Build[],
+  after: readonly Build[],
+  nameOf: (id: string) => string,
+): string[] {
+  const was = new Map(before.map((b) => [b.reservationId, b]));
+  const moved: string[] = [];
+  for (const b of after) {
+    const a = was.get(b.reservationId);
+    if (!a) continue;
+    if ([...a.tables].sort().join() === [...b.tables].sort().join()) continue;
+    const who = `${nameOf(b.reservationId)} (${b.partySize})`;
+    moved.push(
+      a.area !== b.area
+        ? `${who}: ${a.area} → ${b.area} · guest not told`
+        : `${who}: ${tablesPhrase(a.tables)} → ${tablesPhrase(b.tables)}`,
+    );
+  }
+  return moved;
+}
+
+/** Shift setup (no request): the night's large parties planned before vs after a floor edit. */
+export function nightMoves(
+  room: Room,
+  edited: Room,
+  nameOf: (id: string) => string = (id) => id,
+): string[] {
+  return movedLines(
+    planBuilds(room, SERVICE.from, SERVICE.to).builds,
+    planBuilds({ ...edited, reservations: room.reservations }, SERVICE.from, SERVICE.to).builds,
+    nameOf,
+  );
+}
+
 /**
  * The request re-planned on the edited floor. Bookings moved = the night's current plan (with the request as
  * currently planned) before the edit vs after it — not the request's own fit.moved.
@@ -64,20 +99,7 @@ export function editImpact(
 ): EditImpact {
   const before = checkAdjusted(room, r, c);
   const after = checkAdjusted(edited, r, c);
-  const was = new Map(bookedPlan(room, r, before).map((b) => [b.reservationId, b]));
-  const moved: string[] = [];
-  for (const b of bookedPlan(edited, r, after)) {
-    const a = was.get(b.reservationId);
-    if (!a) continue;
-    const same = [...a.tables].sort().join() === [...b.tables].sort().join();
-    if (same) continue;
-    const who = `${nameOf(b.reservationId)} (${b.partySize})`;
-    moved.push(
-      a.area !== b.area
-        ? `${who}: ${a.area} → ${b.area} · guest not told`
-        : `${who}: ${tablesPhrase(a.tables)} → ${tablesPhrase(b.tables)}`,
-    );
-  }
+  const moved = movedLines(bookedPlan(room, r, before), bookedPlan(edited, r, after), nameOf);
   return {
     before,
     after,
