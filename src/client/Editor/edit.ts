@@ -1,15 +1,11 @@
 // Pure layout edits for the floor-plan editor. Each returns a new Room.
-import { neighbours, tableById, type Room, type Table } from "../../domain";
+import { canJoin, nextTableId, tableById, type Room, type Table } from "../../domain";
 import { intersects } from "../FloorPlan/geometry";
 
-export const MAX_NEIGHBOURS = 4;
+export { canJoin, setJoin } from "../../domain";
+export { MAX_NEIGHBOURS } from "../../domain";
 export const SNAP = 0.5;
 export const snap = (v: number) => Math.round(v / SNAP) * SNAP;
-
-function nextId(room: Room): () => string {
-  let n = Math.max(0, ...room.tables.map((t) => Number(t.id.slice(1))));
-  return () => `T${++n}`;
-}
 
 function freeSpot(room: Room, w: number, h: number, start: { x: number; y: number }) {
   for (let ring = 0; ring < 30; ring++)
@@ -38,7 +34,7 @@ export function addTable(room: Room, near: { x: number; y: number }): { room: Ro
     room.areas.find((a) => a.kind === "dining") ??
     room.areas[0];
   const spot = freeSpot(room, 4, 4, near);
-  const id = nextId(room)();
+  const id = nextTableId(room)();
   const table: Table = {
     id,
     area: area?.name ?? room.tables[0]?.area ?? "",
@@ -59,7 +55,7 @@ export function addTable(room: Room, near: { x: number; y: number }): { room: Ro
 }
 
 export function duplicate(room: Room, ids: readonly string[]): { room: Room; ids: string[] } {
-  const make = nextId(room);
+  const make = nextTableId(room);
   const copies: Table[] = [];
   let next = room;
   for (const id of ids) {
@@ -120,29 +116,6 @@ export function updateTable(room: Room, id: string, patch: Partial<Table>): Room
     };
   }
   return next;
-}
-
-export function canJoin(room: Room, a: string, b: string): string | null {
-  const ta = tableById(room, a);
-  const tb = tableById(room, b);
-  if (!ta || !tb || a === b) return "pick another table";
-  if (ta.shape !== "rect" || tb.shape !== "rect") return "only rectangular tables can join";
-  if (!ta.joinable || !tb.joinable) return "both tables must be joinable";
-  if (ta.area !== tb.area) return "tables are in different areas";
-  if (neighbours(room, a).includes(b)) return "already joinable";
-  if (neighbours(room, a).length >= MAX_NEIGHBOURS || neighbours(room, b).length >= MAX_NEIGHBOURS)
-    return `a table can have at most ${MAX_NEIGHBOURS} joinable neighbours`;
-  return null;
-}
-
-export function setJoin(room: Room, a: string, b: string, on: boolean): Room {
-  if (on) return canJoin(room, a, b) ? room : { ...room, joins: [...room.joins, [a, b]] };
-  return {
-    ...room,
-    joins: room.joins.filter(([x, y]) => !((x === a && y === b) || (x === b && y === a))),
-    // a combo that relied on this join is no longer physical
-    combos: room.combos.filter((c) => !(c.includes(a) && c.includes(b))),
-  };
 }
 
 /** Tables that could become joinable neighbours of `id`, nearest first. */
