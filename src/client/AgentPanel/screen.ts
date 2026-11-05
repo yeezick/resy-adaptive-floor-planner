@@ -13,7 +13,7 @@ export const FLOOR_EDIT_ANSWER =
 
 const ROOMS = "(?:atrium|cellar|dining room|gallery|garden room|library|loft|terrace|east suite)";
 const VERB =
-  "(?:move|moving|moved|pull|pulling|swap|swapping|put|putting|take|taking|bring|bringing|add|adding|remove|removing|push|pushing|join|joining|split|splitting|combine|combining)";
+  "(?:move|moving|moved|pull|pulling|swap|swapping|put|putting|take|taking|bring|bringing|add|adding|remove|removing|push|pushing|join|joining|split|splitting)";
 /** A table number: "56", "T56", "table 56" — not a headcount, time or wait ("2 people", "8:30", "10 min"). */
 const NUM =
   "(?:t|tables?\\s*)?\\d{1,3}(?![\\d:])(?!\\s*(?:more|extra|people|persons?|guests?|pax|covers?|kids?|adults?|min|mins|minutes?|hours?|hrs?|pm|am|p\\.m|a\\.m|o'?clock|now|-?\\s?tops?)\\b)";
