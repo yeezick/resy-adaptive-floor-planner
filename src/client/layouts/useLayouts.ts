@@ -198,7 +198,10 @@ export const layoutsStore = {
     write(fixture, { variants, activeId: layout.id }, true);
     return layout;
   },
-  /** Delete a layout; `nextActiveId` (if given and still present) becomes the layout in use. */
+  /**
+   * Delete a layout. Only when it is the layout in use does the night move: to `nextActiveId` (if given
+   * and still present), else the base. Deleting any other layout leaves the layout in use alone.
+   */
   remove(fixture: Room, id: string, nextActiveId?: string): void {
     if (id === BASE_ID) return;
     const { stored } = entryFor(fixture);
@@ -209,11 +212,11 @@ export const layoutsStore = {
       {
         variants,
         activeId:
-          nextActiveId && keep(nextActiveId)
-            ? nextActiveId
-            : stored.activeId === id
-              ? BASE_ID
-              : stored.activeId,
+          stored.activeId !== id
+            ? stored.activeId
+            : nextActiveId && keep(nextActiveId)
+              ? nextActiveId
+              : BASE_ID,
       },
       true,
     );
