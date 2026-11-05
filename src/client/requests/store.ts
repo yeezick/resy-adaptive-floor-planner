@@ -539,8 +539,10 @@ export const requestsActions = {
       res2.floor && ctx ? { ...res2.floor, base: ctx.room } : undefined;
     // a later turn without floor changes keeps a pending floor change, and its capacity sentence uses it
     const floor = fresh ?? state.proposals[r.id]?.floor;
+    // a floor change the engine accepted answers the message: a question the model added alongside is moot
+    const { clarify: _moot, ...answered } = base;
     put(r.id, {
-      ...base,
+      ...(fresh ? answered : base),
       after: next,
       changed: res2.changed,
       // a floor change's capacity sentence is worked out on the edited floor, now
