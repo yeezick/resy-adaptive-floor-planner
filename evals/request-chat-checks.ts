@@ -14,7 +14,7 @@ import { pathToFileURL } from "node:url";
 import { z } from "zod";
 import {
   baseConstraints,
-  ChatTurnOutput,
+  ChatTurnRecorded,
   chatTurnProblems,
   checkAdjusted,
   mergeTurn,
@@ -58,7 +58,7 @@ export const ChatTranscript = z
     promptVersion: z.string(),
     model: z.string(),
     /** The validated answer the app would use; null when the app would have escalated. */
-    output: ChatTurnOutput.nullable(),
+    output: ChatTurnRecorded.nullable(),
     validatorRejects: z.number().int(),
     costUsd: z.number(),
     latencyMs: z.number(),
@@ -148,6 +148,9 @@ const NONE: Output = {
   removeNeeds: [],
   notes: [],
   clarify: null,
+  rooms: [],
+  oneRoom: "unchanged",
+  ops: [],
 };
 
 /** Hand-written bad answers the validator must reject (model-free). */
@@ -254,6 +257,7 @@ async function live(): Promise<void> {
         message: g.message,
         request: { partySize: r.partySize, day: r.day, time: r.time, needs: r.needs },
         constraints: baseConstraints(r),
+        bookRoomId: r.bookRoomId,
       },
       `eval-${g.id}`,
       cfg,
