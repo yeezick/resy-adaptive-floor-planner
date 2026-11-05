@@ -86,6 +86,8 @@ test.describe("floor changes by conversation", () => {
   }) => {
     const sent = await openChat(page, { [W9]: chatBody(W9_OUT) });
     const tables57 = page.locator('[data-table-id="T63"]');
+    // T25: today's plan spans Garden Room + Library, so that divider is drawn open
+    await expect(page.locator(".divider.is-open")).toHaveCount(1);
     await say(page, W9); // tap 1: Send (Enter)
     await expect(replies(page).last()).toHaveText(
       "I'd change the floor (5 changes) — see Proposed changes above. Capacity fit: tables 57–61 and 63–66 · Garden Room · seats 22 for 22 at 6:30 PM.",
@@ -120,6 +122,8 @@ test.describe("floor changes by conversation", () => {
     await expect(page.locator(".decision-footer .feedforward")).toContainText(
       "Accept holds tables 57–61 and 63–66",
     );
+    // one room now: no divider opened
+    await expect(page.locator(".divider.is-open")).toHaveCount(0);
     // the night's layout in use is now a one-day layout; the chat turns survived the remount
     await expect(replies(page)).toHaveCount(1);
     const stored = await page.evaluate(() => localStorage.getItem("afp.layouts.v1.book-fri"));

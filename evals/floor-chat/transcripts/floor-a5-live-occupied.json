@@ -1,0 +1,39 @@
+{
+  "id": "floor-a5-live-occupied",
+  "promptVersion": "request-chat.v1.2",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "tableRange": null,
+    "partySize": null,
+    "time": null,
+    "addNeeds": [],
+    "removeNeeds": [],
+    "notes": [],
+    "clarify": null,
+    "rooms": [],
+    "oneRoom": "unchanged",
+    "ops": [
+      {
+        "op": "move",
+        "tables": [
+          {
+            "by": "number",
+            "n": 41,
+            "from": 0,
+            "to": 0,
+            "shape": "any",
+            "seats": 0,
+            "room": ""
+          }
+        ],
+        "to": "Garden Room",
+        "seats": 0,
+        "count": 0,
+        "rows": []
+      }
+    ]
+  },
+  "validatorRejects": 0,
+  "costUsd": 0.000408,
+  "latencyMs": 1573
+}

@@ -1,0 +1,20 @@
+{
+  "id": "floor-g3-already-open",
+  "promptVersion": "request-chat.v1.2",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "tableRange": null,
+    "partySize": null,
+    "time": null,
+    "addNeeds": [],
+    "removeNeeds": [],
+    "notes": [],
+    "clarify": null,
+    "rooms": ["Library", "Garden Room"],
+    "oneRoom": "no",
+    "ops": []
+  },
+  "validatorRejects": 0,
+  "costUsd": 0.00037410000000000004,
+  "latencyMs": 1557
+}

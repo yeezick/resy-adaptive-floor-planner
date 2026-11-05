@@ -120,6 +120,8 @@ export const DeterministicChecks = z
     groups: z.array(CheckGroup),
     /** Optional: older published files have no scenario count. */
     chatScenarios: ScenarioCount.optional(),
+    /** Floor edits by conversation: golden scenarios (adversarial apart). */
+    floorScenarios: ScenarioCount.optional(),
   })
   .strict();
 export type DeterministicChecks = z.infer<typeof DeterministicChecks>;

@@ -14,11 +14,16 @@ describe("published deterministic checks (public/evals/checks.json)", () => {
       "cant-fit",
       "activity",
       "request-chat",
+      "floor-chat",
     ]);
     for (const g of c.groups) expect(g.passed).toBe(g.total);
     // the request chat's golden scenarios, with the adversarial ones counted apart
     expect(c.chatScenarios?.passing).toBe(c.chatScenarios?.total);
     expect(c.chatScenarios?.adversarialPassing).toBe(c.chatScenarios?.adversarial);
     expect(c.chatScenarios?.adversarial).toBeGreaterThanOrEqual(5);
+    // floor edits by conversation: G1–G9 and the adversarial A1–A9 set, all passing
+    expect(c.floorScenarios?.passing).toBe(c.floorScenarios?.total);
+    expect(c.floorScenarios?.adversarialPassing).toBe(c.floorScenarios?.adversarial);
+    expect(c.floorScenarios?.adversarial).toBeGreaterThanOrEqual(10);
   });
 });

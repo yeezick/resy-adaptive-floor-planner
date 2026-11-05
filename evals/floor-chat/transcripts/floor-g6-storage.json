@@ -1,0 +1,47 @@
+{
+  "id": "floor-g6-storage",
+  "promptVersion": "request-chat.v1.2",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "tableRange": null,
+    "partySize": null,
+    "time": null,
+    "addNeeds": [],
+    "removeNeeds": [],
+    "notes": [],
+    "clarify": null,
+    "rooms": [],
+    "oneRoom": "unchanged",
+    "ops": [
+      {
+        "op": "to_storage",
+        "tables": [
+          {
+            "by": "number",
+            "n": 62,
+            "from": 0,
+            "to": 0,
+            "shape": "any",
+            "seats": 0,
+            "room": ""
+          }
+        ],
+        "to": "",
+        "seats": 0,
+        "count": 0,
+        "rows": []
+      },
+      {
+        "op": "from_storage",
+        "tables": [],
+        "to": "Library",
+        "seats": 4,
+        "count": 2,
+        "rows": []
+      }
+    ]
+  },
+  "validatorRejects": 0,
+  "costUsd": 0.0004288,
+  "latencyMs": 1265
+}

@@ -1,0 +1,39 @@
+{
+  "id": "floor-g2-move-63-66",
+  "promptVersion": "request-chat.v1.2",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "tableRange": null,
+    "partySize": null,
+    "time": null,
+    "addNeeds": [],
+    "removeNeeds": [],
+    "notes": [],
+    "clarify": null,
+    "rooms": [],
+    "oneRoom": "unchanged",
+    "ops": [
+      {
+        "op": "move",
+        "tables": [
+          {
+            "by": "range",
+            "n": 0,
+            "from": 63,
+            "to": 66,
+            "shape": "any",
+            "seats": 0,
+            "room": ""
+          }
+        ],
+        "to": "Garden Room",
+        "seats": 0,
+        "count": 0,
+        "rows": []
+      }
+    ]
+  },
+  "validatorRejects": 0,
+  "costUsd": 0.0004095,
+  "latencyMs": 1608
+}

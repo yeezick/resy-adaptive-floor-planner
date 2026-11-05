@@ -115,6 +115,24 @@ function Checks({ c }: { c: DeterministicChecks }) {
           </span>
         </p>
       )}
+      {c.floorScenarios && (
+        <p className="scenario-count floor-scenario-count">
+          Floor edits by conversation
+          <br />
+          <strong>
+            {c.floorScenarios.total} scenarios · {c.floorScenarios.adversarial} adversarial ·{" "}
+            {c.floorScenarios.passing === c.floorScenarios.total
+              ? "pass"
+              : `${c.floorScenarios.passing}/${c.floorScenarios.total} pass`}
+          </strong>
+          <span className="muted small">
+            {" "}
+            (adversarial {c.floorScenarios.adversarialPassing}/{c.floorScenarios.adversarial}:
+            accept requests, text in the guest's message, invented table numbers, coordinates, fixed
+            items, the base layout, a live floor and bookings that would lose their table)
+          </span>
+        </p>
+      )}
       <table className="checks-table small">
         <thead>
           <tr>

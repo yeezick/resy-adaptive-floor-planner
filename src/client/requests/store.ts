@@ -5,14 +5,8 @@ import { useSyncExternalStore } from "react";
 import type { GuestRequest, RequestBook } from "../../domain/requests";
 import { checkRequest, DEMO_WEEK_ISO, toReservation, walkInRequest } from "../../domain/requests";
 import { activeScenario, RECORDED_CHAT, RECORDED_TRIAGE } from "../scenarios";
-import { oneRoomPlan, oneRoomSentence } from "../../domain/alternatives";
-import {
-  proposeLayoutEdit,
-  type FloorChange,
-  type LayoutOp,
-  type Reservation,
-  type Room,
-} from "../../domain";
+import { resolveTurn, type TurnResult } from "../../domain/floorTurn";
+import { type FloorChange, type LayoutOp, type Reservation, type Room } from "../../domain";
 import type { RequestChatResult, TriageResult } from "../../shared/api";
 import {
   adjusted,
@@ -515,77 +509,40 @@ export const requestsActions = {
       });
     // a proposal, shown as a diff: nothing changes until the manager presses Apply
     const latest = state.proposals[r.id]?.constraints ?? state.adjust[r.id] ?? baseConstraints(r);
-    let next = mergeTurn(latest, out);
     const applied = state.adjust[r.id] ?? baseConstraints(r);
-    const done = (extra: Partial<ChatTurn>) =>
-      put(r.id, {
-        ...turn,
-        status: "ok",
-        result: res.data,
-        after: next,
-        changed: changeDelta(r, latest, next),
-        ...(out.clarify ? { clarify: out.clarify } : {}),
-        ...extra,
+    const base = {
+      ...turn,
+      status: "ok" as const,
+      result: res.data,
+      ...(out.clarify ? { clarify: out.clarify } : {}),
+    };
+    if (out.ops.length && !ctx)
+      return put(r.id, {
+        ...base,
+        after: latest,
+        outcome: ESCALATED_NOTE,
+        changed: [],
+        local: true,
       });
-    // plan-state answers are code, not model: the rooms asked for are the ones the plan already opens (G3)
-    if (ctx && !out.ops.length && out.rooms.length && out.oneRoom === "unchanged" && ctx.planArea) {
-      const asked = new Set(out.rooms.map((x) => x.trim().toLowerCase()));
-      const plan = ctx.planArea.split(" + ");
-      if (plan.length === asked.size && plan.every((a) => asked.has(a.toLowerCase()))) {
-        next = latest;
-        return done({
-          outcome: `Already open in this plan: ${ctx.planArea}.`,
-          changed: [],
-          local: true,
-        });
-      }
-    }
-    // "close the divider" with no floor change: if no single room fits, the plain closest + the offer (G4b)
-    if (ctx && !out.ops.length && out.oneRoom === "yes") {
-      const one = checkAdjusted(ctx.room, r, next);
-      if (!one.fit.ok) {
-        next = latest;
-        const plan = oneRoomPlan(ctx.room, adjusted(r, latest));
-        return done({
-          outcome: oneRoomSentence(adjusted(r, latest), plan),
-          changed: [],
-          local: true,
-        });
-      }
-    }
-    let floor: FloorProposal | undefined;
-    if (out.ops.length) {
-      if (!ctx) return done({ outcome: ESCALATED_NOTE, changed: [], local: true });
-      const e = proposeLayoutEdit(ctx.room, out.ops, { nameOf: partyName, near: ctx.planTables });
-      if (!e.ok) {
-        // rejected as a whole: every reason, one plain line each; a question back stays a question (R1)
-        next = latest;
-        const lines = [...e.rejects.map((x) => x.text), ...e.notes];
-        const question = lines.length === 1 && lines[0]?.endsWith("?");
-        return done({
-          outcome: question ? (lines[0] as string) : `${lines.join(" ")} Nothing changed.`,
-          changed: [],
-          local: true,
-        });
-      }
-      floor = {
-        ops: out.ops,
-        base: ctx.room,
-        edited: e.edited as Room,
-        changes: e.changes,
-        crew: e.crew,
-        crewMinutes: e.crewMinutes,
-      };
-    }
-    const changed = changeDelta(r, latest, next);
-    if (floor)
-      changed.unshift(
-        `the floor (${floor.changes.length} change${floor.changes.length === 1 ? "" : "s"})`,
-      );
+    const res2: TurnResult = ctx
+      ? resolveTurn(r, latest, out, { ...ctx, nameOf: partyName })
+      : {
+          kind: "proposal",
+          constraints: mergeTurn(latest, out),
+          changed: changeDelta(r, latest, mergeTurn(latest, out)),
+        };
+    // answered by code (plan state, the one-room closest, a rejected floor change): nothing proposed
+    if (res2.kind === "answer")
+      return put(r.id, { ...base, after: latest, outcome: res2.text, changed: [], local: true });
+    const next = res2.constraints;
+    const fresh: FloorProposal | undefined =
+      res2.floor && ctx ? { ...res2.floor, base: ctx.room } : undefined;
     // a later turn without floor changes keeps a pending floor change, and its capacity sentence uses it
-    floor ??= state.proposals[r.id]?.floor;
-    done({
-      changed,
+    const floor = fresh ?? state.proposals[r.id]?.floor;
+    put(r.id, {
+      ...base,
+      after: next,
+      changed: res2.changed,
       // a floor change's capacity sentence is worked out on the edited floor, now
       ...(floor ? { outcome: checkAdjusted(floor.edited, r, next).line } : {}),
     });

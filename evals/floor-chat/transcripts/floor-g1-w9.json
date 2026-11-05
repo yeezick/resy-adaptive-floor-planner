@@ -1,0 +1,65 @@
+{
+  "id": "floor-g1-w9",
+  "promptVersion": "request-chat.v1.2",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "tableRange": null,
+    "partySize": null,
+    "time": null,
+    "addNeeds": [],
+    "removeNeeds": [],
+    "notes": [],
+    "clarify": null,
+    "rooms": [],
+    "oneRoom": "unchanged",
+    "ops": [
+      {
+        "op": "move",
+        "tables": [
+          {
+            "by": "number",
+            "n": 56,
+            "from": 0,
+            "to": 0,
+            "shape": "any",
+            "seats": 0,
+            "room": ""
+          }
+        ],
+        "to": "Library",
+        "seats": 0,
+        "count": 0,
+        "rows": []
+      },
+      {
+        "op": "move",
+        "tables": [
+          {
+            "by": "range",
+            "n": 0,
+            "from": 63,
+            "to": 66,
+            "shape": "any",
+            "seats": 0,
+            "room": ""
+          }
+        ],
+        "to": "Garden Room",
+        "seats": 0,
+        "count": 0,
+        "rows": []
+      },
+      {
+        "op": "arrange_rows",
+        "tables": [],
+        "to": "",
+        "seats": 0,
+        "count": 0,
+        "rows": [4, 5]
+      }
+    ]
+  },
+  "validatorRejects": 0,
+  "costUsd": 0.00046970000000000003,
+  "latencyMs": 3556
+}
