@@ -1220,11 +1220,15 @@ test("/evals leads with the published deterministic checks", async ({ page }) =>
     ["Can't-fit answers", "9/9"],
     ["Activity log", "10/10"],
     ["Request chat", "36/36"],
+    ["Floor edits by conversation", "41/41"],
   ];
   for (const [label, n] of rows)
     await expect(card.getByRole("row", { name: new RegExp(label) })).toContainText(n);
-  await expect(card.locator(".scenario-count")).toContainText(
+  await expect(card.locator(".scenario-count:not(.floor-scenario-count)")).toContainText(
     "9 scenarios · 5 adversarial · 9/9 pass",
+  );
+  await expect(card.locator(".floor-scenario-count")).toContainText(
+    "Floor edits by conversation23 scenarios · 12 adversarial · pass",
   );
   await expect(page.getByText("No evaluation run is published yet")).toHaveCount(0);
 });
