@@ -354,12 +354,15 @@ export function RequestSheet({
           <q className="field-value">{r.message}</q>
         </div>
 
-        <div className="req-decision">
-          {/* the rule's recommendation, with the one capacity-fit pill beside it (inline, so it wraps with the text) */}
+        <div className={`req-decision${takeIt ? " field" : ""}`}>
+          {/* the fixed rule (fit ✓ and cancelled = 0), never model text, with the one capacity-fit pill beside it */}
           {takeIt ? (
-            <p className="take-it" role="note">
-              <span className="take-it-text">{takeIt}</span> {fitPill}
-            </p>
+            <>
+              <span className="field-label muted">Recommendation</span>
+              <p className="take-it field-value" role="note">
+                <span className="take-it-text">{takeIt}</span> {fitPill}
+              </p>
+            </>
           ) : fit && !fit.ok ? (
             <p className="small cant-fit-line">
               {times12(adj ? adj.line : fit.reason)} {fitPill}
@@ -451,6 +454,30 @@ export function RequestSheet({
           )}
         </div>
 
+        {/* pros, then cons: in view without expanding (one column at every width) */}
+        {impacts && (
+          <div className="req-impacts small">
+            <div className="field req-pros">
+              <span className="field-label is-pro">Pros</span>
+              <ul className="field-value" aria-label="Pros">
+                {impacts.pros.map((p) => (
+                  <li key={p}>{times12(p)}</li>
+                ))}
+              </ul>
+            </div>
+            <div className="field req-cons">
+              <span className="field-label is-con">Cons</span>
+              <ul className="field-value" aria-label="Cons">
+                {impacts.cons.length ? (
+                  impacts.cons.map((c) => <li key={c}>{times12(c)}</li>)
+                ) : (
+                  <li className="muted">None</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        )}
+
         {more && (
           <div className="req-more small" id={`more-${r0.id}`}>
             {fit?.ok && (
@@ -458,28 +485,6 @@ export function RequestSheet({
                 <span className="field-label muted">Plan</span>
                 <span className="field-value">{times12(planLine(fit.build))}</span>
               </div>
-            )}
-            {impacts && (
-              <>
-                <div className="field req-pros">
-                  <span className="field-label is-pro">Pros</span>
-                  <ul className="field-value" aria-label="Pros">
-                    {impacts.pros.map((p) => (
-                      <li key={p}>{times12(p)}</li>
-                    ))}
-                  </ul>
-                </div>
-                <div className="field req-cons">
-                  <span className="field-label is-con">Cons</span>
-                  <ul className="field-value" aria-label="Cons">
-                    {impacts.cons.length ? (
-                      impacts.cons.map((c) => <li key={c}>{times12(c)}</li>)
-                    ) : (
-                      <li className="muted">None</li>
-                    )}
-                  </ul>
-                </div>
-              </>
             )}
             {fit?.ok && cost && (
               <div className="field req-covers">
