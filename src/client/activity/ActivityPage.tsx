@@ -22,6 +22,7 @@ import {
 import { activityActions, useActivity, useFeedback, useFeedbackReasons } from "./store";
 import { SOURCE_LABEL as REQUEST_SOURCE } from "../../domain/requests";
 import { clock12, times12 } from "../../domain/time";
+import { plainTables } from "../../domain/wording";
 import { namesIn } from "../lib/names";
 
 const KIND_LABEL: Record<ActivityKind, string> = {
@@ -277,7 +278,7 @@ export function ActivityPage() {
                       }}
                     >
                       <span className={`kind kind-${r.kind}`}>{KIND_LABEL[r.kind]}</span>{" "}
-                      {normalTimes(times12(namesIn(r.what)))}
+                      {normalTimes(times12(plainTables(namesIn(r.what))))}
                       {r.flags.includes("validator-reject") && (
                         <span className="what-sub muted">{rejectLine(r)}</span>
                       )}
@@ -440,7 +441,7 @@ function RecordPanel({ r, onClose }: { r: ActivityRow; onClose: () => void }) {
           {r.record.aiOutput.map((x) => (
             <li key={x}>
               {times12(
-                x.replace(
+                plainTables(x).replace(
                   /^Validator rejected (\d+) answer\(s\) first$/,
                   (_m, n: string) =>
                     `Capacity check rejected ${n} AI option${n === "1" ? "" : "s"} first`,
@@ -462,7 +463,7 @@ function RecordPanel({ r, onClose }: { r: ActivityRow; onClose: () => void }) {
         <h3 className="section-title">What was applied</h3>
         <p>
           {r.record.applied
-            ? times12(r.record.applied)
+            ? times12(plainTables(r.record.applied))
             : "Nothing. The AI never books or seats; only a person can."}
         </p>
         <h3 className="section-title">Manager decision</h3>

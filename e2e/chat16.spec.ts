@@ -246,3 +246,16 @@ test.describe("waiting for the AI", () => {
     await expect(page.getByText(/took too long/)).toHaveCount(0);
   });
 });
+
+test("/activity: model text reads “table 41”, never “T41”, in the rows and the opened record", async ({
+  page,
+}) => {
+  await page.goto("/activity?scenario=activity-log");
+  const what = page.locator(".row-what", { hasText: /Recommended/ }).first();
+  await expect(what).toBeVisible();
+  await what.click();
+  await expect(page.getByRole("heading", { name: "AI output" })).toBeVisible();
+  const text = await page.locator("main").innerText();
+  expect(text).toContain("table 41");
+  expect(text.match(/\bT\d{1,4}\b/g) ?? []).toEqual([]);
+});
