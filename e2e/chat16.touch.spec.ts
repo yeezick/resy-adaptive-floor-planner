@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
-// Coarse pointer: the busy Send keeps its 44 × 44 target, and the move request gets its own reply by touch.
-test("request chat by touch: busy Send ≥44 × 44; a table move is answered on its turn", async ({
+// Coarse pointer: Send keeps its 44 × 44 target, and the move request gets its own reply by touch.
+test("request chat by touch: Send ≥44 × 44 while pending; a table move is answered on its turn", async ({
   page,
 }) => {
   await page.route("**/api/requests/*/triage", (route) => route.abort());

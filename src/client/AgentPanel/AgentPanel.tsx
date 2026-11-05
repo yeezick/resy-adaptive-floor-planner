@@ -1,4 +1,4 @@
-import { AGENT_HARD_MS, Spinner, TOO_LONG, Working } from "../lib/wait";
+import { AGENT_HARD_MS, TOO_LONG, Working } from "../lib/wait";
 import {
   useEffect,
   useLayoutEffect,
@@ -35,6 +35,8 @@ export type Turn =
   | { id: number; role: "user"; text: string }
   | { id: number; role: "assistant"; res: AgentResponse }
   | { id: number; role: "error"; error: ClientError }
+  /** Waiting for this message's answer; replaced in place by the answer (or the timeout line) when it renders. */
+  | { id: number; role: "pending"; since: number }
   /** Answered on this device from the options on screen ("option 1", "table 41"); no model call. */
   | { id: number; role: "local"; text: string; ref: number; ranks: number[] };
 
@@ -115,8 +117,7 @@ export function AgentPanel({
 }: Props) {
   const [turns, setTurns] = useState<Turn[]>(() => (fresh ? [] : scenarioTurns(room)));
   const [input, setInput] = useState("");
-  const [pending, setPending] = useState(false);
-  const [waitSince, setWaitSince] = useState<number | null>(null);
+  const pending = turns.some((t) => t.role === "pending");
   const [micHint, setMicHint] = useState(false);
   const nextId = useRef(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -131,17 +132,19 @@ export function AgentPanel({
     inputRef.current?.focus({ preventScroll: true });
   }, [visible]);
   // a new turn scrolls into view from its top (the opening thread stays at its start)
-  const seen = useRef(turns.length);
+  // keyed by turns + how many are still pending, so an answer replacing its pending line scrolls too
+  const shape = `${turns.length}:${turns.filter((t) => t.role === "pending").length}`;
+  const seen = useRef(shape);
   useEffect(() => {
     const el = logRef.current;
-    if (!el || !visible || turns.length + Number(pending) === seen.current) return;
-    seen.current = turns.length + Number(pending);
+    if (!el || !visible || shape === seen.current) return;
+    seen.current = shape;
     const last = el.lastElementChild as HTMLElement | null;
     if (!last) return;
     el.scrollTop += last.getBoundingClientRect().top - el.getBoundingClientRect().top - 8;
     scrollTop.current = el.scrollTop;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [turns.length, pending]);
+  }, [shape]);
 
   // back from the review screen: the card with the new result line is in view
   const doneCount = Object.keys(done).length;
@@ -178,7 +181,8 @@ export function AgentPanel({
 
   const send = async () => {
     const message = input.trim();
-    if (!message || pending || message.length > MAX_MESSAGE_CHARS) return;
+    // Send stays open while an answer is pending: each message gets its own answer
+    if (!message || message.length > MAX_MESSAGE_CHARS) return;
     const userTurn: Turn = { id: nextId.current++, role: "user", text: message };
     setInput("");
     // "go ahead with option 1", "the fastest one", "table 41": answered here from the options on screen
@@ -216,38 +220,24 @@ export function AgentPanel({
       }
     }
     const history = toHistory(turns);
-    setTurns((t) => [...t, userTurn]);
-    setPending(true);
-    setWaitSince(Date.now());
-    // the answer's turn id is fixed now: a slow answer replaces its own timeout line, nothing else
+    // the answer's turn id is fixed now: it replaces its own pending (or timeout) line, nothing else
     const id = nextId.current++;
-    let timedOut = false;
-    const hard = window.setTimeout(() => {
-      timedOut = true;
-      setTurns((t) => [
-        ...t,
-        { id, role: "error", error: { code: "timeout", message: TOO_LONG } as ClientError },
-      ]);
-      setPending(false);
-    }, AGENT_HARD_MS);
+    setTurns((t) => [...t, userTurn, { id, role: "pending", since: Date.now() }]);
+    const swap = (next: Turn, only: Turn["role"][]) =>
+      setTurns((t) => t.map((x) => (x.id === id && only.includes(x.role) ? next : x)));
+    const hard = window.setTimeout(
+      () =>
+        swap({ id, role: "error", error: { code: "timeout", message: TOO_LONG } as ClientError }, [
+          "pending",
+        ]),
+      AGENT_HARD_MS,
+    );
     const result = await postAgent({ roomId: room.id, room, message, history });
     window.clearTimeout(hard);
     void activityActions.recordAssistant(room.id, message, result);
-    if (timedOut) {
-      // late: a real answer replaces the timeout line; a late failure leaves it as it is
-      if (result.ok)
-        setTurns((t) =>
-          t.map((x) => (x.id === id ? { id, role: "assistant", res: result.data } : x)),
-        );
-      return;
-    }
-    setTurns((t) => [
-      ...t,
-      result.ok
-        ? { id, role: "assistant", res: result.data }
-        : { id, role: "error", error: result.error },
-    ]);
-    setPending(false);
+    if (result.ok) swap({ id, role: "assistant", res: result.data }, ["pending", "error"]);
+    // a late failure leaves the timeout line as it is
+    else swap({ id, role: "error", error: result.error }, ["pending"]);
   };
 
   const onSubmit = (e: FormEvent) => {
@@ -292,6 +282,13 @@ export function AgentPanel({
             <div key={t.id} className="bubble user">
               {t.text}
             </div>
+          ) : t.role === "pending" ? (
+            <div key={t.id} className="bubble assistant agent-working">
+              <Working
+                since={t.since}
+                label={`Checking ${room.tables.length} tables, meal phases and holds`}
+              />
+            </div>
           ) : t.role === "error" ? (
             <ErrorTurn key={t.id} error={t.error} />
           ) : t.role === "local" ? (
@@ -331,14 +328,6 @@ export function AgentPanel({
               partyHint={partyHint(turns, i)}
             />
           ),
-        )}
-        {pending && (
-          <div className="bubble assistant agent-working">
-            <Working
-              since={waitSince}
-              label={`Checking ${room.tables.length} tables, meal phases and holds`}
-            />
-          </div>
         )}
       </div>
 
@@ -381,14 +370,8 @@ export function AgentPanel({
             </span>
           )}
           <span className="spacer" />
-          <button type="submit" className="tonal" disabled={pending || !input.trim()}>
-            {pending ? (
-              <>
-                <Spinner /> Asking…
-              </>
-            ) : (
-              "Send"
-            )}
+          <button type="submit" className="tonal" disabled={!input.trim()}>
+            Send
           </button>
         </div>
       </form>

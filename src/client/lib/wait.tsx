@@ -50,8 +50,3 @@ export function Working({
     </span>
   );
 }
-
-/** A small spinner for a busy Send button. */
-export function Spinner() {
-  return <span className="btn-spinner" aria-hidden="true" />;
-}
