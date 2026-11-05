@@ -14,6 +14,7 @@ import {
   MAX_TURN_CHARS,
   type AgentRequest,
   type AgentResponse,
+  type OpenRequestBrief,
   type Recommendation,
 } from "../../shared/api";
 import { postAgent, type ClientError } from "../api";
@@ -23,13 +24,14 @@ import { friendlyError } from "./errors";
 import { Metrics } from "./Metrics";
 import { activityActions } from "../activity/store";
 import { RecommendationCard } from "./RecommendationCard";
-import { plainTables, tablesPhrase } from "../../domain/wording";
+import { tablesPhrase } from "../../domain/wording";
 import { times12 } from "../../domain/time";
 import { SourceFeedback } from "../activity/SourceFeedback";
 import { activeScenario, RECORDED_WALKIN } from "../scenarios";
 import "./agent15.css";
 import type { WalkInReviewDraft } from "../Review/WalkInReview";
 import { actionSentence, fixCopy, needsFromMessage, reasonTag, resolveOption } from "./options";
+import { FLOOR_EDIT_ANSWER, isFloorEdit, partyForMessage, plannerText } from "./screen";
 
 export type Turn =
   | { id: number; role: "user"; text: string }
@@ -58,6 +60,10 @@ interface Props {
   fresh?: boolean;
   /** This thread's id (ratings on replies answered on this device are keyed by it + the message index). */
   threadId: string;
+  /** The party size the screen knows: the walk-in form, or the open request the AI Planner was opened from. */
+  screenParty?: number;
+  /** The night's open large-party requests, by guest name. */
+  openRequests?: readonly OpenRequestBrief[];
 }
 
 /** What a recommendation can turn into — always a confirmable host action, never a seat. */
@@ -114,6 +120,8 @@ export function AgentPanel({
   visible,
   fresh = false,
   threadId,
+  screenParty,
+  openRequests = [],
 }: Props) {
   const [turns, setTurns] = useState<Turn[]>(() => (fresh ? [] : scenarioTurns(room)));
   const [input, setInput] = useState("");
@@ -185,6 +193,15 @@ export function AgentPanel({
     if (!message || message.length > MAX_MESSAGE_CHARS) return;
     const userTurn: Turn = { id: nextId.current++, role: "user", text: message };
     setInput("");
+    // "move table 56 into the Library", "add 2 chairs": floor edits are not the AI Planner's job (no model call)
+    if (isFloorEdit(message)) {
+      setTurns((t) => [
+        ...t,
+        userTurn,
+        { id: nextId.current++, role: "local", text: FLOOR_EDIT_ANSWER, ref: -1, ranks: [] },
+      ]);
+      return;
+    }
     // "go ahead with option 1", "the fastest one", "table 41": answered here from the options on screen
     if (latest) {
       const recs = latest.turn.res.recommendations.filter(
@@ -220,6 +237,11 @@ export function AgentPanel({
       }
     }
     const history = toHistory(turns);
+    const partySize = partyForMessage(
+      message,
+      turns.flatMap((t) => (t.role === "user" ? [t.text] : [])),
+      screenParty,
+    );
     // the answer's turn id is fixed now: it replaces its own pending (or timeout) line, nothing else
     const id = nextId.current++;
     setTurns((t) => [...t, userTurn, { id, role: "pending", since: Date.now() }]);
@@ -232,7 +254,14 @@ export function AgentPanel({
         ]),
       AGENT_HARD_MS,
     );
-    const result = await postAgent({ roomId: room.id, room, message, history });
+    const result = await postAgent({
+      roomId: room.id,
+      room,
+      message,
+      history,
+      ...(partySize !== undefined && { partySize }),
+      ...(openRequests.length > 0 && { openRequests: [...openRequests] }),
+    });
     window.clearTimeout(hard);
     void activityActions.recordAssistant(room.id, message, result);
     if (result.ok) swap({ id, role: "assistant", res: result.data }, ["pending", "error"]);
@@ -501,11 +530,11 @@ function AssistantTurn({
   const takenAt = (r: Recommendation) => r.tables.map((id) => taken.get(id)).find(Boolean);
   return (
     <div className="bubble assistant">
-      {res.answer && <AnswerLead text={fixCopy(times12(plainTables(res.answer)))} />}
+      {res.answer && <AnswerLead text={fixCopy(times12(plannerText(res.answer)))} />}
       {res.clarifyingQuestion && (
         <p className="clarify">
           <span className="pill">Question</span>{" "}
-          {fixCopy(times12(plainTables(res.clarifyingQuestion)))}
+          {fixCopy(times12(plannerText(res.clarifyingQuestion)))}
         </p>
       )}
       {recs.length > 0 && (

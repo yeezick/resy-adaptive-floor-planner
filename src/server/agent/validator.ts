@@ -84,6 +84,11 @@ export interface BuildRef {
 
 /** What the tools said about the request: the party being fitted, and any planned builds. */
 export interface ValidationContext {
+  /**
+   * The party size the host's screen sent with the request. When known, the "fewer than the party" check always
+   * runs, whatever tools the model called; it wins over the tool-derived size.
+   */
+  partySize?: number;
   /** From the last find_tables_for_party call, unless a plan_builds call came after it. */
   fit?: { partySize: number; needs: Need[] };
   /** Every party placed by plan_builds; only these may use storage beyond header chairs. */
@@ -97,8 +102,12 @@ interface ToolLike {
   output?: unknown;
 }
 
-export function validationContext(tools: readonly ToolLike[]): ValidationContext {
-  const ctx: ValidationContext = { builds: [] };
+export function validationContext(
+  tools: readonly ToolLike[],
+  partySize?: number,
+): ValidationContext {
+  const ctx: ValidationContext =
+    partySize === undefined ? { builds: [] } : { partySize, builds: [] };
   for (const t of tools) {
     if (!t.ok) continue;
     if (t.name === "find_tables_for_party") {
@@ -150,7 +159,8 @@ export function validateRecommendations(
     if (!set.ok) return;
     const tables = rec.tables.map((id) => tableById(room, id) as Table);
     const build = ctx.builds.find((b) => sameSet(b.tables, rec.tables));
-    const partySize = build ? build.partySize : ctx.fit?.partySize;
+    // a planned build carries its own party; otherwise the host's party, else the last find_tables_for_party call
+    const partySize = build ? build.partySize : (ctx.partySize ?? ctx.fit?.partySize);
     const needs = build
       ? (room.reservations.find((r) => r.id === build.reservationId)?.needs ?? [])
       : (ctx.fit?.needs ?? []);

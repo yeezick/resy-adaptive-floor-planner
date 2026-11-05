@@ -32,6 +32,8 @@ interface Props {
   fitKey?: string;
   /** Tables held by accepted large-party plans for this night. */
   held?: ReadonlySet<string>;
+  /** Told the room tab on screen (on open and on every switch), so a remounted floor can reopen on it. */
+  onTab?: (tab: ViewPreset) => void;
 }
 
 interface Drag {
@@ -60,6 +62,7 @@ export function FloorPlan({
   initialTab,
   fitKey,
   held,
+  onTab,
 }: Props) {
   const svgRef = useRef<SVGSVGElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -91,6 +94,7 @@ export function FloorPlan({
       ? (roomTabs(room)[0]?.id ?? "all")
       : (initialTab ?? defaultTab(room, window.innerWidth)),
   );
+  useEffect(() => onTab?.(preset), [preset]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Tables at their on-screen position (a table being dragged follows the pointer).
   const tables = useMemo(
