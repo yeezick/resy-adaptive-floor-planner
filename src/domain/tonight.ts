@@ -90,7 +90,8 @@ function closeRow(variant: Room, row: string[]): { moves: Move[]; ordered: strin
   return { moves, ordered: sorted.map((t) => t.id) };
 }
 
-function nextTableId(room: Room): () => string {
+/** A generator of new table ids after the highest on the floor (T96, T97, …). */
+export function nextTableId(room: Room): () => string {
   let n = Math.max(0, ...room.tables.map((t) => Number(t.id.slice(1))));
   return () => `T${++n}`;
 }

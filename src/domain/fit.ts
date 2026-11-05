@@ -3,7 +3,8 @@
 // weighs before saying yes, from the solver's plan (never from a model).
 import { aisleRejects, BUILD_LEAD_MIN, type AisleReject, type Build } from "./buildplan";
 import { TURN_MIN } from "./capacity";
-import { checkRows, clearanceFor, type Clearance, type JoinCheck } from "./clearance";
+import { checkRows, type Clearance, type JoinCheck } from "./clearance";
+import { clearanceForLayout } from "./spots";
 import { tableById } from "./room";
 import { tableNumbers } from "./wording";
 import { toHHMM, toMinutes } from "./time";
@@ -126,7 +127,7 @@ export function partyFit(
   earlier: readonly Build[],
   opts: { clearance?: Clearance | null; privateOnly?: boolean } = {},
 ): PartyFit {
-  const c = opts.clearance === undefined ? clearanceFor(room) : opts.clearance;
+  const c = opts.clearance === undefined ? clearanceForLayout(room) : opts.clearance;
   const sections = [
     ...new Set(b.tables.map((id) => tableById(room, id)?.section).filter((x) => x !== undefined)),
   ].sort((x, y) => x - y);
