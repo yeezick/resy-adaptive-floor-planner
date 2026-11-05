@@ -32,7 +32,6 @@ describe("floor-edit asks are answered on the device", () => {
     "add 2 chairs to table 41",
     "remove T12",
     "split table 41",
-    "combine 11 and 12",
     "move the Library tables to the Terrace",
     "open the divider",
     "close the partition between the rooms",
@@ -61,6 +60,8 @@ describe("floor-edit asks are answered on the device", () => {
     "they'd like something close to the window",
     "how many tables are open?",
     "where should we build for tonight's large parties?",
+    // the combine refusal stays a model answer (e2e: planner15)
+    "combine tables 1 and 4, rotate them",
   ])("leaves %j to the model", (text) => {
     expect(isFloorEdit(text)).toBe(false);
   });
