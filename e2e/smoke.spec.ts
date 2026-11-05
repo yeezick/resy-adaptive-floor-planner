@@ -365,8 +365,10 @@ test("in-request chat: a message becomes constraints, the planner re-runs, manua
   const sheet = page.locator(".request-sheet");
   // a proposal: shown as a diff, nothing changes until Apply
   const diff = sheet.getByRole("group", { name: "Change proposed in chat" });
-  await expect(diff).toContainText("Party: 22 → 26");
-  await expect(diff).toContainText("Notes: + high chair");
+  await expect(diff.locator("ol.chat-diff-rows > li")).toHaveText([
+    "Party22 → 26",
+    "Notes+ high chair",
+  ]);
   await expect(diff).toContainText("capacity fit ✓ → capacity fit ✓");
   await expect(sheet.locator(".req-title")).toContainText("party of 22");
   await diff.getByRole("button", { name: "Apply" }).click();
@@ -562,7 +564,7 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     // the chat's change waits as a diff; Capacity check still shows the original fit
     const sheet = page.locator(".request-sheet");
     const diff = sheet.getByRole("group", { name: "Change proposed in chat" });
-    await expect(diff).toContainText("Tables: any → 30–50");
+    await expect(diff.locator("ol.chat-diff-rows > li")).toHaveText(["Tablesany → 30–50"]);
     await expect(diff).toContainText("capacity fit ✓ → no capacity fit");
     await expect(diff).toContainText("closest: tables 57–61 and 63–66");
     await expect(sheet.locator(".fit-pill")).toContainText("capacity fit ✓");
