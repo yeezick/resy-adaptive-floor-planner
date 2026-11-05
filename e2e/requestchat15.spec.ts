@@ -81,7 +81,17 @@ test.describe("request chat", () => {
     await page.goto("/?scenario=request-chat");
     const diff = page.getByRole("group", { name: "Change proposed in chat" });
     await expect(diff).toContainText("Proposed changes");
-    await expect(diff.locator("ol.chat-diff-rows > li")).toHaveText(["Tables: any → 30–50"]);
+    // label on its own line, value on the next
+    const row = diff.locator("ol.chat-diff-rows > li").first();
+    await expect(diff.locator("ol.chat-diff-rows > li")).toHaveCount(1);
+    await expect(row.locator(".field-label")).toHaveText("Tables");
+    await expect(row.locator(".field-value")).toHaveText("any → 30–50");
+    const lb = await row.locator(".field-label").boundingBox();
+    const vb = await row.locator(".field-value").boundingBox();
+    expect(lb && vb && vb.y >= lb.y + lb.height - 1).toBe(true);
+    for (const sel of [".chat-diff-impact", ".chat-diff-check"])
+      await expect(diff.locator(sel).locator(".field-label")).toBeVisible();
+    await expect(diff).not.toContainText(/\b(Tables|Covers and hold|Capacity check):/);
     await expect(diff.locator(".chat-diff-impact")).toContainText(
       "+22 booked vs up to ~24 possible walk-ins · held 5:00–6:30 PM → no fit",
     );

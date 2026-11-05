@@ -45,3 +45,12 @@
   color: var(--disabled-fg);
   cursor: help;
 }
+
+/* Proposed changes: each label on its own line, its value on the next */
+.chat-diff .field-label,
+.chat-diff .field-value {
+  display: block;
+}
+.chat-diff-rows li + li {
+  margin-top: 4px;
+}
