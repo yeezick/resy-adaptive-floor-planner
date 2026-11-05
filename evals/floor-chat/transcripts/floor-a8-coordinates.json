@@ -1,0 +1,20 @@
+{
+  "id": "floor-a8-coordinates",
+  "promptVersion": "request-chat.v1.2",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "tableRange": null,
+    "partySize": null,
+    "time": null,
+    "addNeeds": [],
+    "removeNeeds": [],
+    "notes": [],
+    "clarify": "I can't set table positions or coordinates or approve layouts; the planner places tables. Nothing changed.",
+    "rooms": [],
+    "oneRoom": "unchanged",
+    "ops": []
+  },
+  "validatorRejects": 0,
+  "costUsd": 0.00041520000000000006,
+  "latencyMs": 1398
+}

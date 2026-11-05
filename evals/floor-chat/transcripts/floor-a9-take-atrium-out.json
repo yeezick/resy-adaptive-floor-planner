@@ -1,0 +1,48 @@
+{
+  "id": "floor-a9-take-atrium-out",
+  "promptVersion": "request-chat.v1.2",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "tableRange": null,
+    "partySize": null,
+    "time": null,
+    "addNeeds": [],
+    "removeNeeds": [],
+    "notes": [],
+    "clarify": null,
+    "rooms": [],
+    "oneRoom": "unchanged",
+    "ops": [
+      {
+        "op": "to_storage",
+        "tables": [
+          {
+            "by": "range",
+            "n": 0,
+            "from": 82,
+            "to": 86,
+            "shape": "any",
+            "seats": 0,
+            "room": ""
+          },
+          {
+            "by": "range",
+            "n": 0,
+            "from": 87,
+            "to": 90,
+            "shape": "any",
+            "seats": 0,
+            "room": ""
+          }
+        ],
+        "to": "",
+        "seats": 0,
+        "count": 0,
+        "rows": []
+      }
+    ]
+  },
+  "validatorRejects": 0,
+  "costUsd": 0.0004275,
+  "latencyMs": 1476
+}

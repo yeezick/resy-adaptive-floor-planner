@@ -1,0 +1,39 @@
+{
+  "id": "floor-g7-description",
+  "promptVersion": "request-chat.v1.2",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "tableRange": null,
+    "partySize": null,
+    "time": null,
+    "addNeeds": [],
+    "removeNeeds": [],
+    "notes": [],
+    "clarify": null,
+    "rooms": [],
+    "oneRoom": "unchanged",
+    "ops": [
+      {
+        "op": "move",
+        "tables": [
+          {
+            "by": "description",
+            "n": 0,
+            "from": 0,
+            "to": 0,
+            "shape": "round",
+            "seats": 8,
+            "room": ""
+          }
+        ],
+        "to": "Library",
+        "seats": 0,
+        "count": 0,
+        "rows": []
+      }
+    ]
+  },
+  "validatorRejects": 0,
+  "costUsd": 0.000408,
+  "latencyMs": 1609
+}

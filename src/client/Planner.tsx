@@ -27,7 +27,7 @@ import { BuildPlan } from "./BuildPlan/BuildPlan";
 import { ConsoleBar, type PanelMode } from "./ConsoleBar";
 import { CoversStrip } from "./CoversStrip";
 import { FloorPlan } from "./FloorPlan/FloorPlan";
-import { tabForTables } from "./FloorPlan/geometry";
+import { dividerKey, tabForTables } from "./FloorPlan/geometry";
 import { SelectionBar } from "./FloorPlan/SelectionBar";
 import { TableDetails } from "./FloorPlan/TableDetails";
 import type { Highlight, HighlightControls } from "./highlight";
@@ -95,6 +95,20 @@ interface PlannerProps {
     meta: { name: string; date?: string; shift?: string },
   ) => void;
   onUndoApply?: () => void;
+}
+
+/** The divider walls a set of tables opens: one per pair of neighbouring rooms it spans. */
+function openedBy(room: Room, tables: readonly string[]): string[] {
+  const areas = [...new Set(tables.map((id) => room.tables.find((t) => t.id === id)?.area))]
+    .map((n) => room.areas.find((a) => a.name === n))
+    .filter((a): a is NonNullable<typeof a> => !!a?.suite)
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  const out: string[] = [];
+  for (let i = 1; i < areas.length; i++)
+    out.push(
+      dividerKey((areas[i - 1] as { name: string }).name, (areas[i] as { name: string }).name),
+    );
+  return out;
 }
 
 export function Planner({
@@ -320,6 +334,8 @@ export function Planner({
           label: `${request ? surname(request.contact) : ""} · party of ${request ? currentRequest(requests, request).partySize : ""} · ${readinessPill(reqReady)}`,
           source: "fit",
           badges: Object.fromEntries(reqReady.tables.map((t) => [t.id, joinBadge(t, reqReady)])),
+          // a plan across rooms opens the divider between them: drawn open on the floor
+          dividers: openedBy(room, reqTables),
         }
       : null;
   const reviewHighlight: Highlight | null =

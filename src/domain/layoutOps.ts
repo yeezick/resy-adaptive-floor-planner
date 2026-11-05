@@ -556,7 +556,9 @@ export function proposeLayoutEdit(
         break;
       }
       case "arrange_rows": {
-        const to = dest(op.to);
+        // "…into the Garden Room, 2 rows of 4 and 5": rows with no room are the room this message moves into
+        const into = [...ops].reverse().find((o) => o.op === "move" && o.to.trim())?.to ?? "";
+        const to = dest(op.to.trim() ? op.to : into);
         if (to && op.rows.length) rowChecks.push({ area: to, rows: [...op.rows] });
         break;
       }
