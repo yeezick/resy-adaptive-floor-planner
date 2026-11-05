@@ -27,6 +27,8 @@ describe("floor-edit asks are answered on the device", () => {
     "push tables 11 and 12 together",
     "put table 56 in the Library",
     "take table 81 out",
+    "take out 2 tables",
+    "take the Terrace tables away",
     "bring two tables from storage",
     "bring out 2 more chairs",
     "add 2 chairs to table 41",
@@ -60,6 +62,8 @@ describe("floor-edit asks are answered on the device", () => {
     "they'd like something close to the window",
     "how many tables are open?",
     "where should we build for tonight's large parties?",
+    "can they take table 12?",
+    "take the 8 at 41",
     // the combine refusal stays a model answer (e2e: planner15)
     "combine tables 1 and 4, rotate them",
   ])("leaves %j to the model", (text) => {
@@ -74,6 +78,13 @@ describe("party size from the screen", () => {
     expect(partyInMessage("now 6, two left")).toBe(6);
     expect(partyInMessage("where can they go?")).toBeUndefined();
     expect(partyInMessage("push the 8:30 back")).toBeUndefined();
+    // clock times and durations are never a headcount
+    expect(partyInMessage("anything free for 8:30?")).toBeUndefined();
+    expect(partyInMessage("hold table 41 for 15 minutes")).toBeUndefined();
+    expect(partyInMessage("anything for 9 pm?")).toBeUndefined();
+    expect(partyInMessage("now 10 min out")).toBeUndefined();
+    expect(partyInMessage("table for 6 at 8:30")).toBe(6);
+    expect(partyInMessage("where should the 22-top go?")).toBe(22);
   });
 
   it("does not read a time or a duration after 'for' as a headcount", () => {
@@ -128,6 +139,11 @@ describe("open requests", () => {
     expect(
       AgentRequest.safeParse({ roomId: "book-fri", message: "hi", openRequests: briefs }).success,
     ).toBe(true);
+  });
+
+  it("drop duplicate needs, so the request body always validates", () => {
+    const [brief] = openRequestBriefs([req({ needs: ["quiet", "quiet", "view"] })]);
+    expect(brief?.needs).toEqual(["quiet", "view"]);
   });
 
   it("are capped at 12", () => {
