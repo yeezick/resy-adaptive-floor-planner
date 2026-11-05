@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
   clock12,
   times12,
@@ -42,7 +42,9 @@ import {
   planLine,
   takeItLine,
 } from "../../domain/wording";
-import { RequestChat } from "./RequestChat";
+import { keepAboveFooter, RequestChat } from "./RequestChat";
+import { editImpact, type EditImpact } from "../../domain/floorEdit";
+import { layoutsStore } from "../layouts/useLayouts";
 import { SourceFeedback } from "../activity/SourceFeedback";
 import { RequestReview } from "../Review/RequestReview";
 import {
@@ -51,6 +53,7 @@ import {
   requestsActions,
   useRequests,
   type DeclineReason,
+  type FloorProposal,
   type TriageState,
 } from "./store";
 import { partyName } from "../lib/names";
@@ -130,12 +133,17 @@ export function RequestSheet({
   // the manager's own note on a decline (optional); it can also go into the draft reply
   const [note, setNote] = useState("");
 
-  // The night's book, plus parties the manager already accepted for it (other than this one).
+  // The request's night as it stands: its layout in use (a one-day layout when one exists, else the book room),
+  // with the night's book plus parties the manager already accepted for it (other than this one).
+  const book = roomRes?.ok ? roomRes.data : null;
+  const inUse = useSyncExternalStore(layoutsStore.subscribe, () =>
+    book ? layoutsStore.active(book).room : null,
+  );
   const room: Room | null = useMemo(() => {
-    if (!roomRes?.ok) return null;
+    if (!book || !inUse) return null;
     const extra = (s.accepted[r0.bookRoomId] ?? []).filter((x) => x.id !== r0.id);
-    return { ...roomRes.data, reservations: [...roomRes.data.reservations, ...extra] };
-  }, [roomRes, s.accepted, r0.bookRoomId, r0.id]);
+    return { ...inUse, reservations: [...book.reservations, ...extra] };
+  }, [book, inUse, s.accepted, r0.bookRoomId, r0.id]);
   // The manager's changes (in-request chat or the controls): the planner re-runs for the adjusted party.
   const constraints = s.adjust[r0.id];
   const adj = useMemo(
@@ -146,9 +154,36 @@ export function RequestSheet({
   // A change the chat proposed: shown as a diff, applied only when the manager presses Apply.
   const proposal = s.proposals[r0.id];
   const proposedAdj = useMemo(
-    () => (room && proposal ? checkAdjusted(room, r0, proposal.constraints) : null),
+    () =>
+      room && proposal
+        ? checkAdjusted(
+            proposal.floor ? { ...proposal.floor.edited, reservations: room.reservations } : room,
+            r0,
+            proposal.constraints,
+          )
+        : null,
     [room, r0, proposal],
   );
+  // a floor change: the request re-planned on the edited floor, and every booking whose tables change
+  const floorImpact = useMemo(
+    () =>
+      room && proposal?.floor
+        ? editImpact(
+            room,
+            { ...proposal.floor.edited, reservations: room.reservations },
+            r0,
+            proposal.constraints,
+            partyName,
+          )
+        : null,
+    [room, r0, proposal],
+  );
+  const floorDone = s.floorApplied[r0.id];
+  // after Apply or Discard the chat box stays in view, above the sticky footer
+  const boxInView = () =>
+    requestAnimationFrame(() =>
+      requestAnimationFrame(() => keepAboveFooter(document.getElementById(`chat-${r0.id}`))),
+    );
   const original = useMemo(() => (room ? checkRequest(room, r0) : null), [room, r0]);
   const changedBy = s.changedBy[r0.id];
   const fit = useMemo(() => adj?.fit ?? (room ? checkRequest(room, r0) : null), [adj, room, r0]);
@@ -232,6 +267,8 @@ export function RequestSheet({
     const box = document.getElementById(`chat-${r0.id}`);
     box?.scrollIntoView({ block: "nearest" });
     box?.focus({ preventScroll: true });
+    // the sheet's footer is sticky: "nearest" can leave the box under it
+    keepAboveFooter(box);
   }, [focusChat, chatOpen, r0.id]);
   const holdFrom = cost?.hold.tables.length ? cost.hold.from : null;
   const sent = s.replies[r0.id];
@@ -380,20 +417,34 @@ export function RequestSheet({
             after={proposal.constraints}
             fitBefore={fit.ok}
             result={proposedAdj}
-            onApply={() => requestsActions.applyProposal(r0.id)}
-            onDiscard={() => requestsActions.discardProposal(r0.id)}
+            floor={proposal.floor}
+            floorImpact={floorImpact}
+            onApply={() => {
+              requestsActions.applyProposal(r0.id, book ?? undefined);
+              boxInView();
+            }}
+            onDiscard={() => {
+              requestsActions.discardProposal(r0.id);
+              boxInView();
+            }}
             impact={{
               before: impactOf(r, fit),
               after: impactOf(proposedAdj.request, proposedAdj.fit),
             }}
           />
         )}
-        {constraints && changeList(r0, constraints).length > 0 && (
+        {constraints && (changeList(r0, constraints).length > 0 || floorDone) && (
           <div className="field changed-line small" role="status">
             <span className="field-label muted">
               {changedBy === "chat" ? "Changed in chat" : "Changed by hand"}
             </span>
             <span className="field-value">
+              {floorDone && (
+                <span className="changed-floor">
+                  Floor: {floorDone.changes.join(" · ")}
+                  {changeList(r0, constraints).length ? " · " : " "}
+                </span>
+              )}
               {listAnd(changeList(r0, constraints).map((x) => times12(x)))}{" "}
               <button
                 type="button"
@@ -405,7 +456,7 @@ export function RequestSheet({
             </span>
           </div>
         )}
-        {constraints && changeList(r0, constraints).length > 0 && original && (
+        {constraints && (changeList(r0, constraints).length > 0 || floorDone) && original && (
           <div className="field original-fit small">
             <span className="field-label muted">Original request</span>
             <span className="field-value">
@@ -746,6 +797,8 @@ function ChatDiff({
   after,
   fitBefore,
   result,
+  floor,
+  floorImpact,
   onApply,
   onDiscard,
   impact,
@@ -755,6 +808,9 @@ function ChatDiff({
   after: ChatConstraints;
   fitBefore: boolean;
   result: AdjustedFit;
+  /** A floor change proposed with it (drawn on the floor): changes, crew steps. */
+  floor?: FloorProposal;
+  floorImpact?: EditImpact | null;
   onApply: () => void;
   onDiscard: () => void;
   /** Covers and hold window before → after the change (null where it doesn't fit). */
@@ -788,6 +844,47 @@ function ChatDiff({
         </span>{" "}
         <span className="muted">· nothing changes until you apply them</span>
       </p>
+      {floor && (
+        <div className="chat-diff-floor small">
+          <div className="field">
+            <span className="field-label muted">Floor</span>
+            <ul className="field-value" aria-label="Floor changes">
+              {floor.changes.map((c) => (
+                <li key={c.text}>{c.text}</li>
+              ))}
+            </ul>
+          </div>
+          {floorImpact && (
+            <div className="field">
+              <span className="field-label muted">Capacity check</span>
+              <span className="field-value">
+                {times12(floorImpact.planBefore)} →{" "}
+                <strong>{times12(floorImpact.planAfter)}</strong>
+              </span>
+            </div>
+          )}
+          {floorImpact && (
+            <div className="field">
+              <span className="field-label muted">Bookings moved</span>
+              <ul className="field-value" aria-label="Bookings moved">
+                {floorImpact.bookingsMoved.length ? (
+                  floorImpact.bookingsMoved.map((b) => <li key={b}>{times12(b)}</li>)
+                ) : (
+                  <li>None</li>
+                )}
+              </ul>
+            </div>
+          )}
+          <div className="field">
+            <span className="field-label muted">Crew · ~{floor.crewMinutes} min (est.)</span>
+            <ol className="field-value" aria-label="Crew steps">
+              {floor.crew.map((c) => (
+                <li key={c}>{c}</li>
+              ))}
+            </ol>
+          </div>
+        </div>
+      )}
       <ol className="chat-diff-rows small">
         {rows.map((x) => (
           <li key={`${x.label}-${x.value}`}>
@@ -804,20 +901,22 @@ function ChatDiff({
           </span>
         </p>
       )}
-      <p className="chat-diff-check small">
-        <span className="field-label muted">Capacity check</span>
-        <span className="field-value">
-          {word(fitBefore)} →{" "}
-          <span className={`verdict ${result.fit.ok ? "verdict-real" : "verdict-unsure"}`}>
-            {word(result.fit.ok)}
+      {!floor && (
+        <p className="chat-diff-check small">
+          <span className="field-label muted">Capacity check</span>
+          <span className="field-value">
+            {word(fitBefore)} →{" "}
+            <span className={`verdict ${result.fit.ok ? "verdict-real" : "verdict-unsure"}`}>
+              {word(result.fit.ok)}
+            </span>
+            {result.fit.ok ? (
+              <span> · {tablesPhrase(result.fit.build.tables)}</span>
+            ) : result.closest ? (
+              <span className="muted"> · closest: {times12(result.closest)}</span>
+            ) : null}
           </span>
-          {result.fit.ok ? (
-            <span> · {tablesPhrase(result.fit.build.tables)}</span>
-          ) : result.closest ? (
-            <span className="muted"> · closest: {times12(result.closest)}</span>
-          ) : null}
-        </span>
-      </p>
+        </p>
+      )}
       {loses && (
         <p className="warn-text small">Applying this leaves the request with no capacity fit.</p>
       )}

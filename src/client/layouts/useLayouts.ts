@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useSyncExternalStore } from "react";
 import { applyCombine, checkCombine, parseRoom, times12, type Room } from "../../domain";
 
 /** A named floor layout. The base is the fixture and is never stored or overwritten. */
@@ -131,61 +131,116 @@ export function tonightName(from: string, to: string, day?: string): string {
   return `${d} plan — ${times12(`${from}–${to}`)}`;
 }
 
-export function useLayouts(fixture: Room): LayoutsApi {
-  const [state, setState] = useState<Stored>(() => load(fixture));
-  const [version, setVersion] = useState(0);
-  const base: Layout = {
-    id: BASE_ID,
-    name: "Base layout",
-    kind: "base",
-    room: fixture,
-    savedAt: "",
-  };
-  const layouts = [base, ...state.variants];
-  const active = layouts.find((l) => l.id === state.activeId) ?? base;
+// One store for every night's layouts, keyed by room id, shared by the night on screen (LayoutHost) and the
+// request sheet (which plans a request against ITS night's layout in use, even when another night is on screen).
+interface Entry {
+  stored: Stored;
+  version: number;
+}
+const entries = new Map<string, Entry>();
+const listeners = new Set<() => void>();
+const emit = () => {
+  for (const l of listeners) l();
+};
 
-  const update = (next: Stored) => {
-    setState(next);
-    persist(fixture.id, next);
-  };
+function entryFor(fixture: Room): Entry {
+  let e = entries.get(fixture.id);
+  if (!e) {
+    e = { stored: load(fixture), version: 0 };
+    entries.set(fixture.id, e);
+  }
+  return e;
+}
 
-  return {
-    layouts,
-    active,
-    version,
-    select: (id) => update({ ...state, activeId: id }),
-    save: (room, meta) => {
-      const overwrite = meta.id && meta.id !== BASE_ID ? meta.id : undefined;
-      const layout: Layout = {
-        id: overwrite ?? `L${Date.now().toString(36)}`,
-        name: meta.name,
-        kind: "variant",
-        date: meta.date,
-        shift: meta.shift,
-        room,
-        savedAt: new Date().toISOString(),
-      };
-      const variants = overwrite
-        ? state.variants.map((v) => (v.id === overwrite ? layout : v))
-        : [...state.variants, layout];
-      update({ variants, activeId: layout.id });
-      setVersion((n) => n + 1);
-      return layout;
-    },
-    remove: (id, nextActiveId) => {
-      if (id === BASE_ID) return;
-      const variants = state.variants.filter((v) => v.id !== id);
-      const keep = (x: string) => x === BASE_ID || variants.some((v) => v.id === x);
-      update({
+function write(fixture: Room, stored: Stored, bump: boolean): void {
+  const prev = entryFor(fixture);
+  entries.set(fixture.id, { stored, version: prev.version + (bump ? 1 : 0) });
+  persist(fixture.id, stored);
+  emit();
+}
+
+export const layoutsStore = {
+  subscribe(l: () => void): () => void {
+    listeners.add(l);
+    return () => listeners.delete(l);
+  },
+  /** The night's layouts (loaded once from this browser's storage, seeded from the base when empty). */
+  entry: entryFor,
+  /** The layout in use for this night: a saved variant, or the base fixture itself. */
+  active(fixture: Room): Layout {
+    const { stored } = entryFor(fixture);
+    return stored.variants.find((v) => v.id === stored.activeId) ?? baseLayout(fixture);
+  },
+  select(fixture: Room, id: string): void {
+    write(fixture, { ...entryFor(fixture).stored, activeId: id }, false);
+  },
+  /** Save a room as a layout (a new one-day layout unless `id` names a variant) and make it the one in use. */
+  save(
+    fixture: Room,
+    room: Room,
+    meta: { name: string; id?: string; date?: string; shift?: string; note?: string },
+  ): Layout {
+    const { stored } = entryFor(fixture);
+    const overwrite = meta.id && meta.id !== BASE_ID ? meta.id : undefined;
+    const layout: Layout = {
+      id: overwrite ?? `L${Date.now().toString(36)}${(++saves).toString(36)}`,
+      name: meta.name,
+      kind: "variant",
+      date: meta.date,
+      shift: meta.shift,
+      ...(meta.note ? { note: meta.note } : {}),
+      room,
+      savedAt: new Date().toISOString(),
+    };
+    const variants = overwrite
+      ? stored.variants.map((v) => (v.id === overwrite ? layout : v))
+      : [...stored.variants, layout];
+    write(fixture, { variants, activeId: layout.id }, true);
+    return layout;
+  },
+  /** Delete a layout; `nextActiveId` (if given and still present) becomes the layout in use. */
+  remove(fixture: Room, id: string, nextActiveId?: string): void {
+    if (id === BASE_ID) return;
+    const { stored } = entryFor(fixture);
+    const variants = stored.variants.filter((v) => v.id !== id);
+    const keep = (x: string) => x === BASE_ID || variants.some((v) => v.id === x);
+    write(
+      fixture,
+      {
         variants,
         activeId:
           nextActiveId && keep(nextActiveId)
             ? nextActiveId
-            : state.activeId === id
+            : stored.activeId === id
               ? BASE_ID
-              : state.activeId,
-      });
-      setVersion((n) => n + 1);
-    },
+              : stored.activeId,
+      },
+      true,
+    );
+  },
+};
+let saves = 0;
+
+function baseLayout(fixture: Room): Layout {
+  return { id: BASE_ID, name: "Base layout", kind: "base", room: fixture, savedAt: "" };
+}
+
+/** Tests only. */
+export function resetLayoutsStore(): void {
+  entries.clear();
+}
+
+export function useLayouts(fixture: Room): LayoutsApi {
+  const entry = useSyncExternalStore(layoutsStore.subscribe, () => layoutsStore.entry(fixture));
+  const base = baseLayout(fixture);
+  const layouts = [base, ...entry.stored.variants];
+  const active = layouts.find((l) => l.id === entry.stored.activeId) ?? base;
+  return {
+    layouts,
+    active,
+    version: entry.version,
+    select: (id) => layoutsStore.select(fixture, id),
+    save: (room, meta) => layoutsStore.save(fixture, room, meta),
+    remove: (id, nextActiveId) => layoutsStore.remove(fixture, id, nextActiveId),
   };
 }

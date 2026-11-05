@@ -1,4 +1,5 @@
-/* Discuss: plain chat, the box pinned under the thread, larger and multi-line */
+/* Discuss: plain chat, the box right under the thread, larger and multi-line. Not sticky: a sticky box would
+   stick to the bottom of the sheet's scroll area, which is under the sheet's own sticky footer (iPad). */
 .req-chat .chat-log {
   max-height: 260px;
   overflow-y: auto;
@@ -10,8 +11,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  position: sticky;
-  bottom: 0;
   background: var(--surface);
   padding-top: 6px;
 }

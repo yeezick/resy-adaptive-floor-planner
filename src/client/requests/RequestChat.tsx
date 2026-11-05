@@ -6,7 +6,15 @@ import { times12 } from "../../domain/time";
 import { plainTables } from "../../domain/wording";
 import { currentRequest, requestsActions, useRequests, type ChatTurn } from "./store";
 import { Working } from "../lib/wait";
-import { localAnswer, notedLine, turnSentence } from "./chatReply";
+import {
+  ACCEPT_FOR_ME,
+  CANT_ACCEPT,
+  editIntent,
+  localAnswer,
+  notedLine,
+  seatingRoomNames,
+  turnSentence,
+} from "./chatReply";
 import { oneRoomPlan, oneRoomSentence } from "../../domain/alternatives";
 import "./chat15.css";
 
@@ -43,6 +51,9 @@ export function RequestChat({
   const [text, setText] = useState("");
   const [micHint, setMicHint] = useState(false);
   const box = useRef<HTMLTextAreaElement>(null);
+  // The newest turn stays in view (on send and on each answer) unless the manager scrolled up to read.
+  const log = useRef<HTMLOListElement>(null);
+  const pinnedToEnd = useRef(true);
 
   // Once a model turn has its own constraints, work out ITS capacity sentence (from those constraints only)
   // and record it on that turn by id, for the chat and the activity log.
@@ -65,14 +76,34 @@ export function RequestChat({
 
   const send = () => {
     const m = text.trim();
+    pinnedToEnd.current = true;
     // Send stays open while a turn is pending: each message is its own turn and gets its own answer
     if (!m) return;
     setText("");
     const current = currentRequest(s, r);
     const local = room ? localAnswer(m, { room, request: current, fit, cost }) : null;
     if (local) return requestsActions.answerLocal(r, m, times12(local.text), local.alt);
-    void requestsActions.sendChat(r, m);
+    // a floor change mixed with "accept it": the proposal, then the plain refusal (A1)
+    const mixed = !!room && ACCEPT_FOR_ME.test(m) && editIntent(m, seatingRoomNames(room));
+    void requestsActions.sendChat(
+      r,
+      m,
+      room
+        ? {
+            room,
+            planArea: fit?.ok ? fit.build.area : null,
+            planTables: fit?.ok ? fit.build.tables : [],
+          }
+        : undefined,
+      mixed ? { suffix: CANT_ACCEPT } : {},
+    );
   };
+  const lastTurn = turns[turns.length - 1];
+  const turnKey = `${turns.length}#${lastTurn?.status ?? ""}#${lastTurn?.outcome ?? ""}`;
+  useEffect(() => {
+    const el = log.current;
+    if (el && pinnedToEnd.current) el.scrollTop = el.scrollHeight;
+  }, [turnKey]);
   const noted = notedLine(currentRequest(s, r), cost);
   // A plan split across rooms: offer the one-room answer (storage included) up front, worked out after paint.
   // keyed by the request state it was worked out for, so a stale line never shows for a changed request
@@ -104,7 +135,16 @@ export function RequestChat({
         <h3 className="section-title">Discuss this request</h3>
       </div>
 
-      <ol className="chat-log" aria-label="AI Planner chat" aria-live="polite">
+      <ol
+        className="chat-log"
+        aria-label="AI Planner chat"
+        aria-live="polite"
+        ref={log}
+        onScroll={(e) => {
+          const el = e.currentTarget;
+          pinnedToEnd.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24;
+        }}
+      >
         {(noted || (split && offerText)) && (
           <li className="chat-noted">
             {noted && <p className="chat-out small">{noted}</p>}
@@ -144,6 +184,7 @@ export function RequestChat({
           value={text}
           placeholder={`e.g. "${EXAMPLES[turns.length % EXAMPLES.length]}"`}
           onChange={(e) => setText(e.target.value)}
+          onFocus={(e) => keepAboveFooter(e.currentTarget)}
           onKeyDown={(e) => {
             if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
               e.preventDefault();
@@ -209,4 +250,26 @@ function ChatReply({ turn: t }: { turn: ChatTurn }) {
       {times12(plainTables(text))}
     </p>
   );
+}
+
+/**
+ * Keep the message box fully above the sheet's sticky footer (iPad, 1180×820): scroll the sheet so the box's
+ * bottom clears the footer's top.
+ */
+export function keepAboveFooter(el: HTMLElement | null): void {
+  if (!el) return;
+  const footer = el.closest(".request-sheet")?.querySelector<HTMLElement>(".decision-footer");
+  const box = el.getBoundingClientRect();
+  const top = footer?.getBoundingClientRect().top ?? window.innerHeight;
+  const overlap = box.bottom + 8 - top;
+  if (overlap <= 0) return;
+  // the nearest scrolling ancestor takes the difference
+  let p: HTMLElement | null = el.parentElement;
+  while (
+    p &&
+    !(p.scrollHeight > p.clientHeight && /(auto|scroll)/.test(getComputedStyle(p).overflowY))
+  )
+    p = p.parentElement;
+  if (p) p.scrollTop += overlap;
+  else el.scrollIntoView({ block: "center" });
 }
