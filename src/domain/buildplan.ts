@@ -1,4 +1,5 @@
-import { checkRows, clearanceFor, type Clearance } from "./clearance";
+import { checkRows, type Clearance } from "./clearance";
+import { clearanceForLayout } from "./spots";
 import { checkCombine, combinedSeats, MAX_COMBO, SEATS_PER_EXTENDER } from "./combine";
 import { candidateGroups, meetsNeeds, TURN_MIN } from "./capacity";
 import { estimateFreeTime } from "./phases";
@@ -300,7 +301,7 @@ function choicesFor(
 export interface PlanOptions {
   /** Reservations that may only use private event rooms (a "private feel" request). */
   privateOnly?: readonly string[];
-  /** Aisle data; default: the room's venue data (clearanceFor). null = no aisle check. */
+  /** Aisle data; default: the venue's data for this floor (clearanceForLayout). null = no aisle check. */
   clearance?: Clearance | null;
   /**
    * Per reservation: the only floor tables it may use (a manager's "between tables 30–50"). Other bookings are
@@ -335,7 +336,7 @@ export function aisleRejects(
     chosen?: readonly string[];
   } = {},
 ): AisleReject[] {
-  const c = opts.clearance === undefined ? clearanceFor(room) : opts.clearance;
+  const c = opts.clearance === undefined ? clearanceForLayout(room) : opts.clearance;
   if (!c) return [];
   const units = buildUnits(room).filter(
     (u) => !opts.privateOnly || u.areas.every((a) => areaByName(room, a)?.kind === "private"),
@@ -365,7 +366,7 @@ export function planBuilds(
       (r) => r.partySize >= LARGE_PARTY && toMinutes(r.time) >= start && toMinutes(r.time) <= end,
     )
     .sort((a, b) => toMinutes(a.time) - toMinutes(b.time) || b.partySize - a.partySize);
-  const clearance = opts.clearance === undefined ? clearanceFor(room) : opts.clearance;
+  const clearance = opts.clearance === undefined ? clearanceForLayout(room) : opts.clearance;
   const units = buildUnits(room).filter((u) => aisleOk(room, clearance, u));
   const privateOnly = new Set(opts.privateOnly ?? []);
   const isPrivate = (u: Unit) => u.areas.every((a) => areaByName(room, a)?.kind === "private");
@@ -710,7 +711,7 @@ export function checkTableSet(room: Room, ids: readonly string[]): TableSetCheck
       return { ok: false, reason: "the rooms are not next to each other" };
   }
   // the aisle rule applies to every legality check, not just the planner
-  const clearance = clearanceFor(room);
+  const clearance = clearanceForLayout(room);
   const badJoin = clearance && checkRows(clearance, room, rows).find((j) => !j.ok);
   if (badJoin) return { ok: false, reason: badJoin.reason as string };
   const unit = makeUnit(room, rows);
