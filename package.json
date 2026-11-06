@@ -10,7 +10,8 @@
   "packageManager": "pnpm@11.2.2",
   "scripts": {
     "dev": "concurrently -k -n server,client \"tsx watch src/server/index.ts\" \"vite\"",
-    "build": "vite build && vite build --ssr src/server/index.ts --outDir dist/server --emptyOutDir",
+    "build": "vite build && vite build --ssr src/server/index.ts --outDir dist/server --emptyOutDir && pnpm evals:checks",
+    "evals:checks": "tsx evals/run.ts --replay --write --out dist/client/evals/checks.json",
     "start": "node dist/server/index.js",
     "lint": "eslint . --max-warnings 0",
     "typecheck": "tsc --noEmit",
