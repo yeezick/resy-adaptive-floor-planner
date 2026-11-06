@@ -58,3 +58,12 @@ ability to run tests would make its fixes much worse.
   still decide the merge.
 - Worst-case spend per PR, before a person pushes: 3 reviews + 2 fixes, about $3–4 at current Opus prices.
 - Kill switches: `AI_REVIEW_ENABLED=false` (whole loop) or `AUTO_MERGE_ENABLED` unset (no auto-merge).
+
+## Amendment (2026-11-06): the review calls the Messages API directly
+
+`claude-code-action` is billed as Claude Code, which only purchased credit pays for; the monthly API credit
+doesn't cover it. When that balance ran out on 2026-11-05, every review failed in under a second and the
+loop switched auto-merge off on each PR. The **review** step now runs `scripts/ai-review.ts`: one Messages
+API call with the same prompt, tiers and comment contract, billed as API usage, with its $ cost in the comment.
+The review job checks out main, not the PR, so PR code never runs next to `ANTHROPIC_API_KEY`. The
+**fix** step still uses `claude-code-action`, because it edits files, and runs only when a review finds a ❌.
