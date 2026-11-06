@@ -34,6 +34,16 @@ import { DeterministicChecks } from "../src/shared/evals";
 
 const CHECKS_PATH = "public/evals/checks.json";
 
+/**
+ * Where --write puts the checks: `--out <path>` (the deploy build writes into dist), else public/evals.
+ * With --out only the checks are written; results.json is left as committed.
+ */
+export function checksPath(argv: readonly string[]): { path: string; checksOnly: boolean } {
+  const i = argv.indexOf("--out");
+  const out = i >= 0 ? argv[i + 1] : undefined;
+  return out ? { path: out, checksOnly: true } : { path: CHECKS_PATH, checksOnly: false };
+}
+
 const CHECK_TEXT: Record<string, { label: string; what: string }> = {
   holds: {
     label: "Holds",
@@ -71,6 +81,7 @@ function writeChecks(
   activity: { ok: boolean }[],
   chat: { ok: boolean; case: string }[],
   floor: { ok: boolean; case: string }[],
+  outPath: string,
 ): void {
   // a golden scenario passes when every check on it passes; "safety" categories are the adversarial ones
   const golden = loadChatGolden();
@@ -114,8 +125,8 @@ function writeChecks(
       };
     })(),
   });
-  writeFileSync(CHECKS_PATH, `${JSON.stringify(out, null, 2)}\n`);
-  console.log(`wrote ${CHECKS_PATH}`);
+  writeFileSync(outPath, `${JSON.stringify(out, null, 2)}\n`);
+  console.log(`wrote ${outPath}`);
 }
 import {
   GOLDEN_PATH,
@@ -295,7 +306,9 @@ function replay(write: boolean): void {
     readTranscripts().map((t) => t.id),
     existsSync(RUN_MANIFEST_PATH),
   );
-  const { results, evaluated } = refreshResults("replay", { write });
+  const { results, evaluated } = refreshResults("replay", {
+    write: write && !checksPath(process.argv).checksOnly,
+  });
   if (coverage.warning) {
     const bar = "!".repeat(78);
     console.warn(`${bar}\n${coverage.warning}\n${bar}`);
@@ -308,7 +321,7 @@ function replay(write: boolean): void {
       failing: failures,
       missingTranscripts: coverage.missing,
       assertionPassRate: results.assertionPassRate,
-      wroteResults: write,
+      wroteResults: write && !checksPath(process.argv).checksOnly,
     }),
   );
   const requests = loadRequestBook();
@@ -331,7 +344,7 @@ function replay(write: boolean): void {
       floorChatChecks: `${floor.filter((c) => c.ok).length}/${floor.length}`,
     }),
   );
-  if (write) writeChecks(plan, activity, chat, floor);
+  if (write) writeChecks(plan, activity, chat, floor, checksPath(process.argv).path);
   for (const f of planFails)
     console.error(`FAIL plan check ${f.check} ${f.case}: ${f.detail ?? ""}`);
   if (!coverage.ok) {

@@ -231,6 +231,8 @@ export function buildResults(input: BuildInput): EvalResults {
 
 export function gitSha(): string {
   if (process.env.GITHUB_SHA) return process.env.GITHUB_SHA;
+  // Railway builds have no .git; it passes the deployed commit instead
+  if (process.env.RAILWAY_GIT_COMMIT_SHA) return process.env.RAILWAY_GIT_COMMIT_SHA;
   try {
     return execFileSync("git", ["rev-parse", "HEAD"], { stdio: ["ignore", "pipe", "ignore"] })
       .toString()
