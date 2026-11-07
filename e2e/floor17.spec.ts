@@ -79,6 +79,26 @@ const say = async (page: Page, text: string) => {
 };
 const replies = (page: Page) => page.locator(".req-chat .chat-log > li:not(.chat-noted) .chat-out");
 const diff = (page: Page) => page.getByRole("group", { name: "Change proposed in chat" });
+/** The message box ends ≥ 8 px above the sticky footer's top and lies inside the viewport. */
+async function expectBoxInView(page: Page) {
+  await expect
+    .poll(async () => {
+      const b = await box(page).boundingBox();
+      const f = await page.locator(".decision-footer").boundingBox();
+      const h = page.viewportSize()?.height ?? 0;
+      if (!b || !f) return "no box";
+      const gap = Math.round(f.y - (b.y + b.height));
+      return gap >= 8 && b.y >= 0 && b.y + b.height <= h
+        ? "ok"
+        : `gap ${gap}, top ${Math.round(b.y)}`;
+    })
+    .toBe("ok");
+}
+export const T9 = "move tables 63-66 into the garden room";
+/** T9 as prod answered it (2026-11-07, request-chat.v1.2, Haiku): one range move, nothing else. */
+const T9_OUT = {
+  ops: [op({ tables: [ref({ by: "range", from: 63, to: 66 })], to: "Garden Room" })],
+};
 
 test.describe("floor changes by conversation", () => {
   test("W9: proposal drawn → Apply (2 taps after typing) → Whitaker in the Garden Room only → Undo", async ({
@@ -158,21 +178,36 @@ test.describe("floor changes by conversation", () => {
     ).toBeEnabled();
   });
 
-  test("T22: after Discard the message box sits fully above the sticky footer", async ({
+  // T30/T31: the box stays in view after Discuss, each turn, Apply, Discard and Revert. Requests for animation
+  // frames are stalled here, as in the throttled browser pane of the walk-through (T31's box ended 1,211 px down).
+  test("T22/T30/T31: the message box stays in view and 8 px above the footer (T9 proposal)", async ({
     page,
   }) => {
-    await openChat(page, { [W9]: chatBody(W9_OUT) });
-    await say(page, W9);
+    await page.addInitScript(() => {
+      (window as unknown as { requestAnimationFrame: () => number }).requestAnimationFrame = () =>
+        0;
+    });
+    await openChat(page, { [T9]: chatBody(T9_OUT) });
+    await expectBoxInView(page);
+    await say(page, T9);
     await expect(diff(page)).toBeVisible();
+    await expectBoxInView(page);
+    // the host scrolls up to read the card, then taps Discard
+    await diff(page)
+      .getByRole("button", { name: "Discard" })
+      .evaluate((el) => el.scrollIntoView({ block: "center" }));
     await diff(page).getByRole("button", { name: "Discard" }).click();
     await expect(diff(page)).toHaveCount(0);
-    await expect
-      .poll(async () => {
-        const b = await box(page).boundingBox();
-        const f = await page.locator(".decision-footer").boundingBox();
-        return b && f ? Math.round(f.y - (b.y + b.height)) : -1;
-      })
-      .toBeGreaterThanOrEqual(0);
+    await expectBoxInView(page);
+    await say(page, T9);
+    await expect(diff(page)).toBeVisible();
+    await expectBoxInView(page);
+    await diff(page).getByRole("button", { name: "Apply" }).click();
+    await expect(page.locator(".changed-line")).toBeVisible();
+    await expectBoxInView(page);
+    await page.locator(".changed-line").getByRole("button", { name: "Revert" }).click();
+    await expect(page.locator(".changed-line")).toHaveCount(0);
+    await expectBoxInView(page);
   });
 
   test("T21: the chat log follows the newest turn", async ({ page }) => {
@@ -190,14 +225,8 @@ test.describe("floor changes by conversation", () => {
     await expect(replies(page).last()).toHaveText(
       "I can't move the bar, walls or the service station — only tables. Nothing changed.",
     );
-    // T22: after many sends the box is still fully above the sticky footer
-    await expect
-      .poll(async () => {
-        const b = await box(page).boundingBox();
-        const f = await page.locator(".decision-footer").boundingBox();
-        return b && f ? Math.round(f.y - (b.y + b.height)) : -1;
-      })
-      .toBeGreaterThanOrEqual(0);
+    // T22: after many sends the box is still in view, 8 px above the sticky footer
+    await expectBoxInView(page);
   });
 });
 
@@ -270,5 +299,68 @@ test.describe("Shift setup: Tell the AI", () => {
       "I can't move the bar, walls or the service station — only tables. Nothing changed.",
     );
     expect(calls).toBe(0);
+  });
+});
+
+// T35: Shift setup on a request's night (the request sheet was open): the preview opens on the tab with the change,
+// and after Apply / Undo Shift setup stays open with "Floor changed … Undo" on screen.
+test.describe("Shift setup on ?scenario=party-22-agent (T35)", () => {
+  const SWAP = "swap table 68 and table 69";
+  const swapBody = chatBody({
+    ops: [op({ op: "swap", tables: [ref({ n: 68 }), ref({ n: 69 })] })],
+  });
+  const selectedTab = (page: Page) => page.locator(".room-tabs [role=tab][aria-selected=true]");
+
+  test("the preview shows the changed tables; Undo stays on screen after Apply and after Undo", async ({
+    page,
+  }) => {
+    await page.route("**/api/requests/*/triage", (route) => route.abort());
+    await page.route("**/api/floor/chat", (route) => fulfill(route, swapBody));
+    await page.goto("/?scenario=party-22-agent");
+    await expect(page.locator(".request-sheet")).toBeVisible();
+    await page
+      .getByRole("group", { name: "Host actions" })
+      .getByRole("button", { name: "Shift setup", exact: true })
+      .click();
+    // the host was looking at the Dining room
+    await page.getByRole("tab", { name: "Dining room" }).click();
+    const tell = page.getByRole("region", { name: "Tell the AI" });
+    await tell.getByRole("textbox").fill(SWAP);
+    await tell.getByRole("textbox").press("Enter");
+    await expect(page.getByText("Previewing the floor change proposed in chat")).toBeVisible();
+    // tables 68 and 69 are in the Library: the East suite tab
+    await expect(selectedTab(page)).toHaveText("East suite");
+    await expect(page.locator(".change-ghost")).toHaveCount(2);
+
+    const card = page.getByRole("group", { name: "Floor change proposed in Shift setup" });
+    await card.getByRole("button", { name: "Apply" }).click();
+    // no extra tap: Shift setup is open with the applied change and its Undo
+    await expect(tell.getByRole("status")).toContainText("Floor changed:");
+    await expect(tell.getByRole("button", { name: "Undo" })).toBeVisible();
+    await tell.getByRole("button", { name: "Undo" }).click();
+    await expect(tell).toBeVisible();
+    await expect(tell.getByRole("button", { name: "Undo" })).toHaveCount(0);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (
+              JSON.parse(localStorage.getItem("afp.layouts.v1.book-fri") ?? "{}") as {
+                activeId?: string;
+              }
+            ).activeId,
+        ),
+      )
+      .toBe("base");
+  });
+
+  test("Discuss chat: a Library-only change opens on the tab with the changed tables", async ({
+    page,
+  }) => {
+    await openChat(page, { [SWAP]: swapBody });
+    await page.getByRole("tab", { name: "Dining room" }).click();
+    await say(page, SWAP);
+    await expect(page.getByText("Previewing the floor change proposed in chat")).toBeVisible();
+    await expect(selectedTab(page)).toHaveText("East suite");
   });
 });

@@ -179,11 +179,6 @@ export function RequestSheet({
     [room, r0, proposal],
   );
   const floorDone = s.floorApplied[r0.id];
-  // after Apply or Discard the chat box stays in view, above the sticky footer
-  const boxInView = () =>
-    requestAnimationFrame(() =>
-      requestAnimationFrame(() => keepAboveFooter(document.getElementById(`chat-${r0.id}`))),
-    );
   const original = useMemo(() => (room ? checkRequest(room, r0) : null), [room, r0]);
   const changedBy = s.changedBy[r0.id];
   const fit = useMemo(() => adj?.fit ?? (room ? checkRequest(room, r0) : null), [adj, room, r0]);
@@ -420,12 +415,11 @@ export function RequestSheet({
             floor={proposal.floor}
             floorImpact={floorImpact}
             onApply={() => {
+              // the chat keeps its box in view as the sheet changes (RequestChat)
               requestsActions.applyProposal(r0.id, book ?? undefined);
-              boxInView();
             }}
             onDiscard={() => {
               requestsActions.discardProposal(r0.id);
-              boxInView();
             }}
             impact={{
               before: impactOf(r, fit),
