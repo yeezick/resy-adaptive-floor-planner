@@ -43,6 +43,7 @@ import {
   takeItLine,
 } from "../../domain/wording";
 import { keepAboveFooter, RequestChat } from "./RequestChat";
+import { capacityCheckText } from "./chatReply";
 import { editImpact, type EditImpact } from "../../domain/floorEdit";
 import { layoutsStore } from "../layouts/useLayouts";
 import { SourceFeedback } from "../activity/SourceFeedback";
@@ -852,8 +853,14 @@ function ChatDiff({
             <div className="field">
               <span className="field-label muted">Capacity check</span>
               <span className="field-value">
-                {times12(floorImpact.planBefore)} →{" "}
-                <strong>{times12(floorImpact.planAfter)}</strong>
+                {floorImpact.planBefore === floorImpact.planAfter ? (
+                  times12(capacityCheckText(floorImpact.planBefore, floorImpact.planAfter))
+                ) : (
+                  <>
+                    {times12(floorImpact.planBefore)} →{" "}
+                    <strong>{times12(floorImpact.planAfter)}</strong>
+                  </>
+                )}
               </span>
             </div>
           )}

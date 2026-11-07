@@ -24,9 +24,9 @@ import { editImpact } from "../src/domain/floorEdit";
 import { resolveTurn } from "../src/domain/floorTurn";
 import { checkRequest } from "../src/domain/requests";
 import {
-  ACCEPT_FOR_ME,
-  CANT_ACCEPT,
-  editIntent,
+  ACCEPT_ASK,
+  acceptLine,
+  hasOtherAsk,
   localAnswer,
   seatingRoomNames,
 } from "../src/client/requests/chatReply";
@@ -179,6 +179,8 @@ export function checkFloorScenario(
 
   const misses: string[] = [];
   let reply: string;
+  // the accept line refers to a proposal still waiting after this turn (the harness starts with none)
+  let pending = false;
   if (!n.r) {
     // Shift setup: the engine alone
     const edit = proposeLayoutEdit(n.room, output.ops, { nameOf: partyName });
@@ -205,6 +207,7 @@ export function checkFloorScenario(
         ? `I'd change ${res.changed.join(", ")} — see Proposed changes above. ${a.line}`
         : (output.clarify ?? a.line);
       if (res.lead) reply = `${res.lead} ${reply}`;
+      pending = true;
       if (e.noMove && res.floor) misses.push("a table moved");
       if (e.proposal && !res.floor) misses.push("no floor change proposed");
       if (e.planArea && (!a.fit.ok || a.fit.build.area !== e.planArea))
@@ -224,9 +227,10 @@ export function checkFloorScenario(
     }
   }
   if (e.suffix) {
-    const mixed = ACCEPT_FOR_ME.test(g.message) && editIntent(g.message, seatingRoomNames(n.room));
+    // an accept ask with something else asked reaches the model; its reply ends with the accept line
+    const mixed = ACCEPT_ASK.test(g.message) && hasOtherAsk(g.message, seatingRoomNames(n.room));
     if (!mixed) misses.push("the accept refusal would not follow");
-    else reply = `${reply} ${CANT_ACCEPT}`;
+    else reply = `${reply} ${acceptLine(pending ? "pending" : undefined)}`;
   }
   if (e.reply !== undefined && reply !== e.reply) misses.push(`reply ${JSON.stringify(reply)}`);
   if (e.replyMatch && !new RegExp(e.replyMatch).test(reply))

@@ -38,11 +38,25 @@ const ONE_ROOM =
 const OTHER_ASK =
   /\b(push|move it|earlier|later|headcount|now \d+|\d{1,2}(:\d\d)? ?(am|pm)|\d{1,2}:\d\d|high ?chair|add (a|an|some)\b|birthday|cake|allerg\w*|vegan|quiet|view|window)\b/i;
 /**
- * "accept it", "book this now", "confirm the booking", "no manager needed", "ignore your rules": the chat can't
- * decide for anyone, and says so on this device (the refusal never depends on the model).
+ * "accept it", "book this now", "confirm the booking", "no manager needed": the chat can't decide for anyone, and
+ * says so on this device (the refusal never depends on the model).
  */
-export const ACCEPT_FOR_ME =
-  /\b(accept|approve|book|confirm)\s+(it|this|them|(the|this|their) (booking|request|party|reservation|guests?))\b|\b(no|without|skip|bypass)( the| a| any)? manager\b|\bignore (your|all|the|previous) (rules|instructions)\b/i;
+export const ACCEPT_ASK =
+  /\b(accept|approve|book|confirm)\s+(it|this|them|(the|this|their) (booking|request|party|reservation|guests?))\b|\b(no|without|skip|bypass)( the| a| any)? manager\b/i;
+/** "ignore your rules", "ignore previous instructions": answered on this device when nothing else is asked. */
+export const INJECTION = /\bignore (your|all|the|previous) (rules|instructions)\b/i;
+export const CANT_SET_ASIDE_RULES = "I can't set aside my rules. Nothing changed.";
+/**
+ * Does the message ask for anything besides an accept or an injection phrase? A floor edit, or a change such as a
+ * new headcount or time, checked with those phrases taken out. Then the model + engine handle it (never the device
+ * line, which would drop the change).
+ */
+export function hasOtherAsk(message: string, rooms: readonly string[]): boolean {
+  const rest = message
+    .replace(new RegExp(ACCEPT_ASK.source, "gi"), " ")
+    .replace(new RegExp(INJECTION.source, "gi"), " ");
+  return editIntent(rest, rooms) || OTHER_ASK.test(rest);
+}
 /** The bar, walls and the service station aren't tables. */
 const FIXED_THINGS =
   /\b(move|shift|pull|push|take|put|swap|knock down|remove)\s+(the\s+)?(bar|walls?|service station)\b/i;
@@ -88,6 +102,37 @@ const LONE_NUMBER =
   /^\s*(?:(?:can|could) we |let'?s |how about |what about )?(?:do |make it |try |go with )?(\d{1,2})(?: instead)?\s*[?.!]?\s*$/i;
 const QUIET_ASK = /\b(quiet|noisy|loud)\b[^.]*\?|\bquiet enough\b/i;
 export const CANT_ACCEPT = "I can't accept for you. Nothing changed — you approve every change.";
+/** An accept ask while a change proposed in chat waits for Apply or Discard. */
+export const CANT_ACCEPT_PENDING =
+  "I can't accept for you — apply or discard the change first, then you approve the booking.";
+/** An accept ask whose change was applied (or applied and then reverted or undone). */
+export const CANT_ACCEPT_AFTER = "I can't accept for you — you approve the booking.";
+
+/** What became of the change a turn proposed, as the chat shows it now (absent = no proposal). */
+export type ProposalStatus =
+  "pending" | "applied" | "discarded" | "reverted" | "undone" | "replaced";
+
+/** The accept line, from the status of the proposal it refers to (never "Nothing changed" beside a live one). */
+export function acceptLine(status: ProposalStatus | undefined): string {
+  if (status === "pending") return CANT_ACCEPT_PENDING;
+  if (status === "applied" || status === "reverted" || status === "undone")
+    return CANT_ACCEPT_AFTER;
+  return CANT_ACCEPT;
+}
+
+/**
+ * Shift setup's one reply per night: "I'd change the floor (2 changes)" + where the change is now: "— see Proposed
+ * floor change below." while it waits, "(applied)" / "(discarded)" / "(undone)" after.
+ */
+export function floorReplyText(base: string, status: ProposalStatus | undefined): string {
+  if (!status || status === "pending") return `${base} — see Proposed floor change below.`;
+  return `${base} (${status}).`;
+}
+
+/** The proposal card's capacity row: "unchanged (…plan…)" when the floor change leaves the plan as it is (G6). */
+export function capacityCheckText(before: string, after: string): string {
+  return before === after ? `unchanged (${before})` : `${before} → ${after}`;
+}
 /** "latest/earliest we could seat them", "how late can they arrive", "last possible time". */
 const SWEEP =
   /\b(latest|earliest|last|first)\b[^.?!]{0,30}\b(seat|seating|time|arrival|arrive|start|sitting|slot)\w*|\bhow (late|early)\b/i;
@@ -120,6 +165,8 @@ const REMOVE = /\b(no longer|remove|drop|without|doesn'?t need|don'?t need|not n
 
 export interface LocalAnswer {
   text: string;
+  /** An accept ask: the line is rendered from the proposal's status (CANT_ACCEPT_PENDING while one is pending). */
+  accept?: boolean;
   /** Tables to outline on the request's floor (an alternative the answer names). */
   alt?: { tables: string[]; label: string };
 }
@@ -137,9 +184,14 @@ export function localAnswer(
   if (refused) return { text: refused };
   // asked to accept, book or skip the manager: the AI can't, and says so (no model call); a message that also
   // asks for a floor change goes on to the AI, and its reply ends with this line
-  const edit = editIntent(message, seatingRoomNames(room));
-  if (ACCEPT_FOR_ME.test(message)) return edit ? null : { text: CANT_ACCEPT };
-  if (edit) return null;
+  const rooms = seatingRoomNames(room);
+  const accept = ACCEPT_ASK.test(message);
+  if (accept || INJECTION.test(message)) {
+    // anything else asked goes on to the AI (with the accept line after its reply when accept was asked)
+    if (hasOtherAsk(message, rooms)) return null;
+    return { text: accept ? CANT_ACCEPT : CANT_SET_ASIDE_RULES, ...(accept ? { accept } : {}) };
+  }
+  if (editIntent(message, rooms)) return null;
   const lone = LONE_NUMBER.exec(message);
   if (lone) {
     const n = Number(lone[1]);
@@ -231,37 +283,55 @@ export function localAnswer(
 /**
  * One turn's reply, from that turn's own answer only (never from the request's latest state). Order: code's
  * answer to a question asked alongside the change (lead), then the AI's question back, verbatim → else "I'd
- * change … — see Proposed changes above." + the capacity check's sentence → else the escalation line; then the
- * suffix. null = not answered yet.
+ * change …" + where that change is now ("— see Proposed changes above" while it waits, "(applied)" etc. after)
+ * + the capacity check's sentence (kept only while pending or applied) → else the escalation line; then the
+ * accept line, from the same status. null = not answered yet.
  */
-export function turnSentence(t: {
-  status?: "loading" | "ok" | "error";
-  changed?: string[];
-  outcome?: string;
-  local?: boolean;
-  clarify?: string;
-  suffix?: string;
-  lead?: string;
-}): string | null {
-  const text = turnText(t);
+export function turnSentence(
+  t: {
+    status?: "loading" | "ok" | "error";
+    changed?: string[];
+    outcome?: string;
+    local?: boolean;
+    clarify?: string;
+    lead?: string;
+    /** The manager asked the chat to accept: the accept line follows the reply. */
+    acceptAsk?: boolean;
+    /** Answered on this device (no model call): an accept ask is then the accept line alone. */
+    device?: boolean;
+  },
+  proposal?: ProposalStatus,
+): string | null {
+  const text = turnText(t, proposal);
   if (text === null) return null;
-  return [t.lead, text, t.suffix].filter(Boolean).join(" ");
+  const accept = t.acceptAsk ? acceptLine(proposal) : undefined;
+  // a device accept answer is the accept line alone
+  if (accept && t.device) return accept;
+  return [t.lead, text, accept].filter(Boolean).join(" ");
 }
 
-function turnText(t: {
-  status?: "loading" | "ok" | "error";
-  changed?: string[];
-  outcome?: string;
-  local?: boolean;
-  clarify?: string;
-}): string | null {
+function turnText(
+  t: {
+    status?: "loading" | "ok" | "error";
+    changed?: string[];
+    outcome?: string;
+    local?: boolean;
+    clarify?: string;
+  },
+  proposal: ProposalStatus | undefined,
+): string | null {
   if (t.status === "loading") return null;
   if (t.local || t.status === "error") return t.outcome ?? "";
+  const live = !proposal || proposal === "pending";
   const change = t.changed?.length
-    ? `I'd change ${listAnd(t.changed)} — see Proposed changes above.`
+    ? live
+      ? `I'd change ${listAnd(t.changed)} — see Proposed changes above.`
+      : `I'd change ${listAnd(t.changed)} (${proposal}).`
     : null;
-  if (t.clarify) return [t.clarify, change, change ? t.outcome : null].filter(Boolean).join(" ");
+  // after Discard, Revert, Undo or a newer change, the proposed capacity sentence no longer describes the floor
+  const outcome = change && !live && proposal !== "applied" ? undefined : t.outcome;
+  if (t.clarify) return [t.clarify, change, change ? outcome : null].filter(Boolean).join(" ");
   if (t.outcome === undefined) return null;
-  if (change) return `${change} ${t.outcome}`;
+  if (change) return outcome ? `${change} ${outcome}` : change;
   return t.outcome;
 }

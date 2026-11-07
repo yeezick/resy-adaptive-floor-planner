@@ -6,7 +6,7 @@ import { useState, useSyncExternalStore } from "react";
 import { nightMoves } from "../../domain/floorEdit";
 import { proposeLayoutEdit, type LayoutEdit, type Room } from "../../domain";
 import { postFloorChat } from "../api";
-import { floorRefusal } from "../requests/chatReply";
+import { floorRefusal, floorReplyText, type ProposalStatus } from "../requests/chatReply";
 import { partyName } from "../lib/names";
 import { Working } from "../lib/wait";
 import type { LayoutsApi } from "../layouts/useLayouts";
@@ -23,8 +23,14 @@ interface ShiftFloorState {
   proposal: ShiftFloorProposal | null;
   /** The last change applied here, per night: Undo restores the layout that was in use. */
   applied: Record<string, { layoutId: string; prevActiveId: string; changes: string[] }>;
-  /** The last answer, per night (kept across the planner's remount on Apply). */
-  reply: Record<string, { message: string; text: string; warn?: boolean } | undefined>;
+  /**
+   * The last answer, per night (kept across the planner's remount on Apply). A proposal's reply keeps only its
+   * base ("I'd change the floor (2 changes)"); where the change is now is rendered from `status`.
+   */
+  reply: Record<
+    string,
+    { message: string; text: string; warn?: boolean; status?: ProposalStatus } | undefined
+  >;
   /** A layout save remounts the night's planner: reopen Shift setup there (once). */
   reopen: string | null;
 }
@@ -73,6 +79,11 @@ export function FloorChat({
   const reply = s.reply[room.id];
   const answer = (message: string, t: string, warn = false) =>
     set({ reply: { ...state.reply, [room.id]: { message, text: t, warn } } });
+  /** What became of the night's proposed change, for its reply (one reply per night). */
+  const status = (next: ProposalStatus) => {
+    const r = state.reply[room.id];
+    return r?.status ? { reply: { ...state.reply, [room.id]: { ...r, status: next } } } : {};
+  };
 
   const send = async () => {
     const m = text.trim();
@@ -106,7 +117,8 @@ export function FloorChat({
         ...state.reply,
         [room.id]: {
           message: m,
-          text: `I'd change the floor (${e.changes.length} change${e.changes.length === 1 ? "" : "s"}) — see Proposed floor change below.`,
+          text: `I'd change the floor (${e.changes.length} change${e.changes.length === 1 ? "" : "s"})`,
+          status: "pending",
         },
       },
     });
@@ -116,7 +128,7 @@ export function FloorChat({
     if (!proposal) return;
     const prev = layouts.active;
     const changes = proposal.edit.changes.map((c) => c.text);
-    set({ proposal: null, reopen: room.id });
+    set({ proposal: null, reopen: room.id, ...status("applied") });
     const l = layouts.save(proposal.edit.edited, {
       name: `${day ?? "Tonight"} plan — floor change`,
       date,
@@ -128,7 +140,7 @@ export function FloorChat({
   const undo = () => {
     if (!applied) return;
     const { [room.id]: _gone, ...rest } = state.applied;
-    set({ applied: rest, reopen: room.id });
+    set({ applied: rest, reopen: room.id, ...status("undone") });
     layouts.remove(applied.layoutId, applied.prevActiveId);
   };
 
@@ -142,7 +154,9 @@ export function FloorChat({
       {reply && (
         <div className="floor-chat-turn small">
           <p className="chat-me">{reply.message}</p>
-          <p className={`chat-out${reply.warn ? " warn-text" : ""}`}>{reply.text}</p>
+          <p className={`chat-out${reply.warn ? " warn-text" : ""}`}>
+            {reply.status ? floorReplyText(reply.text, reply.status) : reply.text}
+          </p>
         </div>
       )}
       {busy !== null && (
@@ -192,7 +206,7 @@ export function FloorChat({
             <button type="button" className="tonal" onClick={apply}>
               Apply
             </button>
-            <button type="button" onClick={() => set({ proposal: null })}>
+            <button type="button" onClick={() => set({ proposal: null, ...status("discarded") })}>
               Discard
             </button>
           </div>
