@@ -2,6 +2,7 @@
 import { checkTableSet, tableById, type Room, type Table } from "../src/domain";
 import type { Recommendation } from "../src/shared/api";
 import { expectedWait, heldTable, meetsNeeds, tableProblems } from "../src/server/agent/validator";
+import { REFUSAL_LEAD } from "../src/client/AgentPanel/answerLead";
 import type { GoldenScenario } from "./golden.schema";
 
 export const DEFAULT_TIMING_TOLERANCE_MIN = 5;
@@ -212,6 +213,7 @@ export function extractNumbers(text: string): { times: string[]; numbers: string
 export const noHallucinatedNumbers: Check = ({ scenario, run }) => {
   const sourceText = [
     scenario.prompt,
+    scenario.party_size !== undefined ? String(scenario.party_size) : "",
     ...run.tools.filter((t) => t.ok).map((t) => JSON.stringify(t.output)),
   ].join("\n");
   const src = extractNumbers(sourceText);
@@ -323,7 +325,58 @@ function expectationChecks(ctx: AssertionContext): AssertionResult[] {
   }
   const bp = buildPlanOk(ctx);
   if (bp) out.push(bp);
+  const lead = answerLeadOk(ctx);
+  if (lead) out.push(lead);
   return out;
+}
+
+/** The answer's first sentence, as the AI Planner shows it before "More ▸" (≥ ~20 characters). */
+export function firstSentence(text: string): string {
+  return /^(.{20,}?[.!?])(\s|$)/s.exec(text.trim())?.[1] ?? text.trim();
+}
+
+/**
+ * A question about named tables (askedTables + askedSeats): the first sentence answers it. It names every asked
+ * table (as "T39" or "39"), the first number after the last of them is askedSeats, that number is a `seatsWithHeaderChairs` from a
+ * propose_combine call on exactly those tables, and the sentence is not a refusal ("I can't …"). T36's lead
+ * "Tables 39 and 40 seat only 6" fails.
+ */
+export function answerLeadOk({ scenario, run }: AssertionContext): AssertionResult | null {
+  const { askedTables, askedSeats } = scenario.expected;
+  if (!askedTables?.length || askedSeats === undefined) return null;
+  const lead = firstSentence(run.answer);
+  const problems: string[] = [];
+  if (REFUSAL_LEAD.test(lead)) problems.push("leads with a refusal");
+  let end = -1;
+  for (const id of askedTables) {
+    // "T39", "table 39" or "39"
+    const m = new RegExp(`\\bT?${id.replace(/\D/g, "")}\\b`).exec(lead);
+    if (!m) problems.push(`table ${id} not named`);
+    else end = Math.max(end, m.index + m[0].length);
+  }
+  const seats = end >= 0 ? /\d+/.exec(lead.slice(end))?.[0] : undefined;
+  if (end >= 0 && Number(seats) !== askedSeats)
+    problems.push(`seats ${seats ?? "none"} after the tables, expected ${askedSeats}`);
+  const want = [...askedTables].sort().join();
+  const combos = run.tools.filter(
+    (t) =>
+      t.ok &&
+      t.name === "propose_combine" &&
+      [...((t.input as { tableIds?: string[] } | undefined)?.tableIds ?? [])].sort().join() ===
+        want,
+  );
+  if (!combos.length) problems.push("propose_combine was not called for those tables");
+  else if (
+    !combos.some(
+      (t) =>
+        (t.output as { seatsWithHeaderChairs?: number } | undefined)?.seatsWithHeaderChairs ===
+        askedSeats,
+    )
+  )
+    problems.push(`no propose_combine output has seatsWithHeaderChairs ${askedSeats}`);
+  return problems.length
+    ? fail("answerLeadOk", `${problems.join("; ")} — "${lead}"`)
+    : ok("answerLeadOk");
 }
 
 const mentions = (text: string, id: string) =>

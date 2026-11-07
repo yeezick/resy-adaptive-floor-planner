@@ -1,1 +1,2 @@
 {"id":"walkin-four-now","category":"walk-in","room_fixture":"dinner-peak","prompt":"A party of 4 just walked in. Where can they sit, and how soon?","expected":{"partySize":4,"maxWaitMin":15,"expectNoFit":false},"tags":["illustrative"]}
+{"id":"walkin-eight-join-header-chairs","category":"walk-in","room_fixture":"dinner-peak","prompt":"can you seat them at 39 and 40 pushed together with 2 chairs on the ends","party_size":8,"expected":{"partySize":8,"askedTables":["T39","T40"],"askedSeats":8},"tags":["t36","header-chairs"]}
