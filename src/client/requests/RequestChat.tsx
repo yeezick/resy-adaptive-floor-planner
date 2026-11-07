@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { checkAdjusted } from "../../domain/requestChat";
 import type { GuestRequest } from "../../domain/requests";
 import type { PartyFit, RequestFit, Room } from "../../domain";
@@ -103,9 +103,25 @@ export function RequestChat({
   useEffect(() => {
     const el = log.current;
     if (el && pinnedToEnd.current) el.scrollTop = el.scrollHeight;
-    // the thread grows with each turn: keep the message box above the sheet's sticky footer
-    keepAboveFooter(box.current);
   }, [turnKey]);
+  // The message box stays in view, above the sheet's sticky footer, whenever the sheet around it changes: a new
+  // turn, a proposal shown, Apply, Discard, Revert (which remounts the night), the plan re-run. Measured right
+  // after the DOM changes, then twice more on timers for content that lands a moment later. No animation
+  // frames: a throttled browser pane may not run them (T31).
+  const p = s.proposals[r.id];
+  const anchorKey = [
+    turnKey,
+    p ? (p.floor ? "floor" : "constraints") : "",
+    s.floorApplied[r.id]?.layoutId ?? "",
+    JSON.stringify(s.adjust[r.id] ?? null),
+    room ? "room" : "",
+    fit ? (fit.ok ? fit.build.tables.join() : "no-fit") : "",
+  ].join("|");
+  useLayoutEffect(() => {
+    keepAboveFooter(box.current);
+    const later = [150, 600].map((ms) => window.setTimeout(() => keepAboveFooter(box.current), ms));
+    return () => later.forEach((t) => window.clearTimeout(t));
+  }, [anchorKey]);
   const noted = notedLine(currentRequest(s, r), cost);
   // A plan split across rooms: offer the one-room answer (storage included) up front, worked out after paint.
   // keyed by the request state it was worked out for, so a stale line never shows for a changed request
@@ -255,16 +271,15 @@ function ChatReply({ turn: t }: { turn: ChatTurn }) {
 }
 
 /**
- * Keep the message box fully above the sheet's sticky footer (iPad, 1180×820): scroll the sheet so the box's
- * bottom clears the footer's top.
+ * Keep the message box in view and fully above the sheet's sticky footer (iPad, 1180×820): scroll the sheet so
+ * the box's bottom clears the footer's top by 8 px, or, when the box sits above the visible part of the sheet,
+ * so its top shows again.
  */
 export function keepAboveFooter(el: HTMLElement | null): void {
   if (!el) return;
   const footer = el.closest(".request-sheet")?.querySelector<HTMLElement>(".decision-footer");
   const box = el.getBoundingClientRect();
   const top = footer?.getBoundingClientRect().top ?? window.innerHeight;
-  const overlap = box.bottom + 8 - top;
-  if (overlap <= 0) return;
   // the nearest scrolling ancestor takes the difference
   let p: HTMLElement | null = el.parentElement;
   while (
@@ -272,6 +287,15 @@ export function keepAboveFooter(el: HTMLElement | null): void {
     !(p.scrollHeight > p.clientHeight && /(auto|scroll)/.test(getComputedStyle(p).overflowY))
   )
     p = p.parentElement;
-  if (p) p.scrollTop += overlap;
-  else el.scrollIntoView({ block: "center" });
+  const overlap = box.bottom + 8 - top;
+  if (overlap > 0) {
+    if (p) p.scrollTop += overlap;
+    else el.scrollIntoView({ block: "center" });
+    return;
+  }
+  const above = (p ? p.getBoundingClientRect().top : 0) - box.top;
+  if (above > 0) {
+    if (p) p.scrollTop -= above + 8;
+    else el.scrollIntoView({ block: "center" });
+  }
 }
