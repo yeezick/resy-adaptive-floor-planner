@@ -27,7 +27,7 @@ import { BuildPlan } from "./BuildPlan/BuildPlan";
 import { ConsoleBar, type PanelMode } from "./ConsoleBar";
 import { CoversStrip } from "./CoversStrip";
 import { FloorPlan } from "./FloorPlan/FloorPlan";
-import { dividerKey, tabForTables } from "./FloorPlan/geometry";
+import { dividerKey, tabForChange, tabForTables } from "./FloorPlan/geometry";
 import { SelectionBar } from "./FloorPlan/SelectionBar";
 import { TableDetails } from "./FloorPlan/TableDetails";
 import type { Highlight, HighlightControls } from "./highlight";
@@ -154,18 +154,23 @@ export function Planner({
     };
   }, [hoverArmed]);
   const [pinned, setPinned] = useState<Highlight | null>(null);
+  // After a Shift-setup Apply or Undo the remounted night reopens on Shift setup, ahead of a request in focus,
+  // so "Floor changed: … Undo" stays on screen (T35)
+  const shiftReopen = shiftFloorStore.wantsReopen(fixture.id);
   const [mode, setMode] = useState<PanelMode>(() =>
-    focusView === "request"
-      ? "request"
-      : focusRequest || shiftFloorStore.wantsReopen(fixture.id)
-        ? "shift"
-        : activeScenario()?.panel === "assistant" && activeScenario()?.roomId === fixture.id
-          ? "assistant"
-          : "details",
+    shiftReopen
+      ? "shift"
+      : focusView === "request"
+        ? "request"
+        : focusRequest
+          ? "shift"
+          : activeScenario()?.panel === "assistant" && activeScenario()?.roomId === fixture.id
+            ? "assistant"
+            : "details",
   );
   useEffect(() => shiftFloorStore.clearReopen(), []);
   const [openRequest, setOpenRequest] = useState<string | null>(
-    focusView === "request" ? (focus ?? null) : null,
+    focusView === "request" && !shiftReopen ? (focus ?? null) : null,
   );
   // A highlight pinned in one panel (e.g. "AI option 1") ends when that panel closes or another opens.
   const [pinnedFor, setPinnedFor] = useState(mode);
@@ -710,9 +715,11 @@ export function Planner({
             initialTab={
               proposal || focusTables.length
                 ? focusTab
-                : reqTables.length
-                  ? tabForTables(room, reqTables)
-                  : keptTab
+                : floorPreview && floorProposal
+                  ? tabForChange(floorPreview.room, floorProposal.changes)
+                  : reqTables.length
+                    ? tabForTables(room, reqTables)
+                    : keptTab
             }
             onTab={(tab) => setFloorTab({ key: floorKey, tab })}
             room={proposal?.variant ?? floorPreview?.room ?? room}

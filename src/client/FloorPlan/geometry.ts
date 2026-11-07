@@ -143,7 +143,35 @@ export function roomTabs(room: Room): { id: ViewPreset; label: string }[] {
 
 /** The tab that shows these tables: their suite, their dining area, or the whole room. */
 export function tabForTables(room: Room, ids: readonly string[]): ViewPreset {
-  const areas = [...new Set(ids.map((id) => room.tables.find((t) => t.id === id)?.area))];
+  return tabForAreas(
+    room,
+    ids.map((id) => room.tables.find((t) => t.id === id)?.area),
+  );
+}
+
+/**
+ * The tab that shows a proposed floor change, on the edited floor: every changed table where it ends up, plus the
+ * area each moved or set-aside table leaves (a new table from storage counts where it lands). Shift setup has no
+ * request tables to go by (T35: a Library swap opened on the Dining room, its ghosts off-screen).
+ */
+export function tabForChange(
+  edited: Room,
+  changes: readonly { tables: readonly string[]; from?: { area: string }; to?: { area: string } }[],
+): ViewPreset {
+  const names = new Set<string>();
+  for (const c of changes) {
+    if (c.from) names.add(c.from.area);
+    if (c.to) names.add(c.to.area);
+    for (const id of c.tables) {
+      const area = edited.tables.find((t) => t.id === id)?.area;
+      if (area && edited.areas.some((a) => a.name === area)) names.add(area);
+    }
+  }
+  return tabForAreas(edited, [...names]);
+}
+
+function tabForAreas(room: Room, names: readonly (string | undefined)[]): ViewPreset {
+  const areas = [...new Set(names)];
   const found = areas.map((n) => room.areas.find((a) => a.name === n));
   if (!found.length || found.some((a) => !a)) return "all";
   const suite = found[0]?.suite;
