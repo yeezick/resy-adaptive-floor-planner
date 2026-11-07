@@ -284,15 +284,16 @@ export function keepAboveFooter(el: HTMLElement | null): void {
     !(p.scrollHeight > p.clientHeight && /(auto|scroll)/.test(getComputedStyle(p).overflowY))
   )
     p = p.parentElement;
+  // whole pixels, plus one: a fractional scroll is rounded by the browser and could leave 7 px (prod, T30)
   const overlap = box.bottom + 8 - top;
   if (overlap > 0) {
-    if (p) p.scrollTop += overlap;
+    if (p) p.scrollTop += Math.ceil(overlap) + 1;
     else el.scrollIntoView({ block: "center" });
     return;
   }
   const above = (p ? p.getBoundingClientRect().top : 0) - box.top;
   if (above > 0) {
-    if (p) p.scrollTop -= above + 8;
+    if (p) p.scrollTop -= Math.ceil(above) + 8;
     else el.scrollIntoView({ block: "center" });
   }
 }
