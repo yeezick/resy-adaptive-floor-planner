@@ -4,7 +4,7 @@ import type { GuestRequest } from "../../domain/requests";
 import type { PartyFit, RequestFit, Room } from "../../domain";
 import { times12 } from "../../domain/time";
 import { plainTables } from "../../domain/wording";
-import { currentRequest, requestsActions, useRequests, type ChatTurn } from "./store";
+import { chatAnchor, currentRequest, requestsActions, useRequests, type ChatTurn } from "./store";
 import { Working } from "../lib/wait";
 import {
   ACCEPT_FOR_ME,
@@ -103,11 +103,12 @@ export function RequestChat({
   useEffect(() => {
     const el = log.current;
     if (el && pinnedToEnd.current) el.scrollTop = el.scrollHeight;
+    // the thread grows with each turn: keep the message box above the sheet's sticky footer
+    keepAboveFooter(box.current);
   }, [turnKey]);
-  // The message box stays in view, above the sheet's sticky footer, whenever the sheet around it changes: a new
-  // turn, a proposal shown, Apply, Discard, Revert (which remounts the night), the plan re-run. Measured right
-  // after the DOM changes, then twice more on timers for content that lands a moment later. No animation
-  // frames: a throttled browser pane may not run them (T31).
+  // After a chat action (an answer, Apply, Discard, Revert — which remounts the night) the box stays in view while
+  // the sheet settles: measured right after the DOM changes, then twice more on timers for content that lands a
+  // moment later. No animation frames: a throttled browser pane may not run them (T31).
   const p = s.proposals[r.id];
   const anchorKey = [
     turnKey,
@@ -118,10 +119,11 @@ export function RequestChat({
     fit ? (fit.ok ? fit.build.tables.join() : "no-fit") : "",
   ].join("|");
   useLayoutEffect(() => {
+    if (!chatAnchor.wanted(r.id)) return;
     keepAboveFooter(box.current);
     const later = [150, 600].map((ms) => window.setTimeout(() => keepAboveFooter(box.current), ms));
     return () => later.forEach((t) => window.clearTimeout(t));
-  }, [anchorKey]);
+  }, [anchorKey, r.id]);
   const noted = notedLine(currentRequest(s, r), cost);
   // A plan split across rooms: offer the one-room answer (storage included) up front, worked out after paint.
   // keyed by the request state it was worked out for, so a stale line never shows for a changed request
