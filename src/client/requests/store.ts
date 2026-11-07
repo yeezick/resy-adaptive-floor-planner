@@ -143,6 +143,21 @@ export interface RequestsState {
   } | null;
 }
 
+/**
+ * A chat action (an answer, Apply, Discard, Revert) asks the chat to bring its message box back into view while the
+ * sheet settles around it; nothing else does (a Decline opened by hand keeps its own scroll).
+ */
+const anchorAt = new Map<string, number>();
+export const chatAnchor = {
+  request(requestId: string): void {
+    anchorAt.set(requestId, Date.now());
+  },
+  /** Within ~1.5 s of a chat action on this request. */
+  wanted(requestId: string): boolean {
+    return Date.now() - (anchorAt.get(requestId) ?? -Infinity) < 1500;
+  },
+};
+
 /** Replace (or add) one turn by id. */
 function put(requestId: string, t: ChatTurn): void {
   const list = state.chat[requestId] ?? [];
@@ -395,6 +410,7 @@ export const requestsActions = {
     });
   },
   resetConstraints(id: string) {
+    chatAnchor.request(id);
     const { [id]: _gone, ...adjust } = state.adjust;
     const { [id]: _who, ...changedBy } = state.changedBy;
     const { [id]: _stale, ...proposals } = state.proposals;
@@ -415,6 +431,7 @@ export const requestsActions = {
   applyProposal(id: string, fixture?: Room) {
     const p = state.proposals[id];
     if (!p) return;
+    chatAnchor.request(id);
     const { [id]: _gone, ...proposals } = state.proposals;
     let floorApplied = state.floorApplied;
     if (p.floor && fixture) {
@@ -450,6 +467,7 @@ export const requestsActions = {
     if (p.floor && fixture) reopenOnNight(id);
   },
   discardProposal(id: string) {
+    chatAnchor.request(id);
     const { [id]: _gone, ...proposals } = state.proposals;
     set({ proposals });
   },
@@ -489,6 +507,7 @@ export const requestsActions = {
       ...(ctx?.planArea ? { planRooms: ctx.planArea.split(" + ").slice(0, 4) } : {}),
     });
     clearTimeout(hard);
+    chatAnchor.request(r.id);
     // the turn as it stands now (it may carry the timeout line, which the answer replaces)
     const now = (state.chat[r.id] ?? []).find((x) => x.id === id);
     if (!now) return;
@@ -688,6 +707,7 @@ export function getRequestsState(): RequestsState {
 export function resetRequestsStore(): void {
   started = false;
   local.clear();
+  anchorAt.clear();
   walkInSeq = 0;
   state = {
     book: null,
