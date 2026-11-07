@@ -8,6 +8,7 @@ import { activeScenario, RECORDED_CHAT, RECORDED_TRIAGE } from "../scenarios";
 import { resolveTurn, type TurnResult } from "../../domain/floorTurn";
 import { type FloorChange, type LayoutOp, type Reservation, type Room } from "../../domain";
 import type { RequestChatResult, TriageResult } from "../../shared/api";
+import type { ProposalStatus } from "./chatReply";
 import {
   adjusted,
   baseConstraints,
@@ -71,8 +72,10 @@ export interface ChatTurn {
   after?: ChatConstraints;
   /** The AI's question back, verbatim, when it asked one. */
   clarify?: string;
-  /** A line added after the reply (a message that mixed a floor change with "accept it": CANT_ACCEPT). */
-  suffix?: string;
+  /** The manager asked the chat to accept: the accept line follows, from the proposal's status. */
+  acceptAsk?: boolean;
+  /** Answered on this device with no model call (a refusal, the accept line, a plan-state answer). */
+  device?: boolean;
   /** Said before the change: code's answer to a question asked with it ("No single room fits 24 …"). */
   lead?: string;
 }
@@ -123,7 +126,17 @@ export interface RequestsState {
   adjust: Record<string, ChatConstraints>;
   chat: Record<string, ChatTurn[]>;
   /** A change the chat proposed and the manager hasn't applied yet (nothing changes until Apply). */
-  proposals: Record<string, { constraints: ChatConstraints; floor?: FloorProposal }>;
+  proposals: Record<
+    string,
+    {
+      constraints: ChatConstraints;
+      floor?: FloorProposal;
+      /** The turns whose reply points at this proposal (or whose accept line refers to it). */
+      turns: string[];
+    }
+  >;
+  /** Per turn id: what became of the change its reply points at (rendered, never written into the turn). */
+  turnStatus: Record<string, ProposalStatus>;
   /** Floor changes applied from the chat, per request. */
   floorApplied: Record<string, AppliedFloor>;
   /** Who made the request's current changes: the chat (applied) or the manual controls. */
@@ -160,6 +173,22 @@ export const chatAnchor = {
   },
 };
 
+/** Set what became of the change these turns point at. */
+function mark(turns: readonly string[], status: ProposalStatus): void {
+  if (!turns.length) return;
+  const next = { ...state.turnStatus };
+  for (const t of turns) next[t] = status;
+  set({ turnStatus: next });
+}
+
+/** A turn whose accept line refers to the change still waiting (when there is one). */
+function linkToPending(requestId: string, turnId: string): void {
+  const p = state.proposals[requestId];
+  if (!p || p.turns.includes(turnId)) return;
+  set({ proposals: { ...state.proposals, [requestId]: { ...p, turns: [...p.turns, turnId] } } });
+  mark([turnId], "pending");
+}
+
 /** Replace (or add) one turn by id. */
 function put(requestId: string, t: ChatTurn): void {
   const list = state.chat[requestId] ?? [];
@@ -186,6 +215,7 @@ let state: RequestsState = {
   chat: {},
   overrides: {},
   proposals: {},
+  turnStatus: {},
   changedBy: {},
   floorApplied: {},
   replies: {},
@@ -291,8 +321,9 @@ async function applyScenario(book: RequestBook): Promise<void> {
     set({
       proposals: {
         ...state.proposals,
-        [r.id]: { constraints: mergeTurn(baseConstraints(r), output) },
+        [r.id]: { constraints: mergeTurn(baseConstraints(r), output), turns: ["turn-scenario-1"] },
       },
+      turnStatus: { ...state.turnStatus, "turn-scenario-1": "pending" },
       chat: {
         ...state.chat,
         [r.id]: [
@@ -404,7 +435,8 @@ export const requestsActions = {
   /** Manual controls: set this request's constraints directly (same fields the chat sets). */
   setConstraints(id: string, c: ChatConstraints) {
     // a manual edit supersedes a chat proposal that was built on the old constraints
-    const { [id]: _stale, ...proposals } = state.proposals;
+    const { [id]: stale, ...proposals } = state.proposals;
+    if (stale) mark(stale.turns, "replaced");
     set({
       adjust: { ...state.adjust, [id]: c },
       changedBy: { ...state.changedBy, [id]: "controls" },
@@ -415,7 +447,12 @@ export const requestsActions = {
     chatAnchor.request(id);
     const { [id]: _gone, ...adjust } = state.adjust;
     const { [id]: _who, ...changedBy } = state.changedBy;
-    const { [id]: _stale, ...proposals } = state.proposals;
+    const { [id]: stale, ...proposals } = state.proposals;
+    // every change of this request, applied or still waiting, is reverted
+    const applied = (state.chat[id] ?? [])
+      .map((t) => t.id)
+      .filter((t) => state.turnStatus[t] === "applied");
+    mark([...(stale?.turns ?? []), ...applied], "reverted");
     // Revert = Undo for a floor change too: the one-day layout goes, the previous layout is back in use
     const floor = state.floorApplied[id];
     const { [id]: _f, ...floorApplied } = state.floorApplied;
@@ -435,6 +472,7 @@ export const requestsActions = {
     if (!p) return;
     chatAnchor.request(id);
     const { [id]: _gone, ...proposals } = state.proposals;
+    mark(p.turns, "applied");
     let floorApplied = state.floorApplied;
     if (p.floor && fixture) {
       const prev = layoutsStore.active(fixture);
@@ -470,7 +508,8 @@ export const requestsActions = {
   },
   discardProposal(id: string) {
     chatAnchor.request(id);
-    const { [id]: _gone, ...proposals } = state.proposals;
+    const { [id]: gone, ...proposals } = state.proposals;
+    if (gone) mark(gone.turns, "discarded");
     set({ proposals });
   },
   /**
@@ -482,7 +521,7 @@ export const requestsActions = {
     r: GuestRequest,
     message: string,
     ctx?: ChatContext,
-    opts: { suffix?: string } = {},
+    opts: { accept?: boolean } = {},
   ) {
     const id = `turn-${++seq}`;
     if (state.alt[r.id]) {
@@ -497,9 +536,13 @@ export const requestsActions = {
       status: "loading",
       before: current,
       sentMs: Date.now(),
-      ...(opts.suffix ? { suffix: opts.suffix } : {}),
+      ...(opts.accept ? { acceptAsk: true } : {}),
     };
     put(r.id, turn);
+    // an accept ask's line refers to the change waiting once this turn resolves (its own, or an earlier one)
+    const settle = () => {
+      if (opts.accept) linkToPending(r.id, id);
+    };
     const hard = setTimeout(() => requestsActions.timeoutTurn(r.id, id), REQUEST_CHAT_HARD_MS);
     const res = await postRequestChat(r.id, {
       message,
@@ -516,18 +559,21 @@ export const requestsActions = {
     if (!res.ok) {
       // a late failure never overwrites the timeout line with a second error
       if (now.status === "error") return;
-      return put(r.id, { ...turn, status: "error", error: res.error, outcome: res.error.message });
+      put(r.id, { ...turn, status: "error", error: res.error, outcome: res.error.message });
+      return settle();
     }
     const out = res.data.output;
-    if (!out)
+    if (!out) {
       // escalated (refusal or two rejected answers): the server's one-line note is the reply
-      return put(r.id, {
+      put(r.id, {
         ...turn,
         status: "ok",
         result: res.data,
         outcome: res.data.note ?? ESCALATED_NOTE,
         changed: [],
       });
+      return settle();
+    }
     // a proposal, shown as a diff: nothing changes until the manager presses Apply
     const latest = state.proposals[r.id]?.constraints ?? state.adjust[r.id] ?? baseConstraints(r);
     const applied = state.adjust[r.id] ?? baseConstraints(r);
@@ -537,14 +583,16 @@ export const requestsActions = {
       result: res.data,
       ...(out.clarify ? { clarify: out.clarify } : {}),
     };
-    if (out.ops.length && !ctx)
-      return put(r.id, {
+    if (out.ops.length && !ctx) {
+      put(r.id, {
         ...base,
         after: latest,
         outcome: ESCALATED_NOTE,
         changed: [],
         local: true,
       });
+      return settle();
+    }
     const res2: TurnResult = ctx
       ? resolveTurn(r, latest, out, { ...ctx, nameOf: partyName })
       : {
@@ -553,8 +601,10 @@ export const requestsActions = {
           changed: changeDelta(r, latest, mergeTurn(latest, out)),
         };
     // answered by code (plan state, the one-room closest, a rejected floor change): nothing proposed
-    if (res2.kind === "answer")
-      return put(r.id, { ...base, after: latest, outcome: res2.text, changed: [], local: true });
+    if (res2.kind === "answer") {
+      put(r.id, { ...base, after: latest, outcome: res2.text, changed: [], local: true });
+      return settle();
+    }
     const next = res2.constraints;
     const fresh: FloorProposal | undefined =
       res2.floor && ctx ? { ...res2.floor, base: ctx.room } : undefined;
@@ -571,13 +621,22 @@ export const requestsActions = {
       ...(floor ? { outcome: checkAdjusted(floor.edited, r, next).line } : {}),
     });
     // a turn that changes nothing (or only asks a question) proposes nothing
-    if (floor || JSON.stringify(next) !== JSON.stringify(applied))
+    if (floor || JSON.stringify(next) !== JSON.stringify(applied)) {
+      const old = state.proposals[r.id];
+      // a new floor change replaces the one waiting: the turns that proposed that floor are "(replaced)"; the
+      // others' changes carry on in the new proposal (it is built on the old one's constraints)
+      const replaced = fresh && old?.floor ? old.turns.filter((t) => floorTurn(r.id, t)) : [];
+      const turns = [...(old?.turns ?? []).filter((t) => !replaced.includes(t)), id];
       set({
         proposals: {
           ...state.proposals,
-          [r.id]: { constraints: next, ...(floor ? { floor } : {}) },
+          [r.id]: { constraints: next, ...(floor ? { floor } : {}), turns },
         },
       });
+      mark(replaced, "replaced");
+      mark([id], "pending");
+    }
+    settle();
   },
   /**
    * A message the capacity check can answer by itself ("one room?", "bring tables from the back", a need that
@@ -588,6 +647,7 @@ export const requestsActions = {
     message: string,
     answer: string,
     alt?: { tables: string[]; label: string },
+    opts: { accept?: boolean } = {},
   ) {
     const id = `turn-${++seq}`;
     const turn: ChatTurn = {
@@ -598,12 +658,15 @@ export const requestsActions = {
       outcome: answer,
       changed: [],
       local: true,
+      device: true,
+      ...(opts.accept ? { acceptAsk: true } : {}),
     };
     const { [r.id]: _old, ...alts } = state.alt;
     set({
       chat: { ...state.chat, [r.id]: [...(state.chat[r.id] ?? []), turn] },
       alt: alt ? { ...alts, [r.id]: alt } : alts,
     });
+    if (opts.accept) linkToPending(r.id, id);
   },
   /** Past the hard limit: a plain line, nothing changed. A late answer still replaces it. */
   timeoutTurn(requestId: string, turnId: string) {
@@ -657,6 +720,12 @@ export const requestsActions = {
     if (state.openPlan) set({ openPlan: null });
   },
 };
+
+/** A turn that proposed a floor change ("the floor (5 changes)" leads what it changed). */
+function floorTurn(requestId: string, turnId: string): boolean {
+  const t = (state.chat[requestId] ?? []).find((x) => x.id === turnId);
+  return !!t?.changed?.some((c) => c.startsWith("the floor ("));
+}
 
 /** After a layout save remounts the request's night: show that night with the request open again. */
 function reopenOnNight(id: string): void {
@@ -725,6 +794,7 @@ export function resetRequestsStore(): void {
     chat: {},
     overrides: {},
     proposals: {},
+    turnStatus: {},
     changedBy: {},
     floorApplied: {},
     replies: {},

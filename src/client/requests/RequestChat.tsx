@@ -6,15 +6,7 @@ import { times12 } from "../../domain/time";
 import { plainTables } from "../../domain/wording";
 import { chatAnchor, currentRequest, requestsActions, useRequests, type ChatTurn } from "./store";
 import { Working } from "../lib/wait";
-import {
-  ACCEPT_FOR_ME,
-  CANT_ACCEPT,
-  editIntent,
-  localAnswer,
-  notedLine,
-  seatingRoomNames,
-  turnSentence,
-} from "./chatReply";
+import { ACCEPT_ASK, localAnswer, notedLine, turnSentence, type ProposalStatus } from "./chatReply";
 import { oneRoomPlan, oneRoomSentence } from "../../domain/alternatives";
 import "./chat15.css";
 
@@ -82,9 +74,12 @@ export function RequestChat({
     setText("");
     const current = currentRequest(s, r);
     const local = room ? localAnswer(m, { room, request: current, fit, cost }) : null;
-    if (local) return requestsActions.answerLocal(r, m, times12(local.text), local.alt);
-    // a floor change mixed with "accept it": the proposal, then the plain refusal (A1)
-    const mixed = !!room && ACCEPT_FOR_ME.test(m) && editIntent(m, seatingRoomNames(room));
+    if (local)
+      return requestsActions.answerLocal(r, m, times12(local.text), local.alt, {
+        accept: !!local.accept,
+      });
+    // a change mixed with "accept it": the proposal, then the accept line (A1); an injection phrase alone with a
+    // change gets no accept line
     void requestsActions.sendChat(
       r,
       m,
@@ -95,7 +90,7 @@ export function RequestChat({
             planTables: fit?.ok ? fit.build.tables : [],
           }
         : undefined,
-      mixed ? { suffix: CANT_ACCEPT } : {},
+      { accept: ACCEPT_ASK.test(m) },
     );
   };
   const lastTurn = turns[turns.length - 1];
@@ -174,7 +169,7 @@ export function RequestChat({
         {turns.map((t) => (
           <li key={t.id}>
             <p className="chat-me">{t.message}</p>
-            <ChatReply turn={t} />
+            <ChatReply turn={t} proposal={s.turnStatus[t.id]} />
             {t.result && (
               <details className="how-made small">
                 <summary>How this was made</summary>
@@ -257,8 +252,8 @@ export function RequestChat({
 }
 
 /** One turn's reply: working (dots + seconds), then that turn's own answer. */
-function ChatReply({ turn: t }: { turn: ChatTurn }) {
-  const text = turnSentence(t);
+function ChatReply({ turn: t, proposal }: { turn: ChatTurn; proposal?: ProposalStatus }) {
+  const text = turnSentence(t, proposal);
   if (text === null)
     return (
       <p className="chat-out small">
