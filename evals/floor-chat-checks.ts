@@ -204,6 +204,7 @@ export function checkFloorScenario(
       reply = res.changed.length
         ? `I'd change ${res.changed.join(", ")} — see Proposed changes above. ${a.line}`
         : (output.clarify ?? a.line);
+      if (res.lead) reply = `${res.lead} ${reply}`;
       if (e.noMove && res.floor) misses.push("a table moved");
       if (e.proposal && !res.floor) misses.push("no floor change proposed");
       if (e.planArea && (!a.fit.ok || a.fit.build.area !== e.planArea))

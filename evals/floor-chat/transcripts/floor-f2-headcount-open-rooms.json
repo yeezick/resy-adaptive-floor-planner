@@ -1,0 +1,20 @@
+{
+  "id": "floor-f2-headcount-open-rooms",
+  "promptVersion": "request-chat.v1.2",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "tableRange": null,
+    "partySize": 24,
+    "time": null,
+    "addNeeds": [],
+    "removeNeeds": [],
+    "notes": [],
+    "clarify": null,
+    "rooms": ["Library", "Garden Room"],
+    "oneRoom": "unchanged",
+    "ops": []
+  },
+  "validatorRejects": 0,
+  "costUsd": 0.000376,
+  "latencyMs": 1775
+}

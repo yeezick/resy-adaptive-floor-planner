@@ -96,6 +96,20 @@ describe("request chat answers from the capacity check", () => {
     );
   });
 
+  it("F2: code's answer to a question asked with the change leads the reply", () => {
+    expect(
+      turnSentence({
+        status: "ok",
+        lead: "No single room fits 24 as the floor stands (today's Garden Room tables top out at 20). Ask me to move tables to make one room.",
+        changed: ["party of 24"],
+        outcome:
+          "Capacity fit: tables 57–61 and 63–66 · Garden Room + Library · seats 24 for 24 at 18:30.",
+      }),
+    ).toBe(
+      "No single room fits 24 as the floor stands (today's Garden Room tables top out at 20). Ask me to move tables to make one room. I'd change party of 24 — see Proposed changes above. Capacity fit: tables 57–61 and 63–66 · Garden Room + Library · seats 24 for 24 at 18:30.",
+    );
+  });
+
   it("a question back is the reply, verbatim; a turn with no answer yet has no text", () => {
     const q =
       "I can't move tables between rooms, but I can limit where the party sits. Should I restrict the party to a specific range of tables?";

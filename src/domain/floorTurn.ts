@@ -32,6 +32,11 @@ export type TurnResult =
       floor?: FloorEditCore;
       /** What the turn changed, for the reply ("the floor (5 changes)", "party of 26"). */
       changed: string[];
+      /**
+       * Said before the change, when the turn also asked a question code answers (G3 "Already open in this
+       * plan: …", G4b the one-room answer), worked out for the changed request.
+       */
+      lead?: string;
     };
 
 export interface TurnInputs {
@@ -43,6 +48,13 @@ export interface TurnInputs {
   nameOf?: (id: string) => string;
 }
 
+/** "The Garden Room" → "garden room" (how the rooms asked for are compared with the plan's). */
+const roomWord = (x: string) =>
+  x
+    .trim()
+    .toLowerCase()
+    .replace(/^the\s+/, "");
+
 /** Decide what a validated answer does, on top of the request's latest constraints. */
 export function resolveTurn(
   r: GuestRequest,
@@ -51,25 +63,44 @@ export function resolveTurn(
   ctx: TurnInputs,
 ): TurnResult {
   const next = mergeTurn(latest, out);
+  // what the turn changes besides the rooms it asks about ("headcount is now 24, keep them in one room"):
+  // an early answer below keeps it and proposes it, never drops it (T37)
+  const rest = mergeTurn(latest, { ...out, rooms: [], oneRoom: "unchanged" });
+  const restChanged = changeDelta(r, latest, rest);
   // the rooms asked for are the ones the plan already opens (G3)
   // ("no" = rooms may open into each other, which they already do)
   if (!out.ops.length && out.rooms.length && out.oneRoom !== "yes" && ctx.planArea) {
-    const asked = new Set(
-      out.rooms.map((x) =>
-        x
-          .trim()
-          .toLowerCase()
-          .replace(/^the\s+/, ""),
-      ),
-    );
-    const plan = ctx.planArea.split(" + ");
-    if (plan.length === asked.size && plan.every((a) => asked.has(a.toLowerCase())))
-      return { kind: "answer", text: `Already open in this plan: ${ctx.planArea}.` };
+    const asked = new Set(out.rooms.map(roomWord));
+    const sameRooms = (area: string) => {
+      const plan = area.split(" + ");
+      return plan.length === asked.size && plan.every((a) => asked.has(roomWord(a)));
+    };
+    if (sameRooms(ctx.planArea)) {
+      const lead = `Already open in this plan: ${ctx.planArea}.`;
+      if (!restChanged.length) return { kind: "answer", text: lead };
+      // the asked rooms are not stored, so the changed party re-plans freely: say "already open" only when it
+      // still uses exactly those rooms; otherwise keep the rooms as a constraint in the same proposal
+      const free = mergeTurn(latest, { ...out, rooms: [] });
+      const replanned = checkAdjusted(ctx.room, r, free).fit;
+      if (replanned.ok && sameRooms(replanned.build.area))
+        return { kind: "proposal", constraints: free, changed: restChanged, lead };
+      return { kind: "proposal", constraints: next, changed: changeDelta(r, latest, next) };
+    }
   }
   // "close the divider" with no floor change: when no single room fits, the plain closest + the offer (G4b)
   if (!out.ops.length && out.oneRoom === "yes" && !checkAdjusted(ctx.room, r, next).fit.ok) {
-    const req = adjusted(r, latest);
-    return { kind: "answer", text: oneRoomSentence(req, oneRoomPlan(ctx.room, req)) };
+    if (!restChanged.length) {
+      const req = adjusted(r, latest);
+      return { kind: "answer", text: oneRoomSentence(req, oneRoomPlan(ctx.room, req)) };
+    }
+    // the one-room answer for the changed party first, then the change itself (one room stays as it was)
+    const req = adjusted(r, rest);
+    return {
+      kind: "proposal",
+      constraints: rest,
+      changed: restChanged,
+      lead: oneRoomSentence(req, oneRoomPlan(ctx.room, req)),
+    };
   }
   let floor: FloorEditCore | undefined;
   if (out.ops.length) {
