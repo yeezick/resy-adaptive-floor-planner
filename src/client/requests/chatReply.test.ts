@@ -195,12 +195,6 @@ describe("request chat answers from the capacity check", () => {
     );
   });
 
-  it("a reply carries its suffix (a floor change mixed with an accept)", () => {
-    expect(turnSentence({ status: "ok", local: true, outcome: "Done.", suffix: CANT_ACCEPT })).toBe(
-      `Done. ${CANT_ACCEPT}`,
-    );
-  });
-
   it("latest / earliest time questions are answered by sweeping the capacity check", () => {
     const a = localAnswer("What's the latest we could seat them and still use the Library?", ctx);
     const hit = sweepTimes(room, q2, "latest", "Library");

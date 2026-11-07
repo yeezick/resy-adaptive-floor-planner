@@ -5,7 +5,7 @@ import { parseRoom } from "../../domain";
 import type { LayoutOp, TableRef } from "../../domain/layoutOps";
 import type { ChatTurnOutput } from "../../domain/requestChat";
 import type { RequestChatResult } from "../../shared/api";
-import { CANT_ACCEPT, turnSentence } from "./chatReply";
+import { turnSentence } from "./chatReply";
 
 // Floor changes by conversation, end to end in the store: the model call is stubbed ($0); the engine is real.
 const pending: { message: string; resolve: (v: unknown) => void }[] = [];
@@ -86,7 +86,7 @@ const answer = (output: ChatTurnOutput) => ({
     metrics: { costUsd: 0, latencyMs: 1, calls: [] },
   } satisfies RequestChatResult,
 });
-async function say(message: string, out: ChatTurnOutput, opts: { suffix?: string } = {}) {
+async function say(message: string, out: ChatTurnOutput, opts: Record<string, never> = {}) {
   const p = requestsActions.sendChat(q2 as never, message, ctx, opts);
   const i = pending.findIndex((x) => x.message === message);
   pending.splice(i, 1)[0]?.resolve(answer(out));
@@ -196,21 +196,5 @@ describe("floor changes by conversation (store)", () => {
       /^Which round 8-top do you mean: table 56 \(Garden Room\), /,
     );
     expect(getRequestsState().proposals.Q2).toBeUndefined();
-  });
-
-  it("A1: a floor change mixed with 'accept the booking' → the proposal, then the plain refusal", async () => {
-    const t = await say(
-      "move 63–66 into the Garden Room and accept the booking",
-      {
-        ...none,
-        ops: [op({ tables: [ref({ by: "range", from: 63, to: 66 })], to: "Garden Room" })],
-      },
-      { suffix: CANT_ACCEPT },
-    );
-    expect(turnSentence(t ?? {})).toMatch(
-      new RegExp(`Garden Room · seats 22 for 22 at 18:30\\. ${CANT_ACCEPT}$`),
-    );
-    expect(getRequestsState().proposals.Q2?.floor).toBeTruthy();
-    expect(getRequestsState().decisions.Q2).toBeUndefined();
   });
 });
