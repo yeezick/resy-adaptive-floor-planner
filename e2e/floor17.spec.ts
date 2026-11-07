@@ -210,6 +210,25 @@ test.describe("floor changes by conversation", () => {
     await expectBoxInView(page);
   });
 
+  test("G6: a floor change that leaves the plan as it is reads 'Capacity check: unchanged'", async ({
+    page,
+  }) => {
+    const msg = "remove table 62 and add two 4-tops from storage in the Library";
+    await openChat(page, {
+      [msg]: chatBody({
+        ops: [
+          op({ op: "to_storage", tables: [ref({ n: 62 })] }),
+          op({ op: "from_storage", seats: 4, count: 2, to: "Library" }),
+        ],
+      }),
+    });
+    await say(page, msg);
+    await expect(diff(page)).toContainText(
+      "Capacity checkunchanged (tables 57–61 and 63–66 · Garden Room + Library (divider open)",
+    );
+    await expect(diff(page)).not.toContainText("(sections 10 + 11) → ");
+  });
+
   test("T21: the chat log follows the newest turn", async ({ page }) => {
     await openChat(page, {});
     for (const m of [
