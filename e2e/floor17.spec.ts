@@ -301,3 +301,66 @@ test.describe("Shift setup: Tell the AI", () => {
     expect(calls).toBe(0);
   });
 });
+
+// T35: Shift setup on a request's night (the request sheet was open): the preview opens on the tab with the change,
+// and after Apply / Undo Shift setup stays open with "Floor changed … Undo" on screen.
+test.describe("Shift setup on ?scenario=party-22-agent (T35)", () => {
+  const SWAP = "swap table 68 and table 69";
+  const swapBody = chatBody({
+    ops: [op({ op: "swap", tables: [ref({ n: 68 }), ref({ n: 69 })] })],
+  });
+  const selectedTab = (page: Page) => page.locator(".room-tabs [role=tab][aria-selected=true]");
+
+  test("the preview shows the changed tables; Undo stays on screen after Apply and after Undo", async ({
+    page,
+  }) => {
+    await page.route("**/api/requests/*/triage", (route) => route.abort());
+    await page.route("**/api/floor/chat", (route) => fulfill(route, swapBody));
+    await page.goto("/?scenario=party-22-agent");
+    await expect(page.locator(".request-sheet")).toBeVisible();
+    await page
+      .getByRole("group", { name: "Host actions" })
+      .getByRole("button", { name: "Shift setup", exact: true })
+      .click();
+    // the host was looking at the Dining room
+    await page.getByRole("tab", { name: "Dining room" }).click();
+    const tell = page.getByRole("region", { name: "Tell the AI" });
+    await tell.getByRole("textbox").fill(SWAP);
+    await tell.getByRole("textbox").press("Enter");
+    await expect(page.getByText("Previewing the floor change proposed in chat")).toBeVisible();
+    // tables 68 and 69 are in the Library: the East suite tab
+    await expect(selectedTab(page)).toHaveText("East suite");
+    await expect(page.locator(".change-ghost")).toHaveCount(2);
+
+    const card = page.getByRole("group", { name: "Floor change proposed in Shift setup" });
+    await card.getByRole("button", { name: "Apply" }).click();
+    // no extra tap: Shift setup is open with the applied change and its Undo
+    await expect(tell.getByRole("status")).toContainText("Floor changed:");
+    await expect(tell.getByRole("button", { name: "Undo" })).toBeVisible();
+    await tell.getByRole("button", { name: "Undo" }).click();
+    await expect(tell).toBeVisible();
+    await expect(tell.getByRole("button", { name: "Undo" })).toHaveCount(0);
+    await expect
+      .poll(() =>
+        page.evaluate(
+          () =>
+            (
+              JSON.parse(localStorage.getItem("afp.layouts.v1.book-fri") ?? "{}") as {
+                activeId?: string;
+              }
+            ).activeId,
+        ),
+      )
+      .toBe("base");
+  });
+
+  test("Discuss chat: a Library-only change opens on the tab with the changed tables", async ({
+    page,
+  }) => {
+    await openChat(page, { [SWAP]: swapBody });
+    await page.getByRole("tab", { name: "Dining room" }).click();
+    await say(page, SWAP);
+    await expect(page.getByText("Previewing the floor change proposed in chat")).toBeVisible();
+    await expect(selectedTab(page)).toHaveText("East suite");
+  });
+});
