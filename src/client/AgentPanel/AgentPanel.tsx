@@ -1,4 +1,5 @@
 import { AGENT_HARD_MS, TOO_LONG, Working } from "../lib/wait";
+import { answerLead } from "./answerLead";
 import {
   useEffect,
   useLayoutEffect,
@@ -499,15 +500,14 @@ function partyHint(turns: Turn[], i: number): number | undefined {
 
 /** The answer's first sentence; the rest behind "More ▸" (display only). */
 function AnswerLead({ text }: { text: string }) {
-  // split after the first sentence of at least ~20 characters (so "e.g." never ends the lead)
-  const m = /^(.{20,}?[.!?])(\s+)([\s\S]+)$/.exec(text);
-  if (!m) return <p className="answer">{text}</p>;
+  const { lead, rest } = answerLead(text);
+  if (rest === null) return <p className="answer">{lead}</p>;
   return (
     <div className="answer">
-      <p className="answer-lead">{m[1]}</p>
+      <p className="answer-lead">{lead}</p>
       <details className="more small">
         <summary>More ▸</summary>
-        <p>{m[3]}</p>
+        <p>{rest}</p>
       </details>
     </div>
   );
