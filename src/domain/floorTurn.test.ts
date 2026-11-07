@@ -81,6 +81,57 @@ describe("resolveTurn", () => {
   });
 });
 
+describe("F2 (T37): a headcount change asked with a room constraint is kept", () => {
+  it("G4b + 24: the one-room answer for 24 leads, then party 24 is proposed with one room unchanged", () => {
+    const r = resolveTurn(q2, baseConstraints(q2), { ...none, partySize: 24, oneRoom: "yes" }, ctx);
+    expect(r.kind).toBe("proposal");
+    if (r.kind !== "proposal") return;
+    expect(r.constraints.partySize).toBe(24);
+    expect(r.constraints.oneRoom).toBeUndefined();
+    expect(r.changed).toEqual(["party of 24"]);
+    expect(r.lead).toBe(
+      "No single room fits 24 as the floor stands (today's Garden Room tables top out at 20). Ask me to move tables to make one room.",
+    );
+  });
+  it("G3 + 24: party 24 still opens exactly those rooms, so 'Already open' leads and the rooms aren't stored", () => {
+    const r = resolveTurn(
+      q2,
+      baseConstraints(q2),
+      { ...none, partySize: 24, rooms: ["Library", "Garden Room"] },
+      ctx,
+    );
+    expect(r.kind).toBe("proposal");
+    if (r.kind !== "proposal") return;
+    expect(r.constraints.partySize).toBe(24);
+    expect(r.constraints.rooms).toBeUndefined();
+    expect(r.changed).toEqual(["party of 24"]);
+    expect(r.lead).toBe("Already open in this plan: Garden Room + Library.");
+  });
+  it("G3 + a party that re-plans elsewhere: the asked rooms are kept as a constraint, no 'Already open'", () => {
+    // 8 people need no second room: the free re-plan leaves Garden Room + Library
+    const r = resolveTurn(
+      q2,
+      baseConstraints(q2),
+      { ...none, partySize: 8, rooms: ["Library", "Garden Room"] },
+      ctx,
+    );
+    expect(r.kind).toBe("proposal");
+    if (r.kind !== "proposal") return;
+    expect(r.lead).toBeUndefined();
+    expect(r.constraints.partySize).toBe(8);
+    expect(r.constraints.rooms).toEqual(["Library", "Garden Room"]);
+  });
+  it("G3 and G4b alone stay plain answers (byte-identical)", () => {
+    expect(resolveTurn(q2, baseConstraints(q2), { ...none, oneRoom: "yes" }, ctx)).toEqual({
+      kind: "answer",
+      text: "No single room fits 22 as the floor stands (today's Garden Room tables top out at 20). Ask me to move tables to make one room.",
+    });
+    expect(
+      resolveTurn(q2, baseConstraints(q2), { ...none, rooms: ["Garden Room", "Library"] }, ctx),
+    ).toEqual({ kind: "answer", text: "Already open in this plan: Garden Room + Library." });
+  });
+});
+
 describe("arrange_rows with no room named", () => {
   it("means the room the same message moves tables into", () => {
     const e = proposeLayoutEdit(room, [

@@ -73,6 +73,8 @@ export interface ChatTurn {
   clarify?: string;
   /** A line added after the reply (a message that mixed a floor change with "accept it": CANT_ACCEPT). */
   suffix?: string;
+  /** Said before the change: code's answer to a question asked with it ("No single room fits 24 …"). */
+  lead?: string;
 }
 
 /** A floor change the chat proposed, checked by the engine on the request's night (nothing applied yet). */
@@ -562,6 +564,7 @@ export const requestsActions = {
     const { clarify: _moot, ...answered } = base;
     put(r.id, {
       ...(fresh ? answered : base),
+      ...(res2.lead ? { lead: res2.lead } : {}),
       after: next,
       changed: res2.changed,
       // a floor change's capacity sentence is worked out on the edited floor, now

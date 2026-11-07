@@ -229,9 +229,10 @@ export function localAnswer(
 }
 
 /**
- * One turn's reply, from that turn's own answer only (never from the request's latest state). Order: the AI's
- * question back, verbatim → else "I'd change … — see Proposed changes above." + the capacity check's sentence
- * → else the escalation line. null = not answered yet.
+ * One turn's reply, from that turn's own answer only (never from the request's latest state). Order: code's
+ * answer to a question asked alongside the change (lead), then the AI's question back, verbatim → else "I'd
+ * change … — see Proposed changes above." + the capacity check's sentence → else the escalation line; then the
+ * suffix. null = not answered yet.
  */
 export function turnSentence(t: {
   status?: "loading" | "ok" | "error";
@@ -240,9 +241,11 @@ export function turnSentence(t: {
   local?: boolean;
   clarify?: string;
   suffix?: string;
+  lead?: string;
 }): string | null {
   const text = turnText(t);
-  return text !== null && t.suffix ? `${text} ${t.suffix}` : text;
+  if (text === null) return null;
+  return [t.lead, text, t.suffix].filter(Boolean).join(" ");
 }
 
 function turnText(t: {
