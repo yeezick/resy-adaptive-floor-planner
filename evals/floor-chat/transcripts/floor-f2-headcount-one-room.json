@@ -1,0 +1,20 @@
+{
+  "id": "floor-f2-headcount-one-room",
+  "promptVersion": "request-chat.v1.2",
+  "model": "claude-haiku-5-5",
+  "output": {
+    "tableRange": null,
+    "partySize": 24,
+    "time": null,
+    "addNeeds": [],
+    "removeNeeds": [],
+    "notes": [],
+    "clarify": null,
+    "rooms": [],
+    "oneRoom": "yes",
+    "ops": []
+  },
+  "validatorRejects": 0,
+  "costUsd": 0.0003701,
+  "latencyMs": 1189
+}
