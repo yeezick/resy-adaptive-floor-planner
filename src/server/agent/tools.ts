@@ -19,6 +19,7 @@ import {
   TOOL_SPECS,
   toStrictJsonSchema,
 } from "./schemas";
+import { headerChairs } from "./validator";
 
 export type ToolOutcome = { ok: true; output: unknown } | { ok: false; error: string };
 
@@ -160,11 +161,29 @@ export function executeTool(room: Room, name: string, input: unknown): ToolOutco
         const p = ProposeCombineInput.safeParse(input);
         if (!p.success) return { ok: false, error: `invalid input: ${issues(p.error)}` };
         const check = checkCombine(room, p.data.tableIds);
+        if (!check.ok)
+          return {
+            ok: true,
+            output: {
+              tableIds: p.data.tableIds,
+              legal: false,
+              reason: check.reason,
+              applied: false,
+            },
+          };
+        // header chairs on the ends (the tables' own, limited by spare chairs), and the total with them: the
+        // model quotes numbers, it never adds them up (the same count the validator allows)
+        const chairs = headerChairs(room, p.data.tableIds);
         return {
           ok: true,
-          output: check.ok
-            ? { tableIds: p.data.tableIds, legal: true, seats: check.seats, applied: false }
-            : { tableIds: p.data.tableIds, legal: false, reason: check.reason, applied: false },
+          output: {
+            tableIds: p.data.tableIds,
+            legal: true,
+            seats: check.seats,
+            headerChairs: chairs,
+            seatsWithHeaderChairs: check.seats + chairs,
+            applied: false,
+          },
         };
       }
       case "plan_builds": {

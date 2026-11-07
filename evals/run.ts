@@ -167,7 +167,12 @@ export async function recordScenario(
   };
   try {
     const { response, trace } = await runAgent(
-      { room, message: scenario.prompt, traceId: `eval-${scenario.id}-${started}` },
+      {
+        room,
+        message: scenario.prompt,
+        traceId: `eval-${scenario.id}-${started}`,
+        ...(scenario.party_size ? { partySize: scenario.party_size } : {}),
+      },
       cfg,
     );
     return Transcript.parse({

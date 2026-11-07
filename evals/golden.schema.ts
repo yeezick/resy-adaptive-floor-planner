@@ -29,6 +29,10 @@ export const Expected = z
     expectInfeasible: z.array(z.string()).optional(),
     /** Build plans: whether the plan pulls anything from storage (extenders, chairs, spare tables). */
     expectStorageUsed: z.boolean().optional(),
+    /** A question about named tables: the answer's first sentence names them (with askedSeats). */
+    askedTables: z.array(z.string()).optional(),
+    /** …and its seat count is this, a `seatsWithHeaderChairs` from propose_combine on those tables. */
+    askedSeats: z.number().int().positive().optional(),
   })
   .strict();
 export type Expected = z.infer<typeof Expected>;
@@ -40,6 +44,8 @@ export const GoldenScenario = z
     /** Room id in fixtures/rooms (e.g. "dinner-peak"). */
     room_fixture: z.string(),
     prompt: z.string().min(1).max(500),
+    /** The party size the host's screen sends with the message (input; `expected.partySize` is the check). */
+    party_size: z.number().int().positive().optional(),
     expected: Expected,
     tags: z.array(z.string()),
   })
