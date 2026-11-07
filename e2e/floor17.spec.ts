@@ -87,7 +87,8 @@ async function expectBoxInView(page: Page) {
       const f = await page.locator(".decision-footer").boundingBox();
       const h = page.viewportSize()?.height ?? 0;
       if (!b || !f) return "no box";
-      const gap = Math.round(f.y - (b.y + b.height));
+      // no rounding in the box's favour: 7.6 px is not 8
+      const gap = Math.floor(f.y - (b.y + b.height));
       return gap >= 8 && b.y >= 0 && b.y + b.height <= h
         ? "ok"
         : `gap ${gap}, top ${Math.round(b.y)}`;
