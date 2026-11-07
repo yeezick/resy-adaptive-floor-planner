@@ -4,6 +4,7 @@ import { TEST_ROOM } from "../testRoom";
 import { getRoom } from "../rooms";
 import { FinalOutput, toStrictJsonSchema } from "./schemas";
 import { compactRoom, executeTool, toolDefinitions, tonightForAgent } from "./tools";
+import { headerChairs } from "./validator";
 
 const room: Room = TEST_ROOM;
 
@@ -83,15 +84,36 @@ describe("executeTool", () => {
 
   it("propose_combine checks legality and never applies", () => {
     const ok = executeTool(room, "propose_combine", { tableIds: ["T11", "T12"] });
+    const chairs = headerChairs(room, ["T11", "T12"]);
     expect(ok.ok && ok.output).toEqual({
       tableIds: ["T11", "T12"],
       legal: true,
       seats: 6,
+      headerChairs: chairs,
+      seatsWithHeaderChairs: 6 + chairs,
       applied: false,
     });
     const bad = executeTool(room, "propose_combine", { tableIds: ["T12", "T22"] });
     expect(bad.ok && bad.output).toMatchObject({ legal: false, applied: false });
     expect(room.combos).toEqual([]);
+  });
+
+  it("propose_combine returns header chairs and the total with them (T36: 39 + 40 = 6 + 2 = 8)", () => {
+    const peak = getRoom("dinner-peak") as Room;
+    const out = executeTool(peak, "propose_combine", { tableIds: ["T39", "T40"] });
+    expect(out.ok && out.output).toEqual({
+      tableIds: ["T39", "T40"],
+      legal: true,
+      seats: 6,
+      headerChairs: 2,
+      seatsWithHeaderChairs: 8,
+      applied: false,
+    });
+    // spare chairs limit the header chairs
+    const none = { ...peak, inventory: { ...peak.inventory, spareChairs: 0 } };
+    expect(executeTool(none, "propose_combine", { tableIds: ["T39", "T40"] })).toMatchObject({
+      output: { headerChairs: 0, seatsWithHeaderChairs: 6 },
+    });
   });
 
   it("plan_builds validates HH:MM", () => {

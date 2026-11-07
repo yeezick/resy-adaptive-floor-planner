@@ -4,6 +4,7 @@ import type { Recommendation } from "../src/shared/api";
 import { TEST_ROOM } from "../src/server/testRoom";
 import { executeTool } from "../src/server/agent/tools";
 import {
+  answerLeadOk,
   extractNumbers,
   runAssertions,
   toRecord,
@@ -278,5 +279,67 @@ describe("buildPlanOk", () => {
     expect(bp({ expectStorageUsed: true }, {})).toBe(true);
     expect(bp({ expectStorageUsed: false }, {})).toBe(false);
     expect(bp({ expectStorageUsed: true }, { tools: [] })).toBe(false);
+  });
+});
+
+describe("answerLeadOk (T36): the first sentence answers a question about named tables", () => {
+  const combo = {
+    name: "propose_combine",
+    input: { tableIds: ["T39", "T40"] },
+    ok: true,
+    output: {
+      tableIds: ["T39", "T40"],
+      legal: true,
+      seats: 6,
+      headerChairs: 2,
+      seatsWithHeaderChairs: 8,
+      applied: false,
+    },
+  };
+  const asked = scenario(
+    { prompt: "can you seat them at 39 and 40 pushed together with 2 chairs on the ends" },
+    { partySize: 8, askedTables: ["T39", "T40"], askedSeats: 8 },
+  );
+  const lead = (answer: string, tools: RunView["tools"] = [combo]) =>
+    answerLeadOk({ room, scenario: asked, run: run({ answer, recommendations: [], tools }) });
+
+  it('fails T36\'s wrong lead "Tables 39 and 40 seat only 6"', () => {
+    const r = lead(
+      "Tables 39 and 40 seat only 6 pushed together. I can't confirm the two end chairs would bring it to 8.",
+    );
+    expect(r?.pass).toBe(false);
+    expect(r?.detail).toMatch(/seats 6 after the tables, expected 8/);
+  });
+  it("fails a refusal lead, and a lead with no propose_combine call", () => {
+    expect(
+      lead("I can't seat them or push tables together myself. Tables 39 and 40 seat 8.")?.pass,
+    ).toBe(false);
+    expect(
+      lead("Tables 39 and 40 pushed together seat 8 with the two header chairs.", [])?.detail,
+    ).toMatch(/propose_combine was not called/);
+  });
+  it("passes a lead that names the tables and quotes seatsWithHeaderChairs", () => {
+    const r = lead(
+      "Tables 39 and 40 pushed together seat 8 with the two header chairs, free in about 20 minutes. Floor changes are made in Shift setup.",
+    );
+    expect(r).toEqual({ name: "answerLeadOk", pass: true, detail: "ok" });
+  });
+  it("accepts table ids as the agent writes them (T39)", () => {
+    expect(
+      lead(
+        "T39 and T40 pushed together do work for 8: the join seats 6, or 8 with the 2 header chairs on the ends.",
+      )?.pass,
+    ).toBe(true);
+    expect(lead("T39 and T40 pushed together seat only 6.")?.pass).toBe(false);
+  });
+  it("is skipped for scenarios without askedTables/askedSeats", () => {
+    expect(answerLeadOk({ room, scenario: scenario(), run: run() })).toBeNull();
+  });
+  it("party_size is an input the answer may quote", () => {
+    const s = scenario({ party_size: 8, prompt: "seat them at 39 and 40?" }, {});
+    const r = toRecord(
+      runAssertions({ room, scenario: s, run: run({ answer: "T12 is open now for 8." }) }),
+    );
+    expect(r.noHallucinatedNumbers).toBe(true);
   });
 });
