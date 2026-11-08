@@ -102,6 +102,21 @@ beforeEach(() => {
 });
 
 describe("floor changes by conversation (store)", () => {
+  it("a scenario's recorded answer: no network call, the given time, and the floor change pending", async () => {
+    const { RECORDED_FLOOR_EDIT } = await import("../scenarios");
+    const at = "2026-11-06T21:00:00.000Z";
+    await requestsActions.sendChat(q2 as never, RECORDED_FLOOR_EDIT.message, ctx, {
+      recorded: RECORDED_FLOOR_EDIT.result,
+      at,
+    });
+    expect(pending).toHaveLength(0);
+    const t = getRequestsState().chat.Q2?.at(-1);
+    expect(t).toMatchObject({ at, status: "ok", message: RECORDED_FLOOR_EDIT.message });
+    expect(getRequestsState().proposals.Q2?.floor?.changes).toHaveLength(5);
+    expect(getRequestsState().turnStatus[t?.id ?? ""]).toBe("pending");
+    expect(layoutsStore.active(fri).id).toBe("base");
+  });
+
   it("W9: a proposal (nothing applied), then Apply = a new one-day layout, then Revert = the previous layout, byte-identical", async () => {
     const before = JSON.stringify(layoutsStore.active(fri).room);
     const t = await say(W9, { ...none, ops: W9_OPS });

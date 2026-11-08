@@ -78,8 +78,21 @@ test.describe("scenario: floor edit by chat", () => {
     expect(modelCalls).toEqual([]);
   });
 
-  test("Discard → back to the two-room plan", async ({ page }) => {
+  test("reopened after Apply in the same browser: the same pending proposal on the base layout", async ({
+    page,
+  }) => {
     await open(page);
+    await diff(page).getByRole("button", { name: "Apply" }).click();
+    await expect(diff(page)).toHaveCount(0);
+    expect((await layouts(page)).activeId).not.toBe("base");
+    await page.goto("/?scenario=floor-edit");
+    await expect(page.locator(".change-ghost")).toHaveCount(5);
+    await expect(diff(page).getByRole("list", { name: "Bookings moved" })).toHaveText("None");
+    expect((await layouts(page)).activeId).toBe("base");
+  });
+
+  test("Discard → back to the two-room plan", async ({ page }) => {
+    const modelCalls = await open(page);
     await expect(page.locator(".change-ghost")).toHaveCount(5);
     await diff(page).getByRole("button", { name: "Discard" }).click();
     await expect(diff(page)).toHaveCount(0);
@@ -91,6 +104,7 @@ test.describe("scenario: floor edit by chat", () => {
     await expect(
       page.locator(".decision-footer").getByRole("button", { name: "Accept" }),
     ).toBeEnabled();
+    expect(modelCalls).toEqual([]);
   });
 
   test("the Scenarios menu opens it", async ({ page }) => {
