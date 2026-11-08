@@ -16,7 +16,7 @@ import { callMetrics } from "../metrics";
 import { reservationUsd } from "../pricing";
 import { loadPrompt } from "./prompt";
 import { FinalOutput, toStrictJsonSchema } from "./schemas";
-import { keepQuickestFit } from "./quickestFit";
+import { keepQuickestFit, SERVER_SEARCH_ID } from "./quickestFit";
 import { executeTool, toolDefinitions } from "./tools";
 import { validateRecommendations, validationContext, type ValidationProblem } from "./validator";
 
@@ -196,14 +196,15 @@ export async function runAgent(
     );
     if (!q.note) return recs;
     const tools = q.serverSearch ? [...trace.tools, q.serverSearch] : trace.tools;
-    if (
-      validateRecommendations(
-        input.room,
-        q.recommendations,
-        validationContext(tools, input.partySize),
-      ).length
-    )
+    const problems = validateRecommendations(
+      input.room,
+      q.recommendations,
+      validationContext(tools, input.partySize),
+    );
+    if (problems.length) {
+      notes.push(`Quickest fit not added: ${problems.map((p) => p.message).join("; ")}.`);
       return recs;
+    }
     // the code's own search is traced only when its card is shown (id "server-quickest-fit", turn 0)
     if (q.serverSearch) trace.tools.push(q.serverSearch);
     notes.push(q.note);
@@ -222,7 +223,11 @@ export async function runAgent(
       answer,
       clarifyingQuestion,
       recommendations,
-      toolCalls: trace.tools.map((t) => ({ name: t.name, ok: t.ok })),
+      // the model's tool calls only: the code's own quickest-fit search stays in the trace (a number source for
+      // the evals) and is reported in validator.notes
+      toolCalls: trace.tools
+        .filter((t) => t.id !== SERVER_SEARCH_ID)
+        .map((t) => ({ name: t.name, ok: t.ok })),
       validator: { rejects, notes },
       metrics: {
         costUsd: calls.reduce((n, c) => n + c.costUsd, 0),

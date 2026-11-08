@@ -16,6 +16,9 @@ import type { ToolTraceEntry } from "./loop";
 /** The prompt's maximum number of options. With this many already, the quickest fit replaces the last one. */
 export const MAX_OPTIONS = 3;
 
+/** Trace id of the search this code runs when the model didn't (kept out of the response's toolCalls). */
+export const SERVER_SEARCH_ID = "server-quickest-fit";
+
 /** Needs named in the host's message (the same words as the client's review screen). */
 export const needsIn = needsInText;
 
@@ -29,7 +32,18 @@ export function negatesNeed(message: string): boolean {
   return false;
 }
 
-const numbersIn = (message: string) => new Set(message.match(/\d{1,3}/g) ?? []);
+/**
+ * Any exclusion besides "not <table>": "not section 5", "not the patio", "away from the bar", "except …". The code
+ * can't read those, and the model may have honoured one on purpose, so the options are left as they are.
+ */
+export function excludesSomething(message: string): boolean {
+  const rest = message.replace(/\bnot\s+(?:at\s+|on\s+)?(?:tables?\s*|t)?#?\s*\d{1,3}\b/gi, " ");
+  return /\b(?:no|not|without|except|avoid|away\s+from|don'?t|do\s+not|instead\s+of|other\s+than)\b/i.test(
+    rest,
+  );
+}
+
+const numbersIn = (message: string) => new Set(message.match(/\b\d{1,3}\b/g) ?? []);
 
 /**
  * Table numbers the host wrote as tables — "table 41", "tables 39 and 40", "T41", "not 41", "39 + 40" — never a
@@ -39,7 +53,7 @@ export function tableNumbersIn(message: string): Set<string> {
   const out = new Set<string>();
   const m = message.toLowerCase();
   const lists =
-    /\b(?:tables?|t|not(?:\s+(?:at|on))?)\s*#?\s*(\d{1,3}(?:\s*(?:[–+,&-]|and|or)\s*\d{1,3})*)\b/g;
+    /\b(?:tables?|(?<!['’])t(?=\s*#?\s*\d)|not(?:\s+(?:at|on))?)\s*#?\s*(\d{1,3}(?:\s*(?:[–+,&-]|and|or)\s*\d{1,3})*)\b/g;
   for (const x of m.matchAll(lists))
     for (const n of (x[1] ?? "").split(/\s*(?:[–+,&-]|and|or)\s*/)) if (n) out.add(n);
   // "39 + 40" / "39 and 40 pushed together": a joined pair names tables even without the word
@@ -150,7 +164,7 @@ export function keepQuickestFit(
   if (partySize === undefined || !recs.length) return same;
   if (!askedTables(message, tools).length) return same;
   // "no booth please" / "away from the window": a ruled-out need is not a need to search with
-  if (negatesNeed(message)) return same;
+  if (negatesNeed(message) || excludesSomething(message)) return same;
 
   const needs = needsIn(message);
   let options = modelSearch(tools, partySize, needs);
@@ -161,7 +175,7 @@ export function keepQuickestFit(
     options = output.options;
     serverSearch = {
       turn: 0,
-      id: "server-quickest-fit",
+      id: SERVER_SEARCH_ID,
       name: "find_tables_for_party",
       input,
       ok: true,
