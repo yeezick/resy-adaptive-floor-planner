@@ -338,6 +338,47 @@ describe("T44: named tables keep the quickest known fit", () => {
     ]);
   });
 
+  it("with three cards and the asked set at #3, the quickest fit replaces #2 and the asked card stays", async () => {
+    const three = {
+      ...answer,
+      recommendations: [
+        { ...asked, rank: 1, tables: ["T7", "T8", "T9", "T10"], waitMin: 20, reasoning: "x" },
+        { ...asked, rank: 2, tables: ["T11", "T12"], waitMin: 20, reasoning: "y" },
+        { ...asked, rank: 3 },
+      ],
+    };
+    const { create } = scripted([
+      fakeMessage(
+        [
+          {
+            type: "tool_use",
+            id: "f",
+            name: "find_tables_for_party",
+            input: { partySize: 8, needs: [] },
+          },
+          {
+            type: "tool_use",
+            id: "a",
+            name: "propose_combine",
+            input: { tableIds: ["T39", "T40"] },
+          },
+        ],
+        "tool_use",
+      ),
+      finalAnswer(three),
+    ]);
+    const { response } = await runAgent(
+      { room: peak, message, partySize: 8, traceId: "t44d" },
+      cfg(create),
+    );
+    expect(response.recommendations.map((r) => [r.rank, r.tables.join("+")])).toEqual([
+      [1, "T7+T8+T9+T10"],
+      [2, "T39+T40"],
+      [3, "T41"],
+    ]);
+    expect(response.validator.notes.join(" ")).toMatch(/Quickest fit T41 .* replaced #2/);
+  });
+
   it("no named tables, or the host named the quick table: options unchanged", async () => {
     const { create } = t44();
     const { response } = await runAgent(

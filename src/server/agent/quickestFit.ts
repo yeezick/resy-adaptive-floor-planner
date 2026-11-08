@@ -89,7 +89,8 @@ export interface QuickestFitResult {
 /**
  * Keep (or add) the quickest capacity fit next to the asked tables. Only when the host named tables, the party
  * size is known and the model returned at least one option. Never re-adds a table set the host named (asked for
- * or ruled out), and never duplicates a card already shown. With MAX_OPTIONS cards, the fit replaces the last.
+ * or ruled out), and never duplicates a card already shown. With MAX_OPTIONS cards, the fit replaces the last
+ * card that isn't an asked set (none, if every card is one).
  */
 export function keepQuickestFit(
   room: Room,
@@ -124,10 +125,24 @@ export function keepQuickestFit(
   if (recs.some((r) => sameSet(r.tables, fit.tables))) return { ...same, serverSearch };
   if (recs.some((r) => r.waitMin <= fit.waitMin)) return { ...same, serverSearch };
 
-  const kept = recs.length >= MAX_OPTIONS ? recs.slice(0, MAX_OPTIONS - 1) : [...recs];
+  // Full: replace the last card that isn't an asked set; if every card is an asked set, leave them all.
+  let kept: Recommendation[] = [...recs];
+  let where = `added as #${kept.length + 1}`;
+  if (recs.length >= MAX_OPTIONS) {
+    const asked = askedTables(message, tools);
+    const top = recs.slice(0, MAX_OPTIONS);
+    let drop = -1;
+    for (let i = top.length - 1; i >= 0; i--) {
+      if (!sameSet(top[i]?.tables ?? [], asked)) {
+        drop = i;
+        break;
+      }
+    }
+    if (drop < 0) return { ...same, serverSearch };
+    kept = top.filter((_, i) => i !== drop).map((r, i) => ({ ...r, rank: i + 1 }));
+    where = `replaced #${drop + 1}`;
+  }
   const recommendations = [...kept, toRecommendation(fit, kept.length + 1)];
-  const where =
-    recs.length >= MAX_OPTIONS ? `replaced #${MAX_OPTIONS}` : `added as #${kept.length + 1}`;
   return {
     recommendations,
     serverSearch,
