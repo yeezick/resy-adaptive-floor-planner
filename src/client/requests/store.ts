@@ -363,8 +363,12 @@ async function applyScenario(book: RequestBook): Promise<void> {
   // so the proposal is pending exactly as a live one — ghosts, Proposed changes, Accept waiting. No model call.
   if (sc.request.chat === "floor-edit" && RECORDED_FLOOR_EDIT.requestId === r.id) {
     const night = await fetchRoom(r.bookRoomId);
-    if (night.ok) {
-      // the same night the sheet builds: its layout in use with the night's book
+    if (!night.ok)
+      console.warn("floor-edit scenario: the request's night didn't load", night.error);
+    else {
+      // the exact state every time: the night's base layout in use (a one-day layout saved by an earlier Apply in
+      // this browser stays in the list, just not in use), with the night's book — the same night the sheet builds
+      layoutsStore.select(night.data, "base");
       const room = {
         ...layoutsStore.active(night.data).room,
         reservations: night.data.reservations,
