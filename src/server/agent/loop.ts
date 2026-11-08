@@ -16,6 +16,7 @@ import { callMetrics } from "../metrics";
 import { reservationUsd } from "../pricing";
 import { loadPrompt } from "./prompt";
 import { FinalOutput, toStrictJsonSchema } from "./schemas";
+import { keepQuickestFit, SERVER_SEARCH_ID } from "./quickestFit";
 import { executeTool, toolDefinitions } from "./tools";
 import { validateRecommendations, validationContext, type ValidationProblem } from "./validator";
 
@@ -183,6 +184,36 @@ export async function runAgent(
     },
   ];
 
+  // Asked tables + the quickest known fit (T44). The added card is validated like the model's own; if it
+  // fails, the model's options stand as they were.
+  const withQuickestFit = (recs: Recommendation[]): Recommendation[] => {
+    const party = input.partySize ?? trace.partySize;
+    const q = keepQuickestFit(
+      input.room,
+      input.message,
+      recs,
+      trace.tools,
+      party,
+      history.filter((h) => h.role === "user").map((h) => h.text),
+    );
+    if (!q.note) return recs;
+    const tools = q.serverSearch ? [...trace.tools, q.serverSearch] : trace.tools;
+    const problems = validateRecommendations(
+      input.room,
+      q.recommendations,
+      // checked against the party size it was chosen for
+      validationContext(tools, party),
+    );
+    if (problems.length) {
+      notes.push(`Quickest fit not added: ${problems.map((p) => p.message).join("; ")}.`);
+      return recs;
+    }
+    // the code's own search is traced only when its card is shown (id "server-quickest-fit", turn 0)
+    if (q.serverSearch) trace.tools.push(q.serverSearch);
+    notes.push(q.note);
+    return q.recommendations;
+  };
+
   const finish = (
     answer: string,
     clarifyingQuestion: string | null,
@@ -195,7 +226,11 @@ export async function runAgent(
       answer,
       clarifyingQuestion,
       recommendations,
-      toolCalls: trace.tools.map((t) => ({ name: t.name, ok: t.ok })),
+      // the model's tool calls only: the code's own quickest-fit search stays in the trace (a number source for
+      // the evals) and is reported in validator.notes
+      toolCalls: trace.tools
+        .filter((t) => t.id !== SERVER_SEARCH_ID)
+        .map((t) => ({ name: t.name, ok: t.ok })),
       validator: { rejects, notes },
       metrics: {
         costUsd: calls.reduce((n, c) => n + c.costUsd, 0),
@@ -365,7 +400,11 @@ export async function runAgent(
       trace.validatorProblems.push(problems);
 
       if (!problems.length)
-        return finish(parsed.answer, parsed.clarifyingQuestion, rerank(shaped.map((s) => s.rec)));
+        return finish(
+          parsed.answer,
+          parsed.clarifyingQuestion,
+          withQuickestFit(rerank(shaped.map((s) => s.rec))),
+        );
 
       rejects++;
       if (!retried && n < MAX_CALLS - 1) {
@@ -398,7 +437,7 @@ export async function runAgent(
         ),
       );
       notes.push(`Dropped ${dropped} recommendation(s) that failed validation after one retry.`);
-      return finish(parsed.answer, parsed.clarifyingQuestion, rerank(kept));
+      return finish(parsed.answer, parsed.clarifyingQuestion, withQuickestFit(rerank(kept)));
     }
     throw new AgentError("upstream", "the agent did not reach an answer within its call limit");
   } catch (e) {

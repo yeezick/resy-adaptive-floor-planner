@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import type { Room } from "../../domain";
 import { TEST_ROOM } from "../testRoom";
+import { loadRooms } from "../rooms";
+import { excludesSomething, keepQuickestFit, negatesNeed, tableNumbersIn } from "./quickestFit";
 import { fakeMessage, finalAnswer, scripted, toolUse } from "./fake";
 import { SpendBudget } from "../guards/budget";
 import {
@@ -239,5 +241,349 @@ describe("budget and data handling", () => {
     const { response } = await runAgent(input, cfg(create));
     expect(response.recommendations.map((r) => r.tables)).toEqual([["T12"]]);
     expect(response.validator.notes.join(" ")).toMatch(/#2 \(rank 1\): rank 1 is used twice/);
+  });
+});
+
+describe("T44: named tables keep the quickest known fit", () => {
+  const peak = loadRooms().get("dinner-peak") as Room;
+  const message = "can you seat them at 39 and 40 pushed together with 2 chairs on the ends";
+  const asked = {
+    rank: 1,
+    tables: ["T39", "T40"],
+    seats: 8,
+    waitMin: 80,
+    reasoning: "T39 + T40 with 2 header chairs seat 8.",
+    tradeoffs: ["needs a build"],
+  };
+  const answer = {
+    answer: "T39 and T40 pushed together seat 8 with the 2 end chairs, but not for about 80 min.",
+    clarifyingQuestion: null,
+    recommendations: [asked],
+  };
+  const t44 = () =>
+    scripted([
+      fakeMessage(
+        [
+          {
+            type: "tool_use",
+            id: "a",
+            name: "propose_combine",
+            input: { tableIds: ["T39", "T40"] },
+          },
+          {
+            type: "tool_use",
+            id: "b",
+            name: "estimate_free_time",
+            input: { tableIds: ["T39", "T40"] },
+          },
+        ],
+        "tool_use",
+      ),
+      finalAnswer(answer),
+    ]);
+
+  it("“no booth … 39 and 40”: a ruled-out need adds no card; the options are unchanged", async () => {
+    const { create } = t44();
+    const { response } = await runAgent(
+      {
+        room: peak,
+        message: "no booth please, can you do 39 and 40?",
+        partySize: 8,
+        traceId: "t44n",
+      },
+      cfg(create),
+    );
+    expect(response.recommendations.map((r) => [r.tables, r.waitMin])).toEqual([
+      [["T39", "T40"], 80],
+    ]);
+    expect(response.toolCalls.map((t) => t.name)).not.toContain("find_tables_for_party");
+    expect(response.validator.notes.join(" ")).not.toMatch(/Quickest fit/);
+  });
+
+  it("model didn't search: code runs find_tables_for_party and adds table 41 (~11 min) after the asked tables", async () => {
+    const { create } = t44();
+    const { response } = await runAgent(
+      { room: peak, message, partySize: 8, traceId: "t44" },
+      cfg(create),
+    );
+    expect(response.recommendations.map((r) => [r.tables, r.waitMin])).toEqual([
+      [["T39", "T40"], 80],
+      [["T41"], 11],
+    ]);
+    const quick = response.recommendations[1];
+    expect(quick?.seats).toBe(8);
+    expect(response.answer).toMatch(/seat 8/);
+    // the code's own search is not reported as a model tool call
+    expect(response.toolCalls.map((t) => t.name)).toEqual([
+      "propose_combine",
+      "estimate_free_time",
+    ]);
+    expect(response.validator.notes.join(" ")).toMatch(/Quickest fit T41/);
+  });
+
+  it("with three cards already, the quickest fit replaces #3", async () => {
+    const three = {
+      ...answer,
+      recommendations: [
+        asked,
+        { ...asked, rank: 2, tables: ["T7", "T8", "T9", "T10"], waitMin: 20, reasoning: "x" },
+        { ...asked, rank: 3, tables: ["T11", "T12"], waitMin: 20, reasoning: "y" },
+      ],
+    };
+    const { create } = scripted([
+      fakeMessage(
+        [
+          {
+            type: "tool_use",
+            id: "f",
+            name: "find_tables_for_party",
+            input: { partySize: 8, needs: [] },
+          },
+          {
+            type: "tool_use",
+            id: "a",
+            name: "propose_combine",
+            input: { tableIds: ["T39", "T40"] },
+          },
+        ],
+        "tool_use",
+      ),
+      finalAnswer(three),
+    ]);
+    const { response } = await runAgent(
+      { room: peak, message, partySize: 8, traceId: "t44b" },
+      cfg(create),
+    );
+    expect(response.recommendations.map((r) => r.tables.join("+"))).toEqual([
+      "T39+T40",
+      "T7+T8+T9+T10",
+      "T41",
+    ]);
+  });
+
+  it("with three cards and the asked set at #3, the quickest fit replaces #2 and the asked card stays", async () => {
+    const three = {
+      ...answer,
+      recommendations: [
+        { ...asked, rank: 1, tables: ["T7", "T8", "T9", "T10"], waitMin: 20, reasoning: "x" },
+        { ...asked, rank: 2, tables: ["T11", "T12"], waitMin: 20, reasoning: "y" },
+        { ...asked, rank: 3 },
+      ],
+    };
+    const { create } = scripted([
+      fakeMessage(
+        [
+          {
+            type: "tool_use",
+            id: "f",
+            name: "find_tables_for_party",
+            input: { partySize: 8, needs: [] },
+          },
+          {
+            type: "tool_use",
+            id: "a",
+            name: "propose_combine",
+            input: { tableIds: ["T39", "T40"] },
+          },
+        ],
+        "tool_use",
+      ),
+      finalAnswer(three),
+    ]);
+    const { response } = await runAgent(
+      { room: peak, message, partySize: 8, traceId: "t44-asked-at-3" },
+      cfg(create),
+    );
+    expect(response.recommendations.map((r) => [r.rank, r.tables.join("+")])).toEqual([
+      [1, "T7+T8+T9+T10"],
+      [2, "T39+T40"],
+      [3, "T41"],
+    ]);
+    expect(response.validator.notes.join(" ")).toMatch(/Quickest fit T41 .* replaced #2/);
+  });
+
+  it("no named tables, or the host named the quick table: options unchanged", async () => {
+    const { create } = t44();
+    const { response } = await runAgent(
+      { room: peak, message: "not table 41, can you do 39 and 40", partySize: 8, traceId: "t44c" },
+      cfg(create),
+    );
+    expect(response.recommendations.map((r) => r.tables.join("+"))).toEqual(["T39+T40"]);
+    const { create: c2 } = scripted([
+      toolUse("f", "find_tables_for_party", { partySize: 8, needs: [] }),
+      finalAnswer({
+        ...answer,
+        recommendations: [{ ...asked, tables: ["T7", "T8", "T9", "T10"], waitMin: 20 }],
+      }),
+    ]);
+    const { response: r2 } = await runAgent(
+      { room: peak, message: "party of 8 not in section 7", partySize: 8, traceId: "t44d" },
+      cfg(c2),
+    );
+    expect(r2.recommendations.map((r) => r.tables.join("+"))).toEqual(["T7+T8+T9+T10"]);
+  });
+
+  it("a card already as quick: options unchanged, and no server search is reported", async () => {
+    const quick = { ...asked, rank: 2, tables: ["T41"], waitMin: 11, reasoning: "T41 ~11" };
+    const { create } = scripted([
+      fakeMessage(
+        [
+          {
+            type: "tool_use",
+            id: "a",
+            name: "propose_combine",
+            input: { tableIds: ["T39", "T40"] },
+          },
+        ],
+        "tool_use",
+      ),
+      finalAnswer({ ...answer, recommendations: [asked, quick] }),
+    ]);
+    const { response } = await runAgent(
+      { room: peak, message, partySize: 8, traceId: "t44-as-quick" },
+      cfg(create),
+    );
+    expect(response.recommendations.map((r) => r.tables.join("+"))).toEqual(["T39+T40", "T41"]);
+    expect(response.toolCalls.map((t) => t.name)).toEqual(["propose_combine"]);
+    expect(response.validator.notes).toEqual([]);
+  });
+
+  it("the drop path (an invalid card twice) still adds the quickest fit next to the asked tables", async () => {
+    const bad = { ...asked, rank: 2, tables: ["T999"], reasoning: "nope" };
+    const twice = { ...answer, recommendations: [asked, bad] };
+    const { create } = scripted([
+      fakeMessage(
+        [
+          {
+            type: "tool_use",
+            id: "a",
+            name: "propose_combine",
+            input: { tableIds: ["T39", "T40"] },
+          },
+        ],
+        "tool_use",
+      ),
+      finalAnswer(twice),
+      finalAnswer(twice),
+    ]);
+    const { response } = await runAgent(
+      { room: peak, message, partySize: 8, traceId: "t44-drop" },
+      cfg(create),
+    );
+    expect(response.recommendations.map((r) => r.tables.join("+"))).toEqual(["T39+T40", "T41"]);
+  });
+});
+
+describe("keepQuickestFit rules", () => {
+  const peak = loadRooms().get("dinner-peak") as Room;
+  const card = (rank: number, tables: string[], waitMin: number) => ({
+    rank,
+    tables,
+    seats: 8,
+    waitMin,
+    reasoning: "r",
+    tradeoffs: [],
+  });
+  const looked = (ids: string[]) => ({
+    turn: 1,
+    id: "e",
+    name: "estimate_free_time",
+    input: { tableIds: ids },
+    ok: true,
+    output: {},
+  });
+
+  it("“away from the window” / “not in a booth”: a ruled-out need adds no card and runs no search", () => {
+    const recs = [card(1, ["T39", "T40"], 80)];
+    const tools = [looked(["T39", "T40"])];
+    for (const m of [
+      "away from the window, can they sit at 39 and 40?",
+      "not in a booth — 39 and 40?",
+    ]) {
+      expect(negatesNeed(m)).toBe(true);
+      const q = keepQuickestFit(peak, m, recs, tools, 8);
+      expect(q.recommendations).toEqual(recs);
+      expect(q.serverSearch).toBeUndefined();
+    }
+    expect(negatesNeed("a booth, can they sit at 39 and 40?")).toBe(false);
+    expect(negatesNeed("not 41, can you do 39 and 40")).toBe(false);
+  });
+
+  it("needs and exclusions from earlier host turns still hold", () => {
+    const recs = [card(1, ["T39", "T40"], 80)];
+    const tools = [looked(["T39", "T40"])];
+    const m = "can you do 39 and 40?";
+    expect(
+      keepQuickestFit(peak, m, recs, tools, 8, ["not section 7 please"]).recommendations,
+    ).toEqual(recs);
+    expect(keepQuickestFit(peak, m, recs, tools, 8, ["not table 41"]).recommendations).toEqual(
+      recs,
+    );
+    const q = keepQuickestFit(peak, m, recs, tools, 8, ["party of 8, one uses a wheelchair"]);
+    expect(q.serverSearch?.input).toEqual({ partySize: 8, needs: ["accessible"] });
+    expect(
+      keepQuickestFit(peak, m, recs, tools, 8, ["party of 8"]).recommendations.map((r) =>
+        r.tables.join("+"),
+      ),
+    ).toEqual(["T39+T40", "T41"]);
+  });
+
+  it("an exclusion the code can't read leaves the options alone; “not 41” is read as a table", () => {
+    const recs = [card(1, ["T39", "T40"], 80)];
+    const tools = [looked(["T39", "T40"])];
+    for (const m of [
+      "not section 7 — can they sit at 39 and 40?",
+      "away from the bar, 39 and 40?",
+      "39 and 40, anything except the dining room",
+    ]) {
+      expect(excludesSomething(m)).toBe(true);
+      expect(keepQuickestFit(peak, m, recs, tools, 8).recommendations).toEqual(recs);
+    }
+    expect(excludesSomething("not 41, can you do 39 and 40")).toBe(false);
+    expect(
+      excludesSomething("can you seat them at 39 and 40 pushed together with 2 chairs on the ends"),
+    ).toBe(false);
+    expect([...tableNumbersIn("can't 4 people sit at table 41")]).toEqual(["41"]);
+  });
+
+  it("table numbers are read only where the host wrote tables, never party size, chairs or minutes", () => {
+    const n = tableNumbersIn(
+      "party of 8, 2 chairs on the ends, in 10 min — table 41 or not 12, 39 + 40",
+    );
+    expect([...n].sort()).toEqual(["12", "39", "40", "41"]);
+    expect(
+      tableNumbersIn(
+        "can you seat them at 39 and 40 pushed together with 2 chairs on the ends",
+      ).has("2"),
+    ).toBe(false);
+  });
+
+  it("“39 or 40”: each single asked card is kept; the quickest fit replaces the card that isn't asked", () => {
+    const recs = [card(1, ["T39"], 80), card(2, ["T40"], 45), card(3, ["T11", "T12"], 20)];
+    const q = keepQuickestFit(peak, "39 or 40 for them?", recs, [looked(["T39", "T40"])], 8);
+    expect(q.recommendations.map((r) => r.tables.join("+"))).toEqual(["T39", "T40", "T41"]);
+  });
+
+  it("a need in the message: the model's needs-free search is not reused; code searches with the need", () => {
+    const search = {
+      turn: 1,
+      id: "f",
+      name: "find_tables_for_party",
+      input: { partySize: 8, needs: [] },
+      ok: true,
+      output: {
+        partySize: 8,
+        needs: [],
+        options: [{ tables: ["T41"], seats: 8, waitMin: 11, reasons: [], tradeoffs: [] }],
+      },
+    };
+    const q = keepQuickestFit(
+      peak,
+      "one uses a wheelchair — can they sit at 39 and 40?",
+      [card(1, ["T39", "T40"], 80)],
+      [search, looked(["T39", "T40"])],
+      8,
+    );
+    expect(q.serverSearch?.input).toEqual({ partySize: 8, needs: ["accessible"] });
   });
 });

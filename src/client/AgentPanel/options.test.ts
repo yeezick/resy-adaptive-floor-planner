@@ -26,6 +26,36 @@ describe("AI Planner option cards", () => {
     ]);
   });
 
+  it("T44: with {41 ~11, 39+40 ~80} only table 41 is Fastest", () => {
+    const asked = { rank: 1, tables: ["T39", "T40"], seats: 8, waitMin: 80 };
+    const quick = { rank: 2, tables: ["T41"], seats: 8, waitMin: 11 };
+    const cards = [asked, quick];
+    expect(reasonTag(room, quick, cards)).toBe("Fastest");
+    expect(reasonTag(room, asked, cards)).not.toBe("Fastest");
+  });
+
+  it("a lone card is never Fastest, even when it is the quickest (falls through to the other rules)", () => {
+    const asked = { rank: 1, tables: ["T39", "T40"], seats: 8, waitMin: 80 };
+    expect(reasonTag(room, asked, [asked])).not.toBe("Fastest");
+    const t41 = { rank: 1, tables: ["T41"], seats: 8, waitMin: 11 };
+    expect(reasonTag(room, t41, [t41])).toBe("No build");
+  });
+
+  it("no Fastest when every card waits the same", () => {
+    const a = { rank: 1, tables: ["T7", "T8", "T9", "T10"], seats: 8, waitMin: 20 };
+    const b = { rank: 2, tables: ["T11", "T12"], seats: 8, waitMin: 20 };
+    expect([a, b].map((r) => reasonTag(room, r, [a, b]))).not.toContain("Fastest");
+  });
+
+  it("“the fastest one” still picks the shortest-wait card, even a lone one", () => {
+    const asked = { rank: 1, tables: ["T39", "T40"], seats: 8, waitMin: 80 };
+    expect(resolveOption("the fastest one", [asked])).toEqual({
+      kind: "one",
+      rank: 1,
+      why: "fastest",
+    });
+  });
+
   it("a single table needs no build; a join does", () => {
     expect(needsBuild(room, { tables: ["T41"] })).toBe(false);
     expect(needsBuild(room, { tables: ["T7", "T8", "T9", "T10"] })).toBe(true);
