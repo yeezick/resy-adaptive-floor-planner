@@ -92,7 +92,7 @@ test.describe("scenario: floor edit by chat", () => {
   });
 
   test("Discard → back to the two-room plan", async ({ page }) => {
-    await open(page);
+    const modelCalls = await open(page);
     await expect(page.locator(".change-ghost")).toHaveCount(5);
     await diff(page).getByRole("button", { name: "Discard" }).click();
     await expect(diff(page)).toHaveCount(0);
@@ -104,6 +104,7 @@ test.describe("scenario: floor edit by chat", () => {
     await expect(
       page.locator(".decision-footer").getByRole("button", { name: "Accept" }),
     ).toBeEnabled();
+    expect(modelCalls).toEqual([]);
   });
 
   test("the Scenarios menu opens it", async ({ page }) => {
