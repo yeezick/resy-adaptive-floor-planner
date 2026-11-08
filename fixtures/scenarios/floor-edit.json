@@ -1,0 +1,80 @@
+{
+  "note": "Recorded in-request floor edit (W9; request-chat.v1.2, Haiku; same output as evals/floor-chat/transcripts/floor-g1-w9.json), so the scenario URL opens with no live model call.",
+  "requestId": "Q2",
+  "message": "move 56 into the Library, move 63-66 into the Garden Room, 2 rows of 4 and 5",
+  "result": {
+    "requestId": "Q2",
+    "traceId": "scenario-floor-edit-1",
+    "promptVersion": "request-chat.v1.2",
+    "model": "claude-haiku-5-5",
+    "output": {
+      "tableRange": null,
+      "partySize": null,
+      "time": null,
+      "addNeeds": [],
+      "removeNeeds": [],
+      "notes": [],
+      "clarify": null,
+      "rooms": [],
+      "oneRoom": "unchanged",
+      "ops": [
+        {
+          "op": "move",
+          "tables": [
+            {
+              "by": "number",
+              "n": 56,
+              "from": 0,
+              "to": 0,
+              "shape": "any",
+              "seats": 0,
+              "room": ""
+            }
+          ],
+          "to": "Library",
+          "seats": 0,
+          "count": 0,
+          "rows": []
+        },
+        {
+          "op": "move",
+          "tables": [
+            {
+              "by": "range",
+              "n": 0,
+              "from": 63,
+              "to": 66,
+              "shape": "any",
+              "seats": 0,
+              "room": ""
+            }
+          ],
+          "to": "Garden Room",
+          "seats": 0,
+          "count": 0,
+          "rows": []
+        },
+        {
+          "op": "arrange_rows",
+          "tables": [],
+          "to": "",
+          "seats": 0,
+          "count": 0,
+          "rows": [4, 5]
+        }
+      ]
+    },
+    "escalated": false,
+    "note": null,
+    "validatorRejects": 0,
+    "input": {
+      "sha256": "17e25f8c987f2f0711928c767e0b9407c0b2badbfb5022d8efcde89406b2e4a9",
+      "length": 76
+    },
+    "metrics": {
+      "costUsd": 0.00046970000000000003,
+      "latencyMs": 3556,
+      "calls": []
+    }
+  }
+}

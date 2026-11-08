@@ -4,10 +4,11 @@
 import { useSyncExternalStore } from "react";
 import type { GuestRequest, RequestBook } from "../../domain/requests";
 import { checkRequest, DEMO_WEEK_ISO, toReservation, walkInRequest } from "../../domain/requests";
-import { activeScenario, RECORDED_CHAT, RECORDED_TRIAGE } from "../scenarios";
+import { activeScenario, RECORDED_CHAT, RECORDED_FLOOR_EDIT, RECORDED_TRIAGE } from "../scenarios";
 import { resolveTurn, type TurnResult } from "../../domain/floorTurn";
 import { type FloorChange, type LayoutOp, type Reservation, type Room } from "../../domain";
 import type { RequestChatResult, TriageResult } from "../../shared/api";
+import type { Result } from "../api";
 import type { ProposalStatus } from "./chatReply";
 import {
   adjusted,
@@ -317,7 +318,7 @@ async function applyScenario(book: RequestBook): Promise<void> {
     return;
   }
   const output = RECORDED_CHAT.result.output;
-  if (sc.request.chat && RECORDED_CHAT.requestId === r.id && output) {
+  if (sc.request.chat === "table-range" && RECORDED_CHAT.requestId === r.id && output) {
     set({
       proposals: {
         ...state.proposals,
@@ -356,6 +357,33 @@ async function applyScenario(book: RequestBook): Promise<void> {
           changeDelta(r, baseConstraints(r), c),
         );
       }
+    }
+  }
+  // The W9 floor edit: the recorded answer goes through the live chat path (resolveTurn on the request's night),
+  // so the proposal is pending exactly as a live one — ghosts, Proposed changes, Accept waiting. No model call.
+  if (sc.request.chat === "floor-edit" && RECORDED_FLOOR_EDIT.requestId === r.id) {
+    const night = await fetchRoom(r.bookRoomId);
+    if (night.ok) {
+      // the same night the sheet builds: its layout in use with the night's book
+      const room = {
+        ...layoutsStore.active(night.data).room,
+        reservations: night.data.reservations,
+      };
+      const fit = checkRequest(room, r);
+      await requestsActions.sendChat(
+        r,
+        RECORDED_FLOOR_EDIT.message,
+        {
+          room,
+          planArea: fit.ok ? fit.build.area : null,
+          planTables: fit.ok ? fit.build.tables : [],
+        },
+        {
+          recorded: RECORDED_FLOOR_EDIT.result,
+          // on the Friday book's planning clock, in the demo week
+          at: new Date(`${DEMO_WEEK_ISO.Fri}T15:00:00`).toISOString(),
+        },
+      );
     }
   }
   set({ openPlan: { roomId: r.bookRoomId, requestId: r.id, seq: ++seq, view: sc.request.view } });
@@ -521,7 +549,13 @@ export const requestsActions = {
     r: GuestRequest,
     message: string,
     ctx?: ChatContext,
-    opts: { accept?: boolean } = {},
+    opts: {
+      accept?: boolean;
+      /** A scenario's recorded answer, used in place of the model call. */
+      recorded?: RequestChatResult;
+      /** The turn's timestamp, when not now (a scenario's fixed demo time). */
+      at?: string;
+    } = {},
   ) {
     const id = `turn-${++seq}`;
     if (state.alt[r.id]) {
@@ -531,7 +565,7 @@ export const requestsActions = {
     const current = state.proposals[r.id]?.constraints ?? state.adjust[r.id] ?? baseConstraints(r);
     const turn: ChatTurn = {
       id,
-      at: demoStamp().iso,
+      at: opts.at ?? demoStamp().iso,
       message,
       status: "loading",
       before: current,
@@ -544,13 +578,15 @@ export const requestsActions = {
       if (opts.accept) linkToPending(r.id, id);
     };
     const hard = setTimeout(() => requestsActions.timeoutTurn(r.id, id), REQUEST_CHAT_HARD_MS);
-    const res = await postRequestChat(r.id, {
-      message,
-      request: { partySize: r.partySize, day: r.day, time: r.time, needs: r.needs },
-      constraints: current,
-      bookRoomId: r.bookRoomId,
-      ...(ctx?.planArea ? { planRooms: ctx.planArea.split(" + ").slice(0, 4) } : {}),
-    });
+    const res: Result<RequestChatResult> = opts.recorded
+      ? { ok: true, data: opts.recorded }
+      : await postRequestChat(r.id, {
+          message,
+          request: { partySize: r.partySize, day: r.day, time: r.time, needs: r.needs },
+          constraints: current,
+          bookRoomId: r.bookRoomId,
+          ...(ctx?.planArea ? { planRooms: ctx.planArea.split(" + ").slice(0, 4) } : {}),
+        });
     clearTimeout(hard);
     chatAnchor.request(r.id);
     // the turn as it stands now (it may carry the timeout line, which the answer replaces)
