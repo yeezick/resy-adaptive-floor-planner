@@ -19,6 +19,16 @@ export const MAX_OPTIONS = 3;
 /** Needs named in the host's message (the same words as the client's review screen). */
 export const needsIn = needsInText;
 
+/**
+ * A need word the host ruled out: "no booth please", "away from the window", "not by the window". Read as a need,
+ * it would make this code add the very card the host didn't want, so keepQuickestFit leaves the options alone.
+ */
+export function negatesNeed(message: string): boolean {
+  const neg = /\b(?:no|not|without|avoid|away\s+from|don'?t|do\s+not)\b((?:\W+[\w'-]+){1,3})/gi;
+  for (const x of message.matchAll(neg)) if (needsInText(x[1] ?? "").length) return true;
+  return false;
+}
+
 const numbersIn = (message: string) => new Set(message.match(/\d{1,3}/g) ?? []);
 
 /**
@@ -139,6 +149,8 @@ export function keepQuickestFit(
   const same = { recommendations: [...recs] };
   if (partySize === undefined || !recs.length) return same;
   if (!askedTables(message, tools).length) return same;
+  // "no booth please" / "away from the window": a ruled-out need is not a need to search with
+  if (negatesNeed(message)) return same;
 
   const needs = needsIn(message);
   let options = modelSearch(tools, partySize, needs);

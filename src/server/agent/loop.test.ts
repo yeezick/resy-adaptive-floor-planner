@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Room } from "../../domain";
 import { TEST_ROOM } from "../testRoom";
 import { loadRooms } from "../rooms";
-import { keepQuickestFit, tableNumbersIn } from "./quickestFit";
+import { keepQuickestFit, negatesNeed, tableNumbersIn } from "./quickestFit";
 import { fakeMessage, finalAnswer, scripted, toolUse } from "./fake";
 import { SpendBudget } from "../guards/budget";
 import {
@@ -282,6 +282,24 @@ describe("T44: named tables keep the quickest known fit", () => {
       finalAnswer(answer),
     ]);
 
+  it("“no booth … 39 and 40”: a ruled-out need adds no card; the options are unchanged", async () => {
+    const { create } = t44();
+    const { response } = await runAgent(
+      {
+        room: peak,
+        message: "no booth please, can you do 39 and 40?",
+        partySize: 8,
+        traceId: "t44n",
+      },
+      cfg(create),
+    );
+    expect(response.recommendations.map((r) => [r.tables, r.waitMin])).toEqual([
+      [["T39", "T40"], 80],
+    ]);
+    expect(response.toolCalls.map((t) => t.name)).not.toContain("find_tables_for_party");
+    expect(response.validator.notes.join(" ")).not.toMatch(/Quickest fit/);
+  });
+
   it("model didn't search: code runs find_tables_for_party and adds table 41 (~11 min) after the asked tables", async () => {
     const { create } = t44();
     const { response } = await runAgent(
@@ -469,6 +487,22 @@ describe("keepQuickestFit rules", () => {
     input: { tableIds: ids },
     ok: true,
     output: {},
+  });
+
+  it("“away from the window” / “not in a booth”: a ruled-out need adds no card and runs no search", () => {
+    const recs = [card(1, ["T39", "T40"], 80)];
+    const tools = [looked(["T39", "T40"])];
+    for (const m of [
+      "away from the window, can they sit at 39 and 40?",
+      "not in a booth — 39 and 40?",
+    ]) {
+      expect(negatesNeed(m)).toBe(true);
+      const q = keepQuickestFit(peak, m, recs, tools, 8);
+      expect(q.recommendations).toEqual(recs);
+      expect(q.serverSearch).toBeUndefined();
+    }
+    expect(negatesNeed("a booth, can they sit at 39 and 40?")).toBe(false);
+    expect(negatesNeed("not 41, can you do 39 and 40")).toBe(false);
   });
 
   it("table numbers are read only where the host wrote tables, never party size, chairs or minutes", () => {
