@@ -187,19 +187,22 @@ export async function runAgent(
   // Asked tables + the quickest known fit (T44). The added card is validated like the model's own; if it
   // fails, the model's options stand as they were.
   const withQuickestFit = (recs: Recommendation[]): Recommendation[] => {
+    const party = input.partySize ?? trace.partySize;
     const q = keepQuickestFit(
       input.room,
       input.message,
       recs,
       trace.tools,
-      input.partySize ?? trace.partySize,
+      party,
+      history.filter((h) => h.role === "user").map((h) => h.text),
     );
     if (!q.note) return recs;
     const tools = q.serverSearch ? [...trace.tools, q.serverSearch] : trace.tools;
     const problems = validateRecommendations(
       input.room,
       q.recommendations,
-      validationContext(tools, input.partySize),
+      // checked against the party size it was chosen for
+      validationContext(tools, party),
     );
     if (problems.length) {
       notes.push(`Quickest fit not added: ${problems.map((p) => p.message).join("; ")}.`);

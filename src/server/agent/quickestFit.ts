@@ -10,7 +10,7 @@ import {
   type SeatingOption,
 } from "../../domain";
 import { needsInText } from "../../domain/wording";
-import type { Recommendation } from "../../shared/api";
+import { Recommendation } from "../../shared/api";
 import type { ToolTraceEntry } from "./loop";
 
 /** The prompt's maximum number of options. With this many already, the quickest fit replaces the last one. */
@@ -159,14 +159,18 @@ export function keepQuickestFit(
   recs: readonly Recommendation[],
   tools: readonly ToolTraceEntry[],
   partySize: number | undefined,
+  /** The host's earlier messages this conversation: their needs and exclusions still hold. */
+  earlier: readonly string[] = [],
 ): QuickestFitResult {
   const same = { recommendations: [...recs] };
   if (partySize === undefined || !recs.length) return same;
   if (!askedTables(message, tools).length) return same;
-  // "no booth please" / "away from the window": a ruled-out need is not a need to search with
-  if (negatesNeed(message) || excludesSomething(message)) return same;
+  // needs and exclusions from the whole conversation ("one uses a wheelchair" … then "can you do 39 and 40?")
+  const host = [...earlier, message].join("\n");
+  // "no booth please" / "away from the window" / "not section 4": not ours to override
+  if (negatesNeed(host) || excludesSomething(host)) return same;
 
-  const needs = needsIn(message);
+  const needs = needsIn(host);
   let options = modelSearch(tools, partySize, needs);
   let serverSearch: ToolTraceEntry | undefined;
   if (!options) {
@@ -207,7 +211,10 @@ export function keepQuickestFit(
     kept = top.filter((_, i) => i !== drop).map((r, i) => ({ ...r, rank: i + 1 }));
     where = `replaced #${drop + 1}`;
   }
-  const recommendations = [...kept, toRecommendation(fit, kept.length + 1)];
+  // the built card meets the same schema as a model card, or nothing is added
+  const added = Recommendation.safeParse(toRecommendation(fit, kept.length + 1));
+  if (!added.success) return same;
+  const recommendations = [...kept, added.data];
   return {
     recommendations,
     serverSearch,
