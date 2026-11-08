@@ -516,6 +516,9 @@ describe("keepQuickestFit rules", () => {
     expect(
       keepQuickestFit(peak, m, recs, tools, 8, ["not section 7 please"]).recommendations,
     ).toEqual(recs);
+    expect(keepQuickestFit(peak, m, recs, tools, 8, ["not table 41"]).recommendations).toEqual(
+      recs,
+    );
     const q = keepQuickestFit(peak, m, recs, tools, 8, ["party of 8, one uses a wheelchair"]);
     expect(q.serverSearch?.input).toEqual({ partySize: 8, needs: ["accessible"] });
     expect(
