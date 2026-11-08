@@ -509,6 +509,22 @@ describe("keepQuickestFit rules", () => {
     expect(negatesNeed("not 41, can you do 39 and 40")).toBe(false);
   });
 
+  it("needs and exclusions from earlier host turns still hold", () => {
+    const recs = [card(1, ["T39", "T40"], 80)];
+    const tools = [looked(["T39", "T40"])];
+    const m = "can you do 39 and 40?";
+    expect(
+      keepQuickestFit(peak, m, recs, tools, 8, ["not section 7 please"]).recommendations,
+    ).toEqual(recs);
+    const q = keepQuickestFit(peak, m, recs, tools, 8, ["party of 8, one uses a wheelchair"]);
+    expect(q.serverSearch?.input).toEqual({ partySize: 8, needs: ["accessible"] });
+    expect(
+      keepQuickestFit(peak, m, recs, tools, 8, ["party of 8"]).recommendations.map((r) =>
+        r.tables.join("+"),
+      ),
+    ).toEqual(["T39+T40", "T41"]);
+  });
+
   it("an exclusion the code can't read leaves the options alone; “not 41” is read as a table", () => {
     const recs = [card(1, ["T39", "T40"], 80)];
     const tools = [looked(["T39", "T40"])];
