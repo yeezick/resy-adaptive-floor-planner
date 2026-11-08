@@ -3,6 +3,7 @@
 // output, captured once), so opening a scenario never calls a model. Fictional data only.
 import activityJson from "../../fixtures/scenarios/activity-log.json";
 import chatJson from "../../fixtures/scenarios/request-chat.json";
+import floorEditJson from "../../fixtures/scenarios/floor-edit.json";
 import triageJson from "../../fixtures/scenarios/triage.json";
 import walkinJson from "../../fixtures/scenarios/walkin-8-peak.json";
 import { z } from "zod";
@@ -10,12 +11,26 @@ import { FeedbackRecord } from "../domain/feedback";
 import { AgentResponse, RequestChatResult, TriageResult } from "../shared/api";
 
 export interface Scenario {
-  id: "party-22-agent" | "party-22-accepted" | "walkin-8-peak" | "request-chat" | "activity-log";
+  id:
+    | "party-22-agent"
+    | "party-22-accepted"
+    | "walkin-8-peak"
+    | "request-chat"
+    | "floor-edit"
+    | "activity-log";
   title: string;
   /** The night it opens on. */
   roomId: string;
-  /** The request it opens, and how. */
-  request?: { id: string; view: "request" | "plan"; accept?: boolean; chat?: boolean };
+  /**
+   * The request it opens, and how. `chat`: the Discuss chat opens on a recorded turn — "table-range" (tables
+   * 30–50) or "floor-edit" (W9, its floor change pending).
+   */
+  request?: {
+    id: string;
+    view: "request" | "plan";
+    accept?: boolean;
+    chat?: "table-range" | "floor-edit";
+  };
   /** The side panel it opens (when no request). */
   panel?: "assistant";
   /** The page it opens on, when not the floor. */
@@ -45,13 +60,19 @@ export const SCENARIOS: readonly Scenario[] = [
     id: "request-chat",
     title: "In-request chat · “tables 30–50”",
     roomId: "book-fri",
-    request: { id: "Q2", view: "request", chat: true },
+    request: { id: "Q2", view: "request", chat: "table-range" },
+  },
+  {
+    id: "floor-edit",
+    title: "Floor edit by chat · “move 63–66 into the Garden Room”",
+    roomId: "book-fri",
+    request: { id: "Q2", view: "request", chat: "floor-edit" },
   },
   {
     id: "activity-log",
     title: "Activity log · rated rows + a request-chat turn",
     roomId: "book-fri",
-    request: { id: "Q2", view: "request", chat: true },
+    request: { id: "Q2", view: "request", chat: "table-range" },
     path: "/activity",
   },
 ];
@@ -96,3 +117,13 @@ export const RECORDED_CHAT = z
 export const RECORDED_FEEDBACK: FeedbackRecord[] = z
   .object({ note: z.string(), feedback: z.array(FeedbackRecord) })
   .parse(activityJson).feedback;
+
+/** The W9 floor edit, recorded once from golden floor-g1-w9 (real model output). */
+export const RECORDED_FLOOR_EDIT = z
+  .object({
+    note: z.string(),
+    requestId: z.string(),
+    message: z.string(),
+    result: RequestChatResult,
+  })
+  .parse(floorEditJson);
