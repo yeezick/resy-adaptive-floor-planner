@@ -607,6 +607,7 @@ test.describe("scenario URLs open the exact state with no model call", () => {
     "party-22-accepted",
     "walkin-8-peak",
     "request-chat",
+    "floor-edit",
     "activity-log",
   ]) {
     test(`${id}: every time a manager reads is 12-hour AM/PM`, async ({ page }) => {
@@ -641,7 +642,13 @@ test.describe("scenario URLs open the exact state with no model call", () => {
   test("the header menu links every scenario", async ({ page }) => {
     await page.goto("/");
     await page.locator(".scenario-menu summary").click();
-    for (const id of ["party-22-agent", "party-22-accepted", "walkin-8-peak", "request-chat"])
+    for (const id of [
+      "party-22-agent",
+      "party-22-accepted",
+      "walkin-8-peak",
+      "request-chat",
+      "floor-edit",
+    ])
       await expect(page.locator(`.scenario-menu a[href="/?scenario=${id}"]`)).toBeVisible();
   });
 });
@@ -657,6 +664,7 @@ test.describe("manager copy carries no fixture ids", () => {
     "party-22-accepted",
     "walkin-8-peak",
     "request-chat",
+    "floor-edit",
     "activity-log",
   ]) {
     test(`${id}: no request or reservation id on screen`, async ({ page }) => {
