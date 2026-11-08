@@ -15,13 +15,25 @@ export function needsBuild(room: Room, rec: Pick<Rec, "tables">): boolean {
 }
 
 /**
- * A 1–3 word reason for a card, by rule: the shortest wait → "Fastest"; no combine → "No build"; else the
- * section's trait ("Quiet section" when no table there was just sat; else the tables' own attribute).
+ * True when this card is "Fastest": it has the shortest wait of the cards shown, there is something to compare it
+ * with (2+ cards, at least one slower), and it is the first card with that wait. A lone card is never "Fastest"
+ * (T44: the only card, a ~80 min build, read "Fastest" while table 41 was free in ~11). The server keeps the
+ * quickest known fit on screen when the host asks about named tables, so a faster fit is never hidden.
+ */
+export function isFastest(rec: Pick<Rec, "rank" | "waitMin">, all: readonly Rec[]): boolean {
+  if (all.length < 2) return false;
+  const fastest = Math.min(...all.map((r) => r.waitMin));
+  if (!all.some((r) => r.waitMin > fastest)) return false;
+  return all.find((r) => r.waitMin === fastest)?.rank === rec.rank;
+}
+
+/**
+ * A 1–3 word reason for a card, by rule: the shortest wait (with a slower card to compare) → "Fastest"; no
+ * combine → "No build"; else the section's trait ("Quiet section" when no table there was just sat; else the
+ * tables' own attribute).
  */
 export function reasonTag(room: Room, rec: Rec, all: readonly Rec[]): string {
-  const fastest = Math.min(...all.map((r) => r.waitMin));
-  const firstFastest = all.find((r) => r.waitMin === fastest);
-  if (firstFastest?.rank === rec.rank) return "Fastest";
+  if (isFastest(rec, all)) return "Fastest";
   if (!needsBuild(room, rec)) return "No build";
   const tables = rec.tables.map((id) => tableById(room, id)).filter((t): t is Table => !!t);
   const sections = [...new Set(tables.map((t) => t.section))];

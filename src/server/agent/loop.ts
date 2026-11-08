@@ -16,6 +16,7 @@ import { callMetrics } from "../metrics";
 import { reservationUsd } from "../pricing";
 import { loadPrompt } from "./prompt";
 import { FinalOutput, toStrictJsonSchema } from "./schemas";
+import { keepQuickestFit } from "./quickestFit";
 import { executeTool, toolDefinitions } from "./tools";
 import { validateRecommendations, validationContext, type ValidationProblem } from "./validator";
 
@@ -182,6 +183,24 @@ export async function runAgent(
       }),
     },
   ];
+
+  // Asked tables + the quickest known fit (T44). The added card is validated like the model's own; if it
+  // fails, the model's options stand as they were.
+  const withQuickestFit = (recs: Recommendation[]): Recommendation[] => {
+    const q = keepQuickestFit(
+      input.room,
+      input.message,
+      recs,
+      trace.tools,
+      input.partySize ?? trace.partySize,
+    );
+    if (q.serverSearch) trace.tools.push(q.serverSearch);
+    if (!q.note) return recs;
+    const ctx = validationContext(trace.tools, input.partySize);
+    if (validateRecommendations(input.room, q.recommendations, ctx).length) return recs;
+    notes.push(q.note);
+    return q.recommendations;
+  };
 
   const finish = (
     answer: string,
@@ -365,7 +384,11 @@ export async function runAgent(
       trace.validatorProblems.push(problems);
 
       if (!problems.length)
-        return finish(parsed.answer, parsed.clarifyingQuestion, rerank(shaped.map((s) => s.rec)));
+        return finish(
+          parsed.answer,
+          parsed.clarifyingQuestion,
+          withQuickestFit(rerank(shaped.map((s) => s.rec))),
+        );
 
       rejects++;
       if (!retried && n < MAX_CALLS - 1) {
@@ -398,7 +421,7 @@ export async function runAgent(
         ),
       );
       notes.push(`Dropped ${dropped} recommendation(s) that failed validation after one retry.`);
-      return finish(parsed.answer, parsed.clarifyingQuestion, rerank(kept));
+      return finish(parsed.answer, parsed.clarifyingQuestion, withQuickestFit(rerank(kept)));
     }
     throw new AgentError("upstream", "the agent did not reach an answer within its call limit");
   } catch (e) {
