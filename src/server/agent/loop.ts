@@ -194,10 +194,18 @@ export async function runAgent(
       trace.tools,
       input.partySize ?? trace.partySize,
     );
-    if (q.serverSearch) trace.tools.push(q.serverSearch);
     if (!q.note) return recs;
-    const ctx = validationContext(trace.tools, input.partySize);
-    if (validateRecommendations(input.room, q.recommendations, ctx).length) return recs;
+    const tools = q.serverSearch ? [...trace.tools, q.serverSearch] : trace.tools;
+    if (
+      validateRecommendations(
+        input.room,
+        q.recommendations,
+        validationContext(tools, input.partySize),
+      ).length
+    )
+      return recs;
+    // the code's own search is traced only when its card is shown (id "server-quickest-fit", turn 0)
+    if (q.serverSearch) trace.tools.push(q.serverSearch);
     notes.push(q.note);
     return q.recommendations;
   };

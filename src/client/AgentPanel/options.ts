@@ -1,8 +1,15 @@
 // AI Planner options as a host acts on them: a short reason tag per card, the one action it leads to, and the
 // client-side reading of "option 1" / "the fastest one" / "table 41" in the chat. All derived by rule from the
 // Capacity check facts on the card (tables, seats, wait); the model's words are never parsed for numbers here.
-import { checkTableSet, sectionLoad, tableById, type Room, type Table } from "../../domain";
-import { tablesPhrase, tableNo } from "../../domain/wording";
+import {
+  checkTableSet,
+  sectionLoad,
+  tableById,
+  type Need,
+  type Room,
+  type Table,
+} from "../../domain";
+import { needsInText, tablesPhrase, tableNo } from "../../domain/wording";
 import type { Recommendation } from "../../shared/api";
 
 type Rec = Pick<Recommendation, "rank" | "tables" | "seats" | "waitMin">;
@@ -122,19 +129,9 @@ export function resolveOption(message: string, recs: readonly Rec[], chosen?: nu
   return { kind: "none" };
 }
 
-const NEED_WORDS: [RegExp, "accessible" | "stroller" | "quiet" | "view" | "booth"][] = [
-  [/wheel ?chair|accessible|mobility/i, "accessible"],
-  [/stroller|pram|buggy/i, "stroller"],
-  [/\bquiet\b/i, "quiet"],
-  [/\bview\b|window/i, "view"],
-  [/\bbooth\b/i, "booth"],
-];
-
 /** Needs the host named in the message ("one uses a wheelchair" → accessible), pre-filled on the review screen. */
-export function needsFromMessage(
-  text: string,
-): ("accessible" | "stroller" | "quiet" | "view" | "booth")[] {
-  return NEED_WORDS.filter(([re]) => re.test(text)).map(([, n]) => n);
+export function needsFromMessage(text: string): Need[] {
+  return needsInText(text);
 }
 
 /** Display-only copy fixes on AI Planner text ("make any combine" → "make any combination"). */

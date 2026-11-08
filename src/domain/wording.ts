@@ -4,6 +4,7 @@ import { z } from "zod";
 import minutesJson from "../../fixtures/crew/build-minutes.json";
 import type { Build } from "./buildplan";
 import { clock12, toHHMM, toMinutes } from "./time";
+import type { Need } from "./types";
 
 /** "T72" → "72". Ids without the prefix (spare tables, test ids) pass through. */
 export function tableNo(id: string): string {
@@ -239,4 +240,17 @@ export function countdown(minutes: number): string {
   const rest = a % 60;
   const text = h ? (rest ? `${h}h ${rest}m` : `${h}h`) : `${rest}m`;
   return m > 0 ? `in ${text}` : `${text} ago`;
+}
+
+const NEED_WORDS: [RegExp, Need][] = [
+  [/wheel ?chair|accessible|mobility/i, "accessible"],
+  [/stroller|pram|buggy/i, "stroller"],
+  [/\bquiet\b/i, "quiet"],
+  [/\bview\b|window/i, "view"],
+  [/\bbooth\b/i, "booth"],
+];
+
+/** Needs a person named in a message ("one uses a wheelchair" → accessible). Shared by the client and the agent. */
+export function needsInText(text: string): Need[] {
+  return NEED_WORDS.filter(([re]) => re.test(text)).map(([, n]) => n);
 }

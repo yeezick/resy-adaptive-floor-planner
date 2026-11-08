@@ -9,26 +9,36 @@ import {
   type Room,
   type SeatingOption,
 } from "../../domain";
+import { needsInText } from "../../domain/wording";
 import type { Recommendation } from "../../shared/api";
 import type { ToolTraceEntry } from "./loop";
 
 /** The prompt's maximum number of options. With this many already, the quickest fit replaces the last one. */
 export const MAX_OPTIONS = 3;
 
-const NEED_WORDS: [RegExp, Need][] = [
-  [/wheel ?chair|accessible|mobility/i, "accessible"],
-  [/stroller|pram|buggy/i, "stroller"],
-  [/\bquiet\b/i, "quiet"],
-  [/\bview\b|window/i, "view"],
-  [/\bbooth\b/i, "booth"],
-];
-
-/** Needs named in the host's message (same words as the client's review screen). */
-export function needsIn(message: string): Need[] {
-  return NEED_WORDS.filter(([re]) => re.test(message)).map(([, n]) => n);
-}
+/** Needs named in the host's message (the same words as the client's review screen). */
+export const needsIn = needsInText;
 
 const numbersIn = (message: string) => new Set(message.match(/\d{1,3}/g) ?? []);
+
+/**
+ * Table numbers the host wrote as tables — "table 41", "tables 39 and 40", "T41", "not 41", "39 + 40" — never a
+ * party size, a chair count or a time ("party of 8", "2 chairs", "in 10 min").
+ */
+export function tableNumbersIn(message: string): Set<string> {
+  const out = new Set<string>();
+  const m = message.toLowerCase();
+  const lists =
+    /\b(?:tables?|t|not(?:\s+(?:at|on))?)\s*#?\s*(\d{1,3}(?:\s*(?:[–+,&-]|and|or)\s*\d{1,3})*)\b/g;
+  for (const x of m.matchAll(lists))
+    for (const n of (x[1] ?? "").split(/\s*(?:[–+,&-]|and|or)\s*/)) if (n) out.add(n);
+  // "39 + 40" / "39 and 40 pushed together": a joined pair names tables even without the word
+  for (const x of m.matchAll(/\b(\d{1,3})\s*(?:\+|&)\s*(\d{1,3})\b/g)) {
+    out.add(x[1] as string);
+    out.add(x[2] as string);
+  }
+  return out;
+}
 
 /**
  * Tables the host named that the model also looked up by name this turn (propose_combine / estimate_free_time
@@ -49,13 +59,37 @@ export function askedTables(message: string, tools: readonly ToolTraceEntry[]): 
 const sameSet = (a: readonly string[], b: readonly string[]) =>
   a.length === b.length && [...a].sort().join() === [...b].sort().join();
 
-/** The last ok find_tables_for_party output for this party size this turn, if the model called it. */
-function modelSearch(tools: readonly ToolTraceEntry[], partySize: number) {
+/** A card on the host's asked tables: every table on it is one the host named ("39 or 40" → [T39] and [T40]). */
+const onAsked = (tables: readonly string[], asked: readonly string[]) =>
+  tables.length > 0 && tables.every((t) => asked.includes(t));
+
+/** A find_tables_for_party option as this code reads it (tool output is checked, not cast). */
+function isOption(o: unknown): o is SeatingOption {
+  const x = o as Partial<SeatingOption> | null;
+  return (
+    !!x &&
+    Array.isArray(x.tables) &&
+    x.tables.every((t) => typeof t === "string") &&
+    typeof x.seats === "number" &&
+    typeof x.waitMin === "number" &&
+    Array.isArray(x.reasons) &&
+    Array.isArray(x.tradeoffs)
+  );
+}
+
+/**
+ * The last ok find_tables_for_party output this turn for this party size that covers every need in the message
+ * (a search with needs [] doesn't answer "one uses a wheelchair").
+ */
+function modelSearch(tools: readonly ToolTraceEntry[], partySize: number, needs: readonly Need[]) {
   for (let i = tools.length - 1; i >= 0; i--) {
     const t = tools[i];
     if (t?.name !== "find_tables_for_party" || !t.ok) continue;
-    const out = t.output as { partySize?: number; options?: SeatingOption[] };
-    if (out.partySize === partySize && Array.isArray(out.options)) return out.options;
+    const out = t.output as { partySize?: unknown; needs?: unknown; options?: unknown } | undefined;
+    if (out?.partySize !== partySize || !Array.isArray(out.options)) continue;
+    const searched = Array.isArray(out.needs) ? (out.needs as unknown[]) : [];
+    if (!needs.every((n) => searched.includes(n))) continue;
+    return out.options.filter(isOption);
   }
   return undefined;
 }
@@ -80,7 +114,10 @@ export function toRecommendation(o: SeatingOption, rank: number): Recommendation
 
 export interface QuickestFitResult {
   recommendations: Recommendation[];
-  /** A trace entry for the search this code ran (when the model didn't search this turn). */
+  /**
+   * The search this code ran (the model didn't search this turn), returned only with a card it adds: the trace
+   * then reports a find_tables_for_party call only when its output is on screen.
+   */
   serverSearch?: ToolTraceEntry;
   /** What changed, for the validator notes / logs. */
   note?: string;
@@ -103,10 +140,11 @@ export function keepQuickestFit(
   if (partySize === undefined || !recs.length) return same;
   if (!askedTables(message, tools).length) return same;
 
-  let options = modelSearch(tools, partySize);
+  const needs = needsIn(message);
+  let options = modelSearch(tools, partySize, needs);
   let serverSearch: ToolTraceEntry | undefined;
   if (!options) {
-    const input = { partySize, needs: needsIn(message) };
+    const input = { partySize, needs };
     const output = findTablesForParty(room, input);
     options = output.options;
     serverSearch = {
@@ -120,10 +158,11 @@ export function keepQuickestFit(
   }
   const fit = quickest(options);
   if (!fit) return same;
-  const nums = numbersIn(message);
-  if (fit.tables.some((id) => nums.has(tableNo(id)))) return { ...same, serverSearch };
-  if (recs.some((r) => sameSet(r.tables, fit.tables))) return { ...same, serverSearch };
-  if (recs.some((r) => r.waitMin <= fit.waitMin)) return { ...same, serverSearch };
+  // the host named the quick table (asked for it or ruled it out): theirs to weigh, not ours to add
+  const named = tableNumbersIn(message);
+  if (fit.tables.some((id) => named.has(tableNo(id)))) return same;
+  if (recs.some((r) => sameSet(r.tables, fit.tables))) return same;
+  if (recs.some((r) => r.waitMin <= fit.waitMin)) return same;
 
   // Full: replace the last card that isn't an asked set; if every card is an asked set, leave them all.
   let kept: Recommendation[] = [...recs];
@@ -133,12 +172,12 @@ export function keepQuickestFit(
     const top = recs.slice(0, MAX_OPTIONS);
     let drop = -1;
     for (let i = top.length - 1; i >= 0; i--) {
-      if (!sameSet(top[i]?.tables ?? [], asked)) {
+      if (!onAsked(top[i]?.tables ?? [], asked)) {
         drop = i;
         break;
       }
     }
-    if (drop < 0) return { ...same, serverSearch };
+    if (drop < 0) return same;
     kept = top.filter((_, i) => i !== drop).map((r, i) => ({ ...r, rank: i + 1 }));
     where = `replaced #${drop + 1}`;
   }
