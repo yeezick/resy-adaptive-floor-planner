@@ -555,7 +555,10 @@ export const requestsActions = {
     ctx?: ChatContext,
     opts: {
       accept?: boolean;
-      /** A scenario's recorded answer, used in place of the model call. */
+      /**
+       * Scenario fixtures only (applyScenario): a recorded answer used in place of the model call. It skips the
+       * server round-trip and its validator, so never pass output that didn't come from a recorded, validated run.
+       */
       recorded?: RequestChatResult;
       /** The turn's timestamp, when not now (a scenario's fixed demo time). */
       at?: string;
