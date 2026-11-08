@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Room } from "../../domain";
 import { TEST_ROOM } from "../testRoom";
 import { loadRooms } from "../rooms";
-import { keepQuickestFit, negatesNeed, tableNumbersIn } from "./quickestFit";
+import { excludesSomething, keepQuickestFit, negatesNeed, tableNumbersIn } from "./quickestFit";
 import { fakeMessage, finalAnswer, scripted, toolUse } from "./fake";
 import { SpendBudget } from "../guards/budget";
 import {
@@ -313,7 +313,11 @@ describe("T44: named tables keep the quickest known fit", () => {
     const quick = response.recommendations[1];
     expect(quick?.seats).toBe(8);
     expect(response.answer).toMatch(/seat 8/);
-    expect(response.toolCalls.map((t) => t.name)).toContain("find_tables_for_party");
+    // the code's own search is not reported as a model tool call
+    expect(response.toolCalls.map((t) => t.name)).toEqual([
+      "propose_combine",
+      "estimate_free_time",
+    ]);
     expect(response.validator.notes.join(" ")).toMatch(/Quickest fit T41/);
   });
 
@@ -503,6 +507,24 @@ describe("keepQuickestFit rules", () => {
     }
     expect(negatesNeed("a booth, can they sit at 39 and 40?")).toBe(false);
     expect(negatesNeed("not 41, can you do 39 and 40")).toBe(false);
+  });
+
+  it("an exclusion the code can't read leaves the options alone; “not 41” is read as a table", () => {
+    const recs = [card(1, ["T39", "T40"], 80)];
+    const tools = [looked(["T39", "T40"])];
+    for (const m of [
+      "not section 7 — can they sit at 39 and 40?",
+      "away from the bar, 39 and 40?",
+      "39 and 40, anything except the dining room",
+    ]) {
+      expect(excludesSomething(m)).toBe(true);
+      expect(keepQuickestFit(peak, m, recs, tools, 8).recommendations).toEqual(recs);
+    }
+    expect(excludesSomething("not 41, can you do 39 and 40")).toBe(false);
+    expect(
+      excludesSomething("can you seat them at 39 and 40 pushed together with 2 chairs on the ends"),
+    ).toBe(false);
+    expect([...tableNumbersIn("can't 4 people sit at table 41")]).toEqual(["41"]);
   });
 
   it("table numbers are read only where the host wrote tables, never party size, chairs or minutes", () => {
