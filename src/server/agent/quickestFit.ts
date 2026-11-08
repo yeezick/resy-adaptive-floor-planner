@@ -189,7 +189,8 @@ export function keepQuickestFit(
   const fit = quickest(options);
   if (!fit) return same;
   // the host named the quick table (asked for it or ruled it out): theirs to weigh, not ours to add
-  const named = tableNumbersIn(message);
+  // over the whole conversation: "not table 41" said a turn ago still rules 41 out
+  const named = tableNumbersIn(host);
   if (fit.tables.some((id) => named.has(tableNo(id)))) return same;
   if (recs.some((r) => sameSet(r.tables, fit.tables))) return same;
   if (recs.some((r) => r.waitMin <= fit.waitMin)) return same;
